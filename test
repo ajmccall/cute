@@ -1,0 +1,645 @@
+#!/usr/bin/python3
+"""Self-test for `install`, the first install.
+
+Runs offline. Builds a framework repository in a temp folder from this
+clone's files, tags two releases on it (one older than install supports),
+pushes them to a local bare repository and clones that, so the clone's
+origin is a local path. Then runs the clone's `install` against throwaway
+projects: ones it installs into, and one for each refusal, which must leave
+the project byte for byte as it was. Run it by hand after any change to
+`install` and show its output on the change request:
+
+    ./test
+
+Exit 0 when every case passes.
+"""
+
+import hashlib
+import json
+import os
+import re
+import shutil
+import subprocess
+import sys
+import tempfile
+
+HERE = os.path.dirname(os.path.realpath(__file__))
+
+with open(os.path.join(HERE, "install"), encoding="utf-8") as f:
+    MIN = tuple(int(n) for n in re.search(r"^MIN_RELEASE = \((\d+), (\d+), (\d+)\)", f.read(), re.M).groups())
+RELEASE = "v%d.%d.%d" % MIN
+OLDER = "v%d.%d.%d" % (MIN[0], MIN[1] - 1, 0) if MIN[1] else "v%d.0.0" % (MIN[0] - 1)
+# Built here so that this file, which the release contains, never holds them.
+TERM = "Wom" + "batcall"
+TERMS = TERM + ", " + "marsu" + "pial dialling"
+
+results = []
+
+
+def report(name, ok, detail=""):
+    results.append(ok)
+    print("%s  %s%s" % ("PASS" if ok else "FAIL", name, ("\n      " + detail.strip().replace("\n", "\n      ")) if detail and not ok else ""))
+
+
+class World:
+    def __init__(self, base):
+        self.base = base
+        self.env = {k: v for k, v in os.environ.items() if not k.startswith(("GIT_", "DUAL_NATIVE_"))}
+        self.env["HOME"] = base
+        self.env["PYTHONDONTWRITEBYTECODE"] = "1"
+        self.env["GIT_CONFIG_NOSYSTEM"] = "1"
+        self.env["GIT_CONFIG_GLOBAL"] = os.path.join(base, "gitconfig")
+        with open(self.env["GIT_CONFIG_GLOBAL"], "w") as f:
+            f.write("[user]\n\tname = Test\n\temail = test@example.invalid\n[init]\n\tdefaultBranch = main\n")
+
+    def run(self, *cmd, cwd=None, check=False, env=None):
+        out = subprocess.run(cmd, cwd=cwd, env=env or self.env, capture_output=True, text=True)
+        if check and out.returncode != 0:
+            raise RuntimeError("%s failed:\n%s%s" % (" ".join(cmd), out.stdout, out.stderr))
+        return out
+
+    def git(self, cwd, *args, check=True):
+        return self.run("git", *args, cwd=cwd, check=check)
+
+    def framework(self):
+        """A bare framework repository with an older release and the minimum one, and a clone of it."""
+        src = os.path.join(self.base, "framework-src")
+        os.makedirs(src)
+        self.git(src, "init", "-q", "-b", "main")
+        files = subprocess.run(["git", "ls-files", "-co", "--exclude-standard", "-z"], cwd=HERE,
+                               capture_output=True, text=True, check=True).stdout.split("\0")
+        for path in filter(None, files):
+            if not os.path.isfile(os.path.join(HERE, path)):
+                continue  # deleted in the working tree
+            os.makedirs(os.path.dirname(os.path.join(src, path)), exist_ok=True)
+            shutil.copy2(os.path.join(HERE, path), os.path.join(src, path))
+        self.git(src, "add", "-A")
+        self.git(src, "commit", "-q", "-m", "older")
+        self.git(src, "tag", OLDER)
+        with open(os.path.join(src, "CHANGELOG.md"), "a") as f:
+            f.write("\nA later line.\n")
+        self.git(src, "commit", "-q", "-am", "release")
+        self.git(src, "tag", "-a", "-m", RELEASE, RELEASE)
+        self.bare = os.path.join(self.base, "framework.git")
+        self.git(self.base, "clone", "-q", "--bare", src, self.bare)
+        self.clone = os.path.join(self.base, "framework-clone")
+        self.git(self.base, "clone", "-q", self.bare, self.clone)
+        self.tree = self.git(self.clone, "rev-parse", RELEASE + "^{tree}").stdout.strip()
+
+    def project(self, name, files=None, commit=True, branch="main", origin=True):
+        path = os.path.join(self.base, name)
+        os.makedirs(path)
+        self.git(path, "init", "-q", "-b", branch)
+        for rel, text in (files or {}).items():
+            full = os.path.join(path, rel)
+            os.makedirs(os.path.dirname(full), exist_ok=True)
+            with open(full, "w", encoding="utf-8") as f:
+                f.write(text)
+        if commit:
+            self.git(path, "add", "-A")
+            self.git(path, "commit", "-q", "--allow-empty", "-m", "First commit")
+        if origin:
+            remote = os.path.join(self.base, name + "-origin.git")
+            self.git(self.base, "init", "-q", "--bare", remote)
+            self.git(path, "remote", "add", "origin", remote)
+            if commit:
+                self.git(path, "push", "-q", "origin", branch)
+                self.git(path, "fetch", "-q", "origin")
+        return path
+
+    def install(self, project, *args, fail_after=None):
+        env = dict(self.env)
+        if fail_after:
+            env["DUAL_NATIVE_INSTALL_FAIL_AFTER"] = fail_after
+        return self.run(os.path.join(self.clone, "install"), project, *args, cwd=self.clone, env=env)
+
+    def worktree(self, project):
+        return "%s-install-framework-%s" % (project, RELEASE)
+
+
+def snapshot(path):
+    """Every file under `path`, .git included, as (mode, digest), and the folder beside it."""
+    files = {}
+    for root, dirs, names in os.walk(path):
+        for name in names + [d for d in dirs if os.path.islink(os.path.join(root, d))]:
+            full = os.path.join(root, name)
+            st = os.lstat(full)
+            if os.path.islink(full):
+                digest = "link:" + os.readlink(full)
+            else:
+                with open(full, "rb") as f:
+                    digest = hashlib.sha256(f.read()).hexdigest()
+            files[os.path.relpath(full, path)] = (st.st_mode, digest)
+    return files, sorted(os.listdir(os.path.dirname(path)))
+
+
+def expect(name, out, fail, needle=None):
+    ok = (out.returncode != 0) == fail
+    if ok and needle is not None:
+        ok = needle in out.stdout + out.stderr
+    report(name, ok, "exit %d\n%s%s" % (out.returncode, out.stdout, out.stderr))
+
+
+def show(world, cwd, rev_path):
+    out = world.git(cwd, "show", rev_path, check=False)
+    return out.stdout if out.returncode == 0 else None
+
+
+# --- installs ----------------------------------------------------------------------
+
+
+def check_installed(world, project, name, out):
+    """The checks every successful install shares. Returns the worktree."""
+    wt = world.worktree(project)
+    expect(name + ": install succeeds", out, fail=False, needle="What's left")
+    report(name + ": main is unchanged", world.git(project, "rev-parse", "main").stdout == world.git(project, "rev-parse", "origin/main").stdout)
+    report(name + ": the main checkout stays on main and clean",
+           world.git(project, "symbolic-ref", "--short", "HEAD").stdout.strip() == "main"
+           and not world.git(project, "status", "--porcelain").stdout.strip())
+    report(name + ": the worktree is on the install branch",
+           os.path.isdir(wt) and world.git(wt, "symbolic-ref", "--short", "HEAD").stdout.strip() == "install-framework-" + RELEASE)
+    report(name + ": framework/ is the release's tree", world.git(wt, "rev-parse", "HEAD:framework").stdout.strip() == world.tree)
+    parents = world.git(wt, "rev-list", "--parents", "-n", "1", "HEAD~1").stdout.split()
+    squash = world.git(wt, "log", "-1", "--format=%s", "HEAD~1^2", check=False).stdout
+    report(name + ": the subtree add is a merge of the squash commit",
+           len(parents) == 3 and squash.startswith("Squashed 'framework/'"), squash)
+    report(name + ": the wiring commit is last",
+           world.git(wt, "log", "-1", "--format=%s").stdout.strip() == "Wire in framework release " + RELEASE[1:])
+    report(name + ": core.hooksPath is framework/hooks",
+           world.git(project, "config", "--get", "core.hooksPath", check=False).stdout.strip() == "framework/hooks")
+    expect(name + ": pre-commit --range origin/main passes",
+           world.run(os.path.join(wt, "framework", "hooks", "pre-commit"), "--range", "origin/main", cwd=wt), fail=False)
+    report(name + ": nothing is pushed", world.git(project, "ls-remote", "origin").stdout.count("refs/heads/") == 1)
+    for needle in ("framework/separate-repositories.md", "framework/adoption.md", "pre-commit --range origin/main",
+                   "merge commit, never a squash", "push -u origin install-framework-" + RELEASE,
+                   "framework/trackers/github.md, Before you start", "gh label create"):
+        report(name + ": what's left names %s" % needle, needle in out.stdout, out.stdout)
+    return wt
+
+
+def test_new_project(world):
+    project = world.project("new")
+    out = world.install(project, "--boundary-terms", TERMS)
+    wt = check_installed(world, project, "new project", out)
+    agents = show(world, wt, "HEAD:AGENTS.md") or ""
+    report("new project: AGENTS.md names the framework's URL and release",
+           "git subtree of `%s`, taken at framework release %s." % (world.bare, RELEASE[1:]) in agents, agents[:2000])
+    report("new project: AGENTS.md's Harness adapter row is None", "| Harness adapter | None |" in agents)
+    report("new project: AGENTS.md's Boundary terms line holds the terms", "- **Boundary terms:** %s\n" % TERMS in agents)
+    template = show(world, wt, "HEAD:framework/agents-template.md") or ""
+    changed = [line for line in agents.splitlines() if line not in template.splitlines()]
+    report("new project: nothing else in AGENTS.md is filled in", len(changed) == 3, "\n".join(changed))
+    report("new project: no .claude/settings.json or CLAUDE.md",
+           show(world, wt, "HEAD:.claude/settings.json") is None and show(world, wt, "HEAD:CLAUDE.md") is None)
+    for needle in ("line 1    App name", "You, the product owner", "Product brief", "setup-matt-pocock-skills", "marketplace.json names"):
+        report("new project: what's left lists %r" % needle, needle in out.stdout, out.stdout)
+
+
+def test_new_project_with_adapter(world):
+    project = world.project("adapter")
+    out = world.install(project, "--boundary-terms", TERMS, "--adapter", "claude-code")
+    wt = check_installed(world, project, "with adapter", out)
+    agents = show(world, wt, "HEAD:AGENTS.md") or ""
+    report("with adapter: AGENTS.md names the adapter", "| Harness adapter | `framework/adapters/claude-code` |" in agents)
+    settings = show(world, wt, "HEAD:.claude/settings.json")
+    adapter = show(world, wt, "HEAD:framework/adapters/claude-code/settings.json")
+    report("with adapter: .claude/settings.json is the adapter's settings",
+           settings is not None and json.loads(settings) == json.loads(adapter or "null"), settings or "missing")
+    report("with adapter: no CLAUDE.md is created", show(world, wt, "HEAD:CLAUDE.md") is None)
+    report("with adapter: what's left names the plugin install",
+           "claude plugin install mattpocock-skills@dual-native --scope project" in out.stdout, out.stdout)
+
+
+def test_pi(world):
+    """The pi adapter: its settings go to .pi/settings.json, and a CLAUDE.md is left alone."""
+    project = world.project("pi", {"CLAUDE.md": "# Ours\n"})
+    out = world.install(project, "--boundary-terms", TERMS, "--adapter", "pi")
+    wt = check_installed(world, project, "pi", out)
+    agents = show(world, wt, "HEAD:AGENTS.md") or ""
+    report("pi: AGENTS.md names the adapter", "| Harness adapter | `framework/adapters/pi` |" in agents)
+    settings = show(world, wt, "HEAD:.pi/settings.json")
+    adapter = show(world, wt, "HEAD:framework/adapters/pi/settings.json")
+    report("pi: .pi/settings.json is the adapter's settings",
+           settings is not None and json.loads(settings) == json.loads(adapter or "null"), settings or "missing")
+    report("pi: no .claude/settings.json, and CLAUDE.md is left alone",
+           show(world, wt, "HEAD:.claude/settings.json") is None and show(world, wt, "HEAD:CLAUDE.md") == "# Ours\n")
+    report("pi: what's left says to move personal skills and trust the project",
+           "~/.agents/skills" in out.stdout and "$PI_CODING_AGENT_DIR" in out.stdout and "trust it" in out.stdout
+           and "claude plugin install" not in out.stdout, out.stdout)
+    report("pi: the wiring commit names .pi/settings.json",
+           ".pi/settings.json, with framework/adapters/pi/settings.json merged in" in world.git(wt, "log", "-1", "--format=%b").stdout)
+
+    pinned = json.loads(adapter)["packages"][0]
+    ours = {"packages": ["npm:other-tool@1.0.0"], "extensions": ["./ours.ts"], "theme": "dark"}
+    project = world.project("pi-existing", {".pi/settings.json": json.dumps(ours) + "\n"})
+    out = world.install(project, "--boundary-terms", TERMS, "--adapter", "pi")
+    expect("pi with existing settings: install succeeds", out, fail=False, needle="What's left")
+    merged = json.loads(show(world, world.worktree(project), "HEAD:.pi/settings.json") or "{}")
+    report("pi with existing settings: the project's entries are kept and the adapter's appended",
+           merged.get("packages") == ["npm:other-tool@1.0.0", pinned] and merged.get("theme") == "dark"
+           and merged.get("extensions") == ["./ours.ts"] + json.loads(adapter)["extensions"], json.dumps(merged))
+
+    other = pinned.rsplit("@", 1)[0] + "@v1.0.0"
+    refuses(world, "a .pi/settings.json with the skills at another ref",
+            world.project("pi-clash", {".pi/settings.json": json.dumps({"packages": [{"source": other}]}) + "\n"}),
+            ["--boundary-terms", TERMS, "--adapter", "pi"], "sets packages to {\"source\": \"%s\"}" % other)
+
+    # Added later, and checked.
+    clean = "Wired as framework release %s expects" % RELEASE[1:]
+    p = installed(world, "pi-later")
+    out = check(world, p, "--check", "--adapter", "pi")
+    report("--check --adapter pi reports the row and .pi/settings.json",
+           out.returncode == 1 and "missing    .pi/settings.json: there's none" in out.stdout
+           and "AGENTS.md's Harness adapter row is None, not framework/adapters/pi" in out.stdout, out.stdout)
+    expect("--wire --adapter pi wires it in", check(world, p, "--wire", "--adapter", "pi"), fail=False, needle=clean)
+    expect("after --wire --adapter pi, --check alone passes", check(world, p, "--check"), fail=False, needle=clean)
+    edit(p, ".pi/settings.json", lambda text: text.replace(pinned, other))
+    out = check(world, p, "--check")
+    report("--check reports the skills pinned at another ref as different, and --wire can't fix it",
+           out.returncode == 1 and "different  .pi/settings.json sets packages to \"%s\"" % other in out.stdout
+           and "lacks" not in out.stdout and "each by a person" in out.stdout, out.stdout)
+
+
+EXISTING_AGENTS = """# Our app
+
+## Where things live
+
+| What | Path |
+|---|---|
+| App schema | `%s-schema/` |
+
+## App settings
+
+- **Boundary terms:** %s
+""" % (TERM.lower(), TERM)
+
+EXISTING_SETTINGS = {
+    "permissions": {"allow": ["Bash(ls)"]},
+    "enabledPlugins": {"other@somewhere": True, "mattpocock-skills@dual-native": True},
+    "hooks": {"SessionStart": [{"hooks": [{"type": "command", "command": "echo hello"}]}]},
+}
+
+
+def test_existing_files(world):
+    project = world.project("existing", {
+        "AGENTS.md": EXISTING_AGENTS,
+        "CLAUDE.md": "# Notes\n\nOur own notes.",
+        ".claude/settings.json": json.dumps(EXISTING_SETTINGS, indent=2) + "\n",
+    })
+    out = world.install(project, "--adapter", "claude-code")
+    wt = check_installed(world, project, "existing files", out)
+    report("existing files: AGENTS.md is untouched", show(world, wt, "HEAD:AGENTS.md") == EXISTING_AGENTS)
+    report("existing files: what's left says to merge the template into AGENTS.md",
+           "Merge framework/agents-template.md into your own AGENTS.md" in out.stdout
+           and "- **Boundary terms:**" in out.stdout, out.stdout)
+    report("existing files: CLAUDE.md gains @AGENTS.md",
+           show(world, wt, "HEAD:CLAUDE.md") == "# Notes\n\nOur own notes.\n\n@AGENTS.md\n", show(world, wt, "HEAD:CLAUDE.md") or "")
+    settings = json.loads(show(world, wt, "HEAD:.claude/settings.json") or "{}")
+    adapter = json.loads(show(world, wt, "HEAD:framework/adapters/claude-code/settings.json") or "{}")
+    starts = settings.get("hooks", {}).get("SessionStart", [])
+    report("existing files: settings keep every key already there",
+           settings.get("permissions") == EXISTING_SETTINGS["permissions"]
+           and settings.get("enabledPlugins", {}).get("other@somewhere") is True
+           and starts[:1] == EXISTING_SETTINGS["hooks"]["SessionStart"], json.dumps(settings, indent=2))
+    report("existing files: settings gain the adapter's keys and hook entries, once",
+           starts[1:] == adapter["hooks"]["SessionStart"]
+           and settings["hooks"].get("PreToolUse") == adapter["hooks"]["PreToolUse"]
+           and settings.get("statusLine") == adapter["statusLine"]
+           and settings.get("skillOverrides") == adapter["skillOverrides"], json.dumps(settings, indent=2))
+
+    again = world.project("already-wired", {
+        "AGENTS.md": EXISTING_AGENTS,
+        "CLAUDE.md": "@AGENTS.md\n",
+        ".claude/settings.json": show(world, wt, "HEAD:.claude/settings.json"),
+    })
+    out = world.install(again, "--adapter", "claude-code")
+    wt = world.worktree(again)
+    expect("already wired: install succeeds", out, fail=False)
+    report("already wired: there's no wiring commit, since there's nothing to wire",
+           world.git(wt, "log", "-1", "--format=%s").stdout.startswith("Merge commit "),
+           world.git(wt, "log", "--oneline", "-3").stdout)
+
+
+# --- refusals ------------------------------------------------------------------------
+
+
+def refuses(world, name, project, args, needle):
+    before = snapshot(project)
+    out = world.install(project, *args)
+    expect("refuses %s" % name, out, fail=True, needle=needle)
+    report("refuses %s: the project is unchanged byte for byte" % name, snapshot(project) == before)
+    report("refuses %s: says nothing was changed" % name, "nothing was changed" in out.stderr, out.stderr)
+
+
+def test_refusals(world):
+    p = world.project("hooks-elsewhere")
+    world.git(p, "config", "core.hooksPath", ".githooks")
+    refuses(world, "core.hooksPath set elsewhere", p, ["--boundary-terms", TERMS], "core.hooksPath is set locally to .githooks")
+
+    p = world.project("hooks-absolute")
+    world.git(p, "config", "core.hooksPath", os.path.join(p, "framework", "hooks"))
+    refuses(world, "an absolute core.hooksPath to framework/hooks", p, ["--boundary-terms", TERMS],
+            "git config core.hooksPath framework/hooks")
+
+    refuses(world, "a repository with no commits", world.project("no-commits", commit=False),
+            ["--boundary-terms", TERMS], "has no commits")
+    refuses(world, "a repository with no main", world.project("no-main", branch="trunk"),
+            ["--boundary-terms", TERMS], "git branch -m trunk main")
+    refuses(world, "a repository with no origin", world.project("no-origin", origin=False),
+            ["--boundary-terms", TERMS], "no origin remote")
+
+    p = world.project("dirty")
+    with open(os.path.join(p, "notes.txt"), "w") as f:
+        f.write("not committed\n")
+    refuses(world, "a dirty working tree", p, ["--boundary-terms", TERMS], "notes.txt")
+
+    refuses(world, "an existing framework/", world.project("has-framework", {"framework/README.md": "# Ours\n"}),
+            ["--boundary-terms", TERMS], "Taking a release")
+    refuses(world, "a release older than the minimum", world.project("older"),
+            ["--boundary-terms", TERMS, "--release", OLDER], "older than %s" % RELEASE[1:])
+    refuses(world, "a new AGENTS.md without --boundary-terms", world.project("no-terms"), [], "--boundary-terms")
+    refuses(world, "a boundary term the framework already uses", world.project("bad-term"),
+            ["--boundary-terms", "subtree"], "'subtree' already appears")
+    # A term the release has only inside another word, which the hook's boundary search doesn't
+    # count: the tail of "subtree". Built here, so that this file never holds it on its own.
+    p = world.project("term-inside-a-word")
+    out = world.install(p, "--boundary-terms", "ub" + "tree")
+    expect("a boundary term found only inside other words is accepted", out, fail=False, needle="What's left")
+
+    clash = dict(EXISTING_SETTINGS, statusLine={"type": "command", "command": "our-statusline"})
+    refuses(world, "a .claude/settings.json that clashes",
+            world.project("clash", {".claude/settings.json": json.dumps(clash) + "\n"}),
+            ["--boundary-terms", TERMS, "--adapter", "claude-code"], "sets statusLine.command to \"our-statusline\"")
+
+    p = world.project("twice")
+    world.install(p, "--boundary-terms", TERMS)
+    refuses(world, "a second install while the first is unlanded", p, ["--boundary-terms", TERMS], "already exists")
+
+
+# --- rollback --------------------------------------------------------------------------
+
+
+def test_rollback(world):
+    for step, sets_hooks in (("subtree", False), ("wiring", True)):
+        p = world.project("fail-after-" + step)
+        main = world.git(p, "rev-parse", "main").stdout
+        out = world.install(p, "--boundary-terms", TERMS, fail_after=step)
+        name = "a failure after the %s step" % step
+        expect(name + " exits non-zero and says it rolled back", out, fail=True, needle="rolled back")
+        report(name + " removes the worktree and branch",
+               not os.path.exists(world.worktree(p))
+               and world.git(p, "rev-parse", "--verify", "-q", "install-framework-" + RELEASE, check=False).returncode != 0
+               and len(world.git(p, "worktree", "list").stdout.splitlines()) == 1)
+        report(name + " leaves main and the checkout as they were",
+               world.git(p, "rev-parse", "main").stdout == main and not world.git(p, "status", "--porcelain").stdout.strip())
+        report(name + " leaves core.hooksPath unset",
+               world.git(p, "config", "--get", "core.hooksPath", check=False).returncode != 0)
+        if sets_hooks:
+            report(name + " said it unset core.hooksPath", "unset core.hooksPath" in out.stderr, out.stderr)
+
+    p = world.project("hooks-already-set")
+    world.git(p, "config", "core.hooksPath", "framework/hooks")
+    out = world.install(p, "--boundary-terms", TERMS, fail_after="wiring")
+    report("a rollback keeps a core.hooksPath it didn't set",
+           out.returncode != 0 and world.git(p, "config", "--get", "core.hooksPath", check=False).stdout.strip() == "framework/hooks",
+           out.stderr)
+
+
+# --- --check and --wire ----------------------------------------------------------------
+
+
+def installed(world, name, *args):
+    """A project with the release installed and landed on main, now on a branch of its own."""
+    p = world.project(name)
+    out = world.install(p, "--boundary-terms", TERMS, "--release", RELEASE, *args)
+    if out.returncode != 0:
+        raise RuntimeError("install failed:\n%s%s" % (out.stdout, out.stderr))
+    world.git(p, "worktree", "remove", world.worktree(p))
+    world.git(p, "merge", "-q", "--no-ff", "-m", "Land the first install", "install-framework-" + RELEASE)
+    world.git(p, "checkout", "-q", "-b", "take")
+    return p
+
+
+def check(world, path, *args, clone=None):
+    return world.run(os.path.join(clone or world.clone, "install"), *args, path, cwd=clone or world.clone)
+
+
+def unchanged(world, name, paths, run):
+    before = [snapshot(p) for p in paths]
+    out = run()
+    report(name + ": changes nothing in the project, byte for byte", [snapshot(p) for p in paths] == before)
+    return out
+
+
+def edit(path, rel, change):
+    full = os.path.join(path, rel)
+    with open(full, encoding="utf-8") as f:
+        text = f.read()
+    with open(full, "w", encoding="utf-8") as f:
+        f.write(change(text))
+
+
+def read(path, rel):
+    with open(os.path.join(path, rel), encoding="utf-8", newline="") as f:
+        return f.read()
+
+
+def test_check(world):
+    clean = "Wired as framework release %s expects" % RELEASE[1:]
+    for name, args in (("check-plain", []), ("check-adapter", ["--adapter", "claude-code"])):
+        p = world.project(name)
+        world.install(p, "--boundary-terms", TERMS, *args)
+        wt = world.worktree(p)
+        what = "--check on the install branch%s" % (" with the adapter" if args else "")
+        out = unchanged(world, what, [p, wt], lambda: check(world, wt, "--check"))
+        expect(what + " passes", out, fail=False, needle=clean)
+
+    p = installed(world, "check-landed", "--adapter", "claude-code")
+    out = check(world, p, "--check")
+    expect("--check on a landed install passes", out, fail=False, needle=clean)
+    report("--check on a landed install lists the adapter's settings as ok",
+           ".claude/settings.json has everything in framework/adapters/claude-code/settings.json" in out.stdout, out.stdout)
+
+    # Wiring gone missing or out of date, as a take ticket's branch might have it.
+    world.git(p, "config", "--unset", "core.hooksPath")
+    settings = json.loads(show(world, p, "HEAD:.claude/settings.json"))
+    del settings["hooks"]["PreToolUse"]
+    settings["statusLine"]["command"] = "our-statusline"
+    with open(os.path.join(p, ".claude", "settings.json"), "w") as f:
+        f.write(json.dumps(settings, indent=2) + "\n")
+    with open(os.path.join(p, "CLAUDE.md"), "w") as f:
+        f.write("# Notes\n")
+    edit(p, "AGENTS.md", lambda t: t.replace("framework release " + RELEASE[1:], "framework release 6.0.0"))
+    world.git(p, "add", "-A")
+    world.git(p, "commit", "-q", "--no-verify", "-m", "Out of date")
+    out = unchanged(world, "--check on out-of-date wiring", [p], lambda: check(world, p, "--check"))
+    expect("--check on out-of-date wiring fails", out, fail=True)
+    for needle in ("missing    core.hooksPath isn't set",
+                   "missing    .claude/settings.json lacks hooks.PreToolUse, which runs "
+                   "\"$CLAUDE_PROJECT_DIR\"/framework/adapters/claude-code/subagent-cost-env",
+                   "different  .claude/settings.json sets statusLine.command to \"our-statusline\"",
+                   "missing    CLAUDE.md has no @AGENTS.md line",
+                   "different  AGENTS.md names framework release 6.0.0, and framework/ is release %s" % RELEASE[1:],
+                   "5 to fix. ./install --wire %s fixes 4 of them" % p):
+        report("--check on out-of-date wiring reports %r" % needle[:60], needle in out.stdout, out.stdout)
+
+    out = check(world, p, "--wire")
+    expect("--wire leaves only what needs a person", out, fail=True, needle="1 to fix, each by a person")
+    report("--wire keeps the project's own statusLine",
+           "different  .claude/settings.json sets statusLine.command" in out.stdout, out.stdout)
+    report("--wire sets core.hooksPath",
+           world.git(p, "config", "--get", "core.hooksPath", check=False).stdout.strip() == "framework/hooks")
+    settings = json.loads(read(p, ".claude/settings.json"))
+    adapter = json.loads(show(world, p, "HEAD:framework/adapters/claude-code/settings.json"))
+    report("--wire adds the PreToolUse hook back", settings["hooks"].get("PreToolUse") == adapter["hooks"]["PreToolUse"])
+    report("--wire adds @AGENTS.md to CLAUDE.md", read(p, "CLAUDE.md") == "# Notes\n\n@AGENTS.md\n", read(p, "CLAUDE.md"))
+    report("--wire names the release in AGENTS.md", "framework release %s." % RELEASE[1:] in read(p, "AGENTS.md"))
+    report("--wire commits nothing", world.git(p, "log", "-1", "--format=%s").stdout.strip() == "Out of date"
+           and "Nothing is committed" in out.stdout, out.stdout)
+    expect("--wire's changes pass the hooks when committed",
+           world.git(p, "commit", "-qam", "Wire in again", check=False), fail=False)
+
+    # Adding the adapter to a project installed without it.
+    p = installed(world, "add-adapter")
+    expect("--check without an adapter passes", check(world, p, "--check"), fail=False, needle="Harness adapter row is None")
+    out = check(world, p, "--check", "--adapter", "claude-code")
+    expect("--check --adapter on a project without it fails", out, fail=True, needle="fixes them all")
+    report("--check --adapter reports the Harness adapter row and the settings",
+           "different  AGENTS.md's Harness adapter row is None" in out.stdout
+           and "missing    .claude/settings.json: there's none" in out.stdout, out.stdout)
+    out = check(world, p, "--wire", "--adapter", "claude-code")
+    expect("--wire --adapter wires the adapter in", out, fail=False, needle=clean)
+    report("--wire --adapter names it in AGENTS.md",
+           "| Harness adapter | `framework/adapters/claude-code` |" in read(p, "AGENTS.md"))
+    expect("after --wire --adapter, --check alone passes", check(world, p, "--check"), fail=False, needle=clean)
+    edit(p, "AGENTS.md", lambda t: re.sub(r"(?m)^(- \*\*Boundary terms:\*\*).*$", r"\1", t))
+    expect("--check finds a Boundary terms line with no terms, not the next line's words",
+           check(world, p, "--check"), fail=True, needle="missing    AGENTS.md's Boundary terms line lists no terms")
+
+    # Refusals, which change nothing.
+    def refuses_check(name, path, args, needle):
+        out = unchanged(world, "refuses %s" % name, [path], lambda: check(world, path, *args))
+        expect("refuses %s" % name, out, fail=True, needle=needle)
+        if "--release" not in args:
+            report("refuses %s: says nothing was changed" % name, "nothing was changed" in out.stderr, out.stderr)
+
+    p = installed(world, "wire-on-main")
+    world.git(p, "checkout", "-q", "main")
+    world.git(p, "config", "--unset", "core.hooksPath")
+    out = check(world, p, "--wire")
+    expect("--wire on main sets core.hooksPath, which changes no file", out, fail=False, needle="ran framework/hooks/install")
+    edit(p, "AGENTS.md", lambda t: t.replace("framework release " + RELEASE[1:], "framework release 6.0.0"))
+    world.git(p, "commit", "-qam", "Out of date", "--no-verify")
+    out = check(world, p, "--check")
+    report("--check on main says --wire needs another branch", "On a branch other than main, ./install --wire" in out.stdout, out.stdout)
+    refuses_check("--wire on main", p, ["--wire"], "only on a branch other than main")
+    world.git(p, "checkout", "-q", "--detach")
+    refuses_check("--wire at a detached HEAD", p, ["--wire"], "at a detached HEAD")
+    world.git(p, "checkout", "-q", "take")
+    world.git(p, "reset", "-q", "--hard", "main")
+    edit(p, "AGENTS.md", lambda t: t + "\nOur own line.\n")
+    refuses_check("--wire over uncommitted changes", p, ["--wire"], "uncommitted changes in files --wire changes")
+    refuses_check("--check with --release", p, ["--check", "--release", RELEASE], "for the first install")
+    refuses_check("--check on a project with no framework/", world.project("no-framework"), ["--check"],
+                  "has no framework/ at HEAD")
+
+    # A CLAUDE.md that links to AGENTS.md, and line endings.
+    p = installed(world, "linked", "--adapter", "claude-code")
+    os.symlink("AGENTS.md", os.path.join(p, "CLAUDE.md"))
+    edit(p, "AGENTS.md", lambda t: t.replace("\n", "\r\n").replace("framework release " + RELEASE[1:], "framework release 6.0.0"))
+    world.git(p, "add", "-A")
+    world.git(p, "commit", "-qm", "Link CLAUDE.md, CRLF", "--no-verify")
+    out = check(world, p, "--check")
+    report("--check counts a CLAUDE.md link to AGENTS.md as ok", "ok         CLAUDE.md is a link to AGENTS.md" in out.stdout, out.stdout)
+    out = check(world, p, "--wire")
+    expect("--wire with a CLAUDE.md link to AGENTS.md", out, fail=False, needle=clean)
+    report("--wire leaves the CLAUDE.md link as it was", os.readlink(os.path.join(p, "CLAUDE.md")) == "AGENTS.md")
+    numstat = world.git(p, "diff", "--numstat").stdout.split()
+    report("--wire changes one line of a CRLF AGENTS.md and keeps its endings",
+           numstat == ["1", "1", "AGENTS.md"] and "\r\n" in read(p, "AGENTS.md") and not read(p, "AGENTS.md").rstrip().endswith("@AGENTS.md"),
+           " ".join(numstat))
+
+    world.git(p, "commit", "-qam", "Wire in", "--no-verify")
+    os.remove(os.path.join(p, "CLAUDE.md"))
+    with open(os.path.join(p, "NOTES.md"), "w") as f:
+        f.write("# Notes\n")
+    os.symlink("NOTES.md", os.path.join(p, "CLAUDE.md"))
+    world.git(p, "add", "-A")
+    world.git(p, "commit", "-qm", "Link CLAUDE.md elsewhere", "--no-verify")
+    out = unchanged(world, "--wire with CLAUDE.md a link elsewhere", [p], lambda: check(world, p, "--wire"))
+    report("--wire doesn't write through a CLAUDE.md link, and says to add the line to its target",
+           "Add the line @AGENTS.md to the link's target" in out.stdout, out.stdout)
+
+    # Hooks paths of other kinds.
+    world.git(p, "config", "core.hooksPath", os.path.join(p, "framework", "hooks"))
+    out = check(world, p, "--check")
+    report("--check reports an absolute core.hooksPath", "an absolute path, so every worktree" in out.stdout, out.stdout)
+    os.makedirs(os.path.join(p, ".githooks"))
+    for name in ("pre-commit", "pre-merge-commit"):
+        with open(os.path.join(p, ".githooks", name), "w") as f:
+            f.write("#!/bin/sh\nframework/hooks/pre-commit \"$@\" || exit 1\n")
+    world.git(p, "config", "core.hooksPath", ".githooks")
+    out = check(world, p, "--check")
+    report("--check accepts a project's own hooks that call framework/hooks/pre-commit",
+           "ok         core.hooksPath is .githooks, whose pre-commit and pre-merge-commit call" in out.stdout, out.stdout)
+    os.remove(os.path.join(p, ".githooks", "pre-merge-commit"))
+    out = check(world, p, "--check")
+    report("--check reports a project's own hooks that don't both call it", "don't both call" in out.stdout, out.stdout)
+
+    # The first install with CLAUDE.md a link to AGENTS.md.
+    q = world.project("install-linked", {"AGENTS.md": EXISTING_AGENTS})
+    os.symlink("AGENTS.md", os.path.join(q, "CLAUDE.md"))
+    world.git(q, "add", "-A")
+    world.git(q, "commit", "-qm", "Link CLAUDE.md")
+    world.git(q, "push", "-q", "origin", "main")
+    out = world.install(q, "--adapter", "claude-code")
+    wt = world.worktree(q)
+    expect("first install with CLAUDE.md a link to AGENTS.md", out, fail=False, needle="What's left")
+    report("first install with a CLAUDE.md link leaves AGENTS.md and the link as they were, all committed",
+           show(world, wt, "HEAD:AGENTS.md") == EXISTING_AGENTS and os.readlink(os.path.join(wt, "CLAUDE.md")) == "AGENTS.md"
+           and not world.git(wt, "status", "--porcelain").stdout.strip(), world.git(wt, "status", "--porcelain").stdout)
+
+    p = world.project("older-framework")
+    world.git(p, "subtree", "add", "-q", "--prefix=framework", world.bare, OLDER, "--squash")
+    refuses_check("--check on a release older than %s" % RELEASE[1:], p, ["--check"], "older than %s" % RELEASE[1:])
+
+    p = installed(world, "edited-framework")
+    edit(p, "framework/CHANGELOG.md", lambda t: t + "\nOur own line.\n")
+    world.git(p, "commit", "-qam", "Edit framework/", "--no-verify")
+    expect("--check on a framework/ that matches no release fails", check(world, p, "--check"), fail=True,
+           needle="matches no v<version> tag's tree")
+
+    # Last, since it adds a newer release to origin: a clone older than the project's release.
+    src = os.path.join(world.base, "framework-src")
+    with open(os.path.join(src, "CHANGELOG.md"), "a") as f:
+        f.write("\nA newer line.\n")
+    world.git(src, "commit", "-q", "-am", "newer")
+    newer = "v%d.%d.0" % (MIN[0], MIN[1] + 1)
+    world.git(src, "tag", "-a", "-m", newer, newer)
+    world.git(src, "push", "-q", world.bare, "main", newer)
+    p = installed(world, "newer-release")
+    world.git(p, "subtree", "pull", "-q", "--prefix=framework", world.bare, newer, "--squash", "-m", "Take " + newer)
+    refuses_check("--check from a clone older than the project's release", p, ["--check"], "newer than this clone")
+
+
+def main():
+    base = os.path.realpath(tempfile.mkdtemp(prefix="framework-install-test-"))
+    try:
+        world = World(base)
+        world.framework()
+        test_new_project(world)
+        test_new_project_with_adapter(world)
+        test_pi(world)
+        test_existing_files(world)
+        test_refusals(world)
+        test_rollback(world)
+        test_check(world)
+    finally:
+        shutil.rmtree(base, ignore_errors=True)
+    passed = sum(1 for ok in results if ok)
+    print("\n%d of %d cases passed" % (passed, len(results)))
+    return 0 if passed == len(results) else 1
+
+
+if __name__ == "__main__":
+    sys.exit(main())

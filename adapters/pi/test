@@ -1,0 +1,159 @@
+#!/usr/bin/python3
+"""Self-test for the pi adapter. Run it after any change in this folder:
+
+    framework/adapters/pi/test
+
+It needs no pi install. It checks that the pinned skills commit matches the
+Claude Code adapter's and `orchestrate.md`'s, that the settings point at the
+extension, the extension's skill check and dollar sum (with node, when
+`node` is on the PATH), and the `cost` command against a session file it
+writes. Exit 0 when every check passes.
+"""
+
+import json
+import os
+import re
+import shutil
+import subprocess
+import sys
+import tempfile
+
+HERE = os.path.dirname(os.path.realpath(__file__))
+FRAMEWORK = os.path.normpath(os.path.join(HERE, "..", ".."))
+COST = os.path.join(HERE, "cost")
+EXTENSION = os.path.join(HERE, "dual-native.js")
+failures = []
+
+
+def report(name, ok, detail=""):
+    print("%s  %s%s" % ("ok  " if ok else "FAIL", name, "" if ok else ": %s" % detail))
+    if not ok:
+        failures.append(name)
+
+
+def read(*parts):
+    with open(os.path.join(FRAMEWORK, *parts), encoding="utf-8") as f:
+        return f.read()
+
+
+def check_pins():
+    settings = json.loads(read("adapters", "pi", "settings.json"))
+    sources = [p for p in settings.get("packages", []) if isinstance(p, str) and p.startswith("git:github.com/mattpocock/skills@")]
+    report("settings.json pins the skills once", len(sources) == 1, sources)
+    sha = sources[0].rsplit("@", 1)[1] if sources else ""
+    report("the pin is a full commit", re.fullmatch(r"[0-9a-f]{40}", sha) is not None, sha)
+    market = json.loads(read("adapters", "claude-code", ".claude-plugin", "marketplace.json"))
+    claude = [p["source"]["sha"] for p in market["plugins"] if p.get("name") == "mattpocock-skills"]
+    report("the pin matches the Claude Code adapter's", claude == [sha], "%s vs %s" % (claude, sha))
+    report("the pin matches orchestrate.md's", ("at commit `%s`" % sha) in read("orchestrate.md"), sha)
+    extensions = settings.get("extensions", [])
+    # Paths in .pi/settings.json resolve from the project's .pi folder.
+    resolved = [os.path.normpath(os.path.join(FRAMEWORK, "..", ".pi", e)) for e in extensions]
+    expected = os.path.normpath(os.path.join(FRAMEWORK, "..", "framework", "adapters", "pi", "dual-native.js"))
+    report("settings.json loads the extension from framework/", resolved == [expected], extensions)
+
+
+EXTENSION_CHECKS = r"""
+const m = await import(process.argv[1]);
+const pinned = m.pinnedSource(JSON.stringify({packages: ["npm:x", "git:github.com/mattpocock/skills@abc"]}));
+const skill = (name, source, path) => ({name: "skill:" + name, source: "skill", sourceInfo: {source, path}});
+const good = m.ROLE_SKILLS.map((n) => skill(n, pinned, "/p/" + n));
+const bad = good.filter((c) => c.name !== "skill:retro").map((c) => c.name === "skill:tdd" ? skill("tdd", "auto", "/home/.agents/skills/tdd/SKILL.md") : c);
+const dollars = m.sessionDollars([
+  {type: "message", message: {role: "assistant", usage: {cost: {total: 1.25}}}},
+  {type: "message", message: {role: "user"}},
+  {type: "compaction", usage: {cost: {total: 0.5}}},
+]);
+const places = {set: m.personalSkillPlaces({PI_CODING_AGENT_DIR: "/profile/pi"}, "/home/me"), unset: m.personalSkillPlaces({}, "/home/me")};
+console.log(JSON.stringify({pinned, good: m.unpinnedSkills(good, pinned), bad: m.unpinnedSkills(bad, pinned), dollars, places}));
+"""
+
+
+def check_extension():
+    node = shutil.which("node")
+    if not node:
+        print("skip  extension checks: no node on the PATH")
+        return
+    syntax = subprocess.run([node, "--check", EXTENSION], capture_output=True, text=True)
+    report("the extension parses", syntax.returncode == 0, syntax.stderr.strip())
+    run = subprocess.run([node, "--input-type=module", "-e", EXTENSION_CHECKS, "file://" + EXTENSION],
+                         capture_output=True, text=True)
+    if run.returncode != 0:
+        report("the extension's checks run", False, run.stderr.strip())
+        return
+    out = json.loads(run.stdout)
+    report("pinnedSource finds the skills package", out["pinned"] == "git:github.com/mattpocock/skills@abc", out["pinned"])
+    report("the skill check passes pinned skills", out["good"] == [], out["good"])
+    report("the skill check names a missing and an unpinned skill",
+           out["bad"] == [["retro", "not loaded"], ["tdd", "/home/.agents/skills/tdd/SKILL.md"]], out["bad"])
+    report("the footer sums assistant and compaction dollars", abs(out["dollars"] - 1.75) < 1e-9, out["dollars"])
+    report("the advice names PI_CODING_AGENT_DIR's skills when it's set",
+           out["places"]["set"] == ["/profile/pi/skills", 'any "skills" paths in /profile/pi/settings.json', "/home/me/.agents/skills"],
+           out["places"]["set"])
+    report("the advice names ~/.pi/agent's skills when it isn't",
+           out["places"]["unset"][0] == "/home/me/.pi/agent/skills" and out["places"]["unset"][2] == "/home/me/.agents/skills",
+           out["places"]["unset"])
+
+
+def entry(kind, **fields):
+    return json.dumps(dict(type=kind, **fields)) + "\n"
+
+
+def assistant(tokens, dollars):
+    usage = {"input": tokens[0], "output": tokens[1], "cacheRead": tokens[2], "cacheWrite": tokens[3],
+             "totalTokens": sum(tokens), "cost": {"total": dollars}}
+    return entry("message", message={"role": "assistant", "usage": usage})
+
+
+def cost(args, env):
+    return subprocess.run([COST] + args, capture_output=True, text=True, env=env)
+
+
+def check_cost():
+    tmp = tempfile.mkdtemp()
+    try:
+        session = os.path.join(tmp, "s.jsonl")
+        with open(session, "w", encoding="utf-8") as f:
+            f.write(entry("session", version=3, id="test-session"))
+            f.write(entry("message", message={"role": "user", "content": "hi"}))
+            f.write(assistant((1000, 200, 5000, 300), 1.234))
+            f.write("not json\n")
+            f.write(entry("compaction", usage={"input": 500, "output": 100, "cacheRead": 0, "cacheWrite": 0, "cost": {"total": 0.1}}))
+        env = dict(os.environ, PI_SESSION_FILE=session, XDG_CACHE_HOME=os.path.join(tmp, "cache"))
+        env.pop("PI_SESSION_ID", None)
+
+        out = cost(["iOS", "builder"], env)
+        report("cost prints the first line", out.stdout.strip() == "Cost: iOS · builder · 7,100 tokens · $1.33 · not recorded",
+               out.stdout.strip() or out.stderr.strip())
+
+        with open(session, "a", encoding="utf-8") as f:
+            f.write(assistant((100, 50, 0, 0), 0.5))
+        out = cost(["iOS", "builder"], env)
+        report("cost adds the figures since the previous line",
+               out.stdout.strip() == "Cost: iOS · builder · 7,250 tokens · $1.83 · not recorded · "
+                                     "since the previous Cost line: 150 tokens · $0.50 · not recorded",
+               out.stdout.strip() or out.stderr.strip())
+
+        bare = dict(env)
+        bare.pop("PI_SESSION_FILE")
+        out = cost(["shared", "product"], bare)
+        report("cost without a session file prints not recorded",
+               out.returncode == 0 and out.stdout.strip() == "Cost: shared · product · not recorded · not recorded · not recorded"
+               and "PI_SESSION_FILE" in out.stderr, out.stdout + out.stderr)
+
+        out = cost(["web", "builder"], env)
+        report("cost refuses a bad platform", out.returncode == 2, out.returncode)
+    finally:
+        shutil.rmtree(tmp, ignore_errors=True)
+
+
+def main():
+    check_pins()
+    check_extension()
+    check_cost()
+    print("\n%d failed" % len(failures) if failures else "\nall passed")
+    return 1 if failures else 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())
