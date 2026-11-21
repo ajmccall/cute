@@ -1,8 +1,6 @@
-# <App name> agent workflow
+# Cute agent workflow
 
-<Copy this file to the root of the project as `AGENTS.md`, then replace each placeholder. Keep every heading and every row: the framework's roles look each one up. Write "None" where the project has nothing to record.>
-
-<One or two sentences on what the app is.>
+Cute is a native iOS and Android chess app with a shared backend for two-player games. A backgammon-style doubling cube lets either player offer to double the stakes during a game; initially, the stakes are points only.
 
 ## Follow `framework/`
 
@@ -18,7 +16,7 @@ Everything else is lookup, named where it's needed. This file only says which ro
 
 ## Skills and roles
 
-<Keep this table as it is.> The skills are a prerequisite: Matt Pocock's skills (`github.com/mattpocock/skills`), at the commit the harness adapter pins, installed as its README says, or where the project runs without an adapter, at the commit the Claude Code adapter's `marketplace.json` names. A harness without plugin prefixes, such as pi, names a skill `mattpocock-skills:<name>` by its own name for `<name>`. A session starts with one row's first column, on a ticket or an idea: a skill by its qualified name, the Land prompt, or the Orchestrate prompt. It also follows the page beside it: a role page, whose overrides win over the skill, or for the Orchestrate prompt, `framework/orchestrate.md`, which starts the builder and reviewer sessions itself. A session started without the skills stops and tells the human.
+The skills are a prerequisite: Matt Pocock's skills (`github.com/mattpocock/skills`), at the commit the harness adapter pins, installed as its README says, or where the project runs without an adapter, at the commit the Claude Code adapter's `marketplace.json` names. A harness without plugin prefixes, such as pi, names a skill `mattpocock-skills:<name>` by its own name for `<name>`. A session starts with one row's first column, on a ticket or an idea: a skill by its qualified name, the Land prompt, or the Orchestrate prompt. It also follows the page beside it: a role page, whose overrides win over the skill, or for the Orchestrate prompt, `framework/orchestrate.md`, which starts the builder and reviewer sessions itself. A session started without the skills stops and tells the human.
 
 | Start a session with | Page |
 |---|---|
@@ -32,10 +30,10 @@ Everything else is lookup, named where it's needed. This file only says which ro
 
 ## Human roles
 
-- **Product owner:** <name, and handle on the tracker>
-- **Framework steward:** <name, and handle on the tracker>
+- **Product owner:** Alasdair McCall (`@ajmccall`)
+- **Framework steward:** Alasdair McCall (`@ajmccall`)
 
-<If one person holds both roles, say so here.>
+Alasdair McCall holds both roles.
 
 ## Where things live
 
@@ -51,8 +49,8 @@ Everything else is lookup, named where it's needed. This file only says which ro
 | Android convention reference | `framework/conventions/android.md` |
 | Design source | <path of the design system or designs, or "each platform's standard components"> |
 | Testing reference | <path of the project's app interaction checks, which the reviewer role's Run the app section relies on> |
-| Tracker | <the tracker that holds the tickets and ideas, and where, for example GitHub Issues on `<organisation>/<repository>`> |
-| Tracker binding | <the binding for that tracker, for example `framework/trackers/github.md`, or the project's own binding for another tracker (`framework/tracker.md`)> |
+| Tracker | GitHub Issues on `ajmccall/cute` |
+| Tracker binding | `framework/trackers/github.md` |
 | Harness adapter | `framework/adapters/pi` |
 
 ## App settings
