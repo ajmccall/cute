@@ -1,0 +1,20 @@
+{
+  "$schema": "https://anthropic.com/claude-code/marketplace.schema.json",
+  "name": "dual-native",
+  "description": "The dual-native framework's pinned skills for Claude Code. The framework's roles are written against the commit each plugin is pinned to; bumping one is a framework change with a changelog line.",
+  "owner": {
+    "name": "Framework steward"
+  },
+  "plugins": [
+    {
+      "name": "mattpocock-skills",
+      "description": "Matt Pocock's agent skills (grilling, to-spec, to-tickets, implement, tdd, code-review, retro and more), pinned to the commit the official marketplace serves as 1.3.1.",
+      "source": {
+        "source": "github",
+        "repo": "mattpocock/skills",
+        "sha": "49dd158d1076134a641b33efb035946536778336"
+      },
+      "homepage": "https://github.com/mattpocock/skills"
+    }
+  ]
+}

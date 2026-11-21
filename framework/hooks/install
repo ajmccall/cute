@@ -1,0 +1,72 @@
+#!/usr/bin/python3
+"""Install the framework's git hooks in this clone.
+
+Sets `core.hooksPath` to the folder this script lives in, so git runs
+`pre-commit` and `pre-merge-commit` from here in every worktree of the clone. Idempotent: run it
+at the start of every session.
+
+Exit 0: the hooks are active (set now, or already set).
+Exit 1: another hooks path is set, or this isn't a git repository.
+"""
+
+import os
+import subprocess
+import sys
+
+
+def git(*args):
+    return subprocess.run(["git", *args], capture_output=True, text=True)
+
+
+def main():
+    here = os.path.dirname(os.path.realpath(__file__))
+    top = git("rev-parse", "--show-toplevel")
+    if top.returncode != 0:
+        sys.stderr.write("install: not inside a git repository\n")
+        return 1
+    top = os.path.realpath(top.stdout.strip())
+    hooks_rel = os.path.relpath(here, top)
+    if hooks_rel.startswith(".."):
+        sys.stderr.write(
+            "install: %s is outside the repository at %s\n" % (here, top)
+        )
+        return 1
+
+    for name in ("pre-commit", "pre-merge-commit"):
+        hook = os.path.join(here, name)
+        if not os.access(hook, os.X_OK):
+            sys.stderr.write(
+                "install: %s isn't executable; run: chmod +x %s\n"
+                % (os.path.join(hooks_rel, name), os.path.join(hooks_rel, name))
+            )
+            return 1
+
+    current = git("config", "--get", "core.hooksPath")
+    if current.returncode == 0:
+        value = current.stdout.strip()
+        resolved = value if os.path.isabs(value) else os.path.join(top, value)
+        if os.path.realpath(resolved) == here:
+            print("install: hooks already active (core.hooksPath = %s)" % value)
+            return 0
+        scope = "locally"
+        local = git("config", "--local", "--get", "core.hooksPath")
+        if local.returncode != 0:
+            scope = "globally or system-wide"
+        sys.stderr.write(
+            "install: refusing: core.hooksPath is already set %s to %s.\n"
+            "Keep your hooks and call %s/pre-commit from your own pre-commit and "
+            "pre-merge-commit, or unset core.hooksPath and run this again.\n"
+            % (scope, value, hooks_rel)
+        )
+        return 1
+
+    result = git("config", "--local", "core.hooksPath", hooks_rel)
+    if result.returncode != 0:
+        sys.stderr.write(result.stderr)
+        return 1
+    print("install: hooks active (core.hooksPath = %s)" % hooks_rel)
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())
