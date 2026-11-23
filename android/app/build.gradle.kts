@@ -8,7 +8,12 @@ plugins {
 
 android {
     namespace = "md.alasdair.cute"
-    compileSdk = 36
+    // API 37 at its stable minor release 2, which Compose 1.13 needs (product owner, #6, 2b).
+    compileSdk {
+        version = release(37) {
+            minorApiLevel = 2
+        }
+    }
 
     defaultConfig {
         applicationId = "md.alasdair.cute"
@@ -72,5 +77,4 @@ dependencies {
     androidTestImplementation(libs.androidx.compose.ui.test.junit4.accessibility)
     androidTestImplementation(libs.androidx.test.ext.junit)
     androidTestImplementation(libs.androidx.test.runner)
-    androidTestImplementation(libs.kotlinx.coroutines.test)
 }

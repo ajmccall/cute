@@ -131,26 +131,32 @@ class LocalGameViewModel @Inject constructor(private val repository: GameReposit
         save(GameRecord(next, next.automaticResult()))
     }
 
-    /** Saves [record] and shows it once saved; if it can't be, keeps showing the saved game. */
+    /**
+     * Saves [record] and shows it once saved. If it can't be saved, the board shows the saved
+     * game as it was, with nothing selected, and Retry can try the same change again.
+     */
     private fun save(record: GameRecord) {
         busy = true
         viewModelScope.launch {
-            try {
+            val failure = try {
                 repository.save(record)
                 unsaved = null
-                _uiState.update {
-                    it.copy(
-                        game = record,
-                        selection = null,
-                        destinations = emptySet(),
-                        failure = null
-                    )
-                }
+                null
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
                 unsaved = record
-                _uiState.update { it.copy(failure = Failure.Write) }
+                Failure.Write
+            }
+            try {
+                _uiState.update {
+                    it.copy(
+                        game = if (failure == null) record else it.game,
+                        selection = null,
+                        destinations = emptySet(),
+                        failure = failure
+                    )
+                }
             } finally {
                 busy = false
             }

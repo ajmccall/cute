@@ -85,6 +85,8 @@ class StorageFailureTest {
 
             assertEquals(Failure.Write, game.state.failure)
             assertEquals(SAVED, game.state.fen)
+            assertNull(game.state.selection)
+            assertEquals(emptySet<Any>(), game.state.destinations)
             assertEquals(Side.White, game.state.bottomSide)
             assertArrayEquals(saved, device.gameFile.readBytes())
             assertEquals(SAVED, device.launch().state.fen)
