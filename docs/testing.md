@@ -1,0 +1,9 @@
+# Local game interaction checks
+
+On each native app use an isolated current game per scenario, with deterministic position setup in the test harness only. Drive the real board and assert what a player can see or select, not internal callbacks. Refer to [the criteria](schema/local-game.md#acceptance-criteria) for expected behaviour.
+
+- **First handoff:** fresh launch; select e2, switch to g1, try an illegal destination, then move the knight to f3. Check legal targets, orientation, square identities and turn. Lock/unlock, leave and return, then relaunch; play Black's reply.
+- **Rule positions:** check a pinned piece, castling through check, legal castling and en passant (including restored rights and expiry), and underpromotion. Cancel a promotion first; verify no turn or position change.
+- **End and replace:** play Fool’s Mate (f3 e5 g4 Qh4#); verify result, frozen board and relaunch. Check seeded stalemate and insufficient-material positions, including a non-draw with two knights against a king. Confirm and cancel resignation, agreed draw and replacement from independent setups.
+- **Failed save/read:** inject failure through test setup, attempt a move or relaunch, check notice, then restore access and reopen the last saved position. No debug controls in the shipped UI.
+- At acceptance hand the phone to another person; try a turn without explanation. Check spoken square, turn, selection and result with VoiceOver or TalkBack, or explicitly skip at acceptance. Record automated outcomes, device and evidence as the platform reference requires.
