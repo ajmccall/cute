@@ -57,7 +57,7 @@ Alasdair McCall holds both roles.
 
 Initial playtest settings (#2):
 
-- **App identifier:** `com.ajmccall.cute` on both platforms.
+- **App identifier:** `md.alasdair.cute` for the iOS bundle ID and Android `applicationId` and `namespace` (from `alasdair.md`, #2).
 - **iOS:** Minimum iOS 26; Xcode 27.0, iOS SDK 27.0.
 - **Android:** minSdk 36, compileSdk 36, targetSdk 36; Java 21.
 - **Android JDK** (Android rule 7.1): Set JAVA_HOME and Studio's Gradle JDK to the bundled JBR; no daemon JVM override. Local macOS path: `/Applications/Android Studio.app/Contents/jbr/Contents/Home`.
