@@ -16,7 +16,7 @@
 
     <string name="square">%1$s, %2$s</string>
     <string name="square_empty">Empty</string>
-    <string name="selected">Selected</string>
+    <string name="square_selected">Selected</string>
     <string name="legal_destination">Legal destination</string>
     <string name="white_king">White king</string>
     <string name="white_queen">White queen</string>

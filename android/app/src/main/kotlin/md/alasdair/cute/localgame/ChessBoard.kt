@@ -96,7 +96,7 @@ private fun BoardSquare(
         piece?.let { stringResource(it.nameRes) } ?: stringResource(R.string.square_empty)
     val label = stringResource(R.string.square, square.name, occupant)
     val state = when {
-        selected -> stringResource(R.string.selected)
+        selected -> stringResource(R.string.square_selected)
         destination -> stringResource(R.string.legal_destination)
         else -> null
     }
