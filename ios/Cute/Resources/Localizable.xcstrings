@@ -1,0 +1,125 @@
+{
+  "sourceLanguage": "en",
+  "strings": {
+    "%@ bishop": {
+      "extractionState": "manual"
+    },
+    "%@ king": {
+      "extractionState": "manual"
+    },
+    "%@ knight": {
+      "extractionState": "manual"
+    },
+    "%@ pawn": {
+      "extractionState": "manual"
+    },
+    "%@ queen": {
+      "extractionState": "manual"
+    },
+    "%@ rook": {
+      "extractionState": "manual"
+    },
+    "%@ to move": {
+      "extractionState": "manual"
+    },
+    "%@ to move · Check": {
+      "extractionState": "manual"
+    },
+    "%@ wins · %@": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%1$@ wins · %2$@"
+          }
+        }
+      }
+    },
+    "Agree draw": {
+      "extractionState": "manual"
+    },
+    "Agreement": {
+      "extractionState": "manual"
+    },
+    "Bishop": {
+      "extractionState": "manual"
+    },
+    "Black": {
+      "extractionState": "manual"
+    },
+    "Cancel": {
+      "extractionState": "manual"
+    },
+    "Change not saved.": {
+      "extractionState": "manual"
+    },
+    "Checkmate": {
+      "extractionState": "manual"
+    },
+    "Chessboard": {
+      "extractionState": "manual"
+    },
+    "Confirm": {
+      "extractionState": "manual"
+    },
+    "Couldn’t open the saved game.": {
+      "extractionState": "manual"
+    },
+    "Do both players agree to a draw?": {
+      "extractionState": "manual"
+    },
+    "Draw · %@": {
+      "extractionState": "manual"
+    },
+    "Empty": {
+      "extractionState": "manual"
+    },
+    "Insufficient material": {
+      "extractionState": "manual"
+    },
+    "Knight": {
+      "extractionState": "manual"
+    },
+    "Legal destination": {
+      "extractionState": "manual"
+    },
+    "New game": {
+      "extractionState": "manual"
+    },
+    "Promote pawn": {
+      "extractionState": "manual"
+    },
+    "Queen": {
+      "extractionState": "manual"
+    },
+    "Replace this game?": {
+      "extractionState": "manual"
+    },
+    "Resign": {
+      "extractionState": "manual"
+    },
+    "Resign as %@?": {
+      "extractionState": "manual"
+    },
+    "Resignation": {
+      "extractionState": "manual"
+    },
+    "Retry": {
+      "extractionState": "manual"
+    },
+    "Rook": {
+      "extractionState": "manual"
+    },
+    "Selected": {
+      "extractionState": "manual"
+    },
+    "Stalemate": {
+      "extractionState": "manual"
+    },
+    "White": {
+      "extractionState": "manual"
+    }
+  },
+  "version": "1.0"
+}
