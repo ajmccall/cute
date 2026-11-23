@@ -27,7 +27,8 @@ import md.alasdair.cute.localgame.data.FileGameRepository
 import md.alasdair.cute.localgame.data.GameRecord
 import md.alasdair.cute.ui.theme.CuteTheme
 
-typealias BoardRule = AndroidComposeTestRule<ActivityScenarioRule<ComponentActivity>, ComponentActivity>
+typealias BoardRule =
+    AndroidComposeTestRule<ActivityScenarioRule<ComponentActivity>, ComponentActivity>
 
 /**
  * The running board over its own current game: a file in a new folder under the app's cache,
