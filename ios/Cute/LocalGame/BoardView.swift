@@ -1,13 +1,18 @@
 import SwiftUI
 
-/// The 8 × 8 play surface, drawn with the side to move at the bottom.
+/// The 8 × 8 play surface, drawn with the side to move at the bottom, or the responder while an offer
+/// waits for its answer. Which way it faces never changes whose move it is.
 struct BoardView: View {
     let game: LocalGame
 
+    private var bottomSide: PieceColor {
+        game.isAwaitingDoubleResponse ? game.responder : game.position.sideToMove
+    }
+
     /// Rows top to bottom, each left to right, for the side whose pieces sit at the bottom.
     private var rows: [[Square]] {
-        let ranks: [Int] = game.position.sideToMove == .white ? Array((0..<8).reversed()) : Array(0..<8)
-        let files: [Int] = game.position.sideToMove == .white ? Array(0..<8) : Array((0..<8).reversed())
+        let ranks: [Int] = bottomSide == .white ? Array((0..<8).reversed()) : Array(0..<8)
+        let files: [Int] = bottomSide == .white ? Array(0..<8) : Array((0..<8).reversed())
         return ranks.map { rank in files.map { Square(file: $0, rank: rank)! } }
     }
 

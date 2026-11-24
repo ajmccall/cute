@@ -244,5 +244,18 @@ import Testing
         #expect(game.canOfferDouble)
     }
 
+    /// The award text, which XCUITest reads only as spoken: half a point is shown as "½ point".
+    @Test(arguments: [
+        (PointAward.split(1), "Each player earns ½ point.", "Each player earns half a point."),
+        (PointAward.split(2), "Each player earns 1 point.", "Each player earns 1 point."),
+        (PointAward.split(64), "Each player earns 32 points.", "Each player earns 32 points."),
+        (PointAward.win(.white, 1), "White earns 1 point.", "White earns 1 point."),
+        (PointAward.win(.black, 64), "Black earns 64 points.", "Black earns 64 points."),
+    ])
+    func theAwardIsShownWithItsUnitsAndHalfAPointIsSpokenInWords(award: PointAward, shown: String, spoken: String) {
+        #expect(BoardText.award(award, spoken: false) == shown)
+        #expect(BoardText.award(award, spoken: true) == spoken)
+    }
+
     static let afterE4 = "rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq -"
 }

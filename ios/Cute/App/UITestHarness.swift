@@ -8,6 +8,9 @@ struct UITestHarness {
     static let fileKey = "CUTE_UITEST_GAME_FILE"
     /// A FEN position written to the scenario's file at launch, replacing what was there.
     static let seedKey = "CUTE_UITEST_SEED_FEN"
+    /// A whole saved file's text, written as it is to the scenario's file at launch, replacing what was there:
+    /// for a game saved by an earlier version, or one with a stake or an offer waiting.
+    static let seedFileKey = "CUTE_UITEST_SEED_FILE"
     /// Comma-separated `Fault` raw values, such as "read,write": those store operations fail for this launch.
     static let faultKey = "CUTE_UITEST_FAULT"
 
@@ -17,12 +20,14 @@ struct UITestHarness {
 
     let fileURL: URL
     let seed: Position?
+    let seedFile: String?
     let faults: Set<Fault>
 
     init?(environment: [String: String], folder: URL) {
         guard let fileName = environment[Self.fileKey], !fileName.contains("/") else { return nil }
         fileURL = folder.appending(path: fileName)
         seed = environment[Self.seedKey].flatMap(Position.init(fen:))
+        seedFile = environment[Self.seedFileKey]
         faults = Set((environment[Self.faultKey] ?? "").split(separator: ",").map { name in
             guard let fault = Fault(rawValue: String(name)) else {
                 preconditionFailure("Unknown \(Self.faultKey) value: \(name)")
@@ -35,6 +40,11 @@ struct UITestHarness {
         let store = FileGameStore(fileURL: fileURL)
         if let seed {
             try? store.save(SavedGame(position: seed, result: nil))
+        }
+        if let seedFile {
+            try? FileManager.default.createDirectory(
+                at: fileURL.deletingLastPathComponent(), withIntermediateDirectories: true)
+            try? Data(seedFile.utf8).write(to: fileURL, options: .atomic)
         }
         return FailingGameStore(wrapped: store, faults: faults)
     }

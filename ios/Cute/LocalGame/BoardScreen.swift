@@ -7,8 +7,15 @@ struct BoardScreen: View {
     @State private var confirmation: Confirmation?
 
     private enum Confirmation: Identifiable {
-        case resign, agreeDraw, replace
+        case resign, agreeDraw, replace, offerDouble
         var id: Self { self }
+        /// Ending or replacing a game is destructive; agreeing a draw and offering a double aren't.
+        var confirmRole: ButtonRole? {
+            switch self {
+            case .resign, .replace: .destructive
+            case .agreeDraw, .offerDouble: nil
+            }
+        }
     }
 
     var body: some View {
@@ -28,7 +35,7 @@ struct BoardScreen: View {
         }
         .scrollBounceBehavior(.basedOnSize)
         .alert(confirmationTitle, isPresented: isConfirming, presenting: confirmation) { confirmation in
-            Button("Confirm", role: confirmation == .agreeDraw ? nil : .destructive) { perform(confirmation) }
+            Button("Confirm", role: confirmation.confirmRole) { perform(confirmation) }
             Button("Cancel", role: .cancel) {}
         }
         .alert("Promote pawn", isPresented: isChoosingPromotion) {
@@ -37,43 +44,65 @@ struct BoardScreen: View {
             }
             Button("Cancel", role: .cancel) { game.cancelPromotion() }
         }
-        .onChange(of: BoardText.status(of: game)) { _, status in
-            AccessibilityNotification.Announcement(status).post()
+        .onChange(of: BoardText.announcement(of: game)) { _, announcement in
+            AccessibilityNotification.Announcement(announcement).post()
         }
     }
 
     private var playSurface: some View {
         VStack(spacing: 16) {
-            Text(BoardText.status(of: game))
-                .font(.title2.weight(.semibold))
-                .multilineTextAlignment(.center)
-                .fixedSize(horizontal: false, vertical: true)
-                .padding(.horizontal)
-                .accessibilityAddTraits(.isHeader)
-                .accessibilityIdentifier("status")
-            BoardView(game: game)
-            ViewThatFits(in: .horizontal) {
-                HStack(spacing: 12) { actions }
-                VStack(spacing: 12) { actions }
+            VStack(spacing: 4) {
+                Text(BoardText.status(of: game))
+                    .font(.title2.weight(.semibold))
+                    .accessibilityAddTraits(.isHeader)
+                    .accessibilityIdentifier("status")
+                if let award = game.award {
+                    Text(BoardText.award(award, spoken: false))
+                        .font(.body)
+                        .accessibilityLabel(BoardText.award(award, spoken: true))
+                        .accessibilityIdentifier("award")
+                }
             }
-            .gameActionStyle()
+            .multilineTextAlignment(.center)
+            .fixedSize(horizontal: false, vertical: true)
             .padding(.horizontal)
+            if game.isInPlay, !game.isAwaitingDoubleResponse, let stake = game.stake {
+                StakeView(stake: stake, doubleRight: BoardText.doubleRight(of: game))
+            }
+            BoardView(game: game)
+            if game.isAwaitingDoubleResponse, let stake = game.stake {
+                DoubleResponseView(
+                    stake: stake, offerer: game.position.sideToMove,
+                    take: game.takeDouble, decline: game.declineDouble)
+            } else {
+                ViewThatFits(in: .horizontal) {
+                    HStack(spacing: 12) { actions }
+                    VStack(spacing: 12) { actions }
+                }
+                .gameActionStyle()
+                .padding(.horizontal)
+            }
         }
     }
 
-    /// New game is always offered; resigning and agreeing a draw only during play.
+    /// New game is offered except while an offer waits for its answer; resigning, agreeing a draw
+    /// and offering a double only during play, and offering only for a side to move entitled to it.
     @ViewBuilder
     private var actions: some View {
-        Button("New game") {
-            if game.newGameNeedsConfirmation {
-                confirmation = .replace
-            } else {
-                game.newGame()
+        if game.canStartNewGame {
+            Button("New game") {
+                if game.newGameNeedsConfirmation {
+                    confirmation = .replace
+                } else {
+                    game.newGame()
+                }
             }
         }
         if game.canResignOrAgreeDraw {
             Button("Resign") { confirmation = .resign }
             Button("Agree draw") { confirmation = .agreeDraw }
+            Button("Offer double") { confirmation = .offerDouble }
+                .disabled(!game.canOfferDouble)
         }
     }
 
@@ -82,6 +111,7 @@ struct BoardScreen: View {
         case .resign: BoardText.confirmResign(game.position.sideToMove)
         case .agreeDraw: String(localized: "Do both players agree to a draw?")
         case .replace: String(localized: "Replace this game?")
+        case .offerDouble: BoardText.confirmOffer(stake: game.stake ?? 1)
         case nil: ""
         }
     }
@@ -100,6 +130,7 @@ struct BoardScreen: View {
         case .resign: game.resign()
         case .agreeDraw: game.agreeDraw()
         case .replace: game.newGame()
+        case .offerDouble: game.offerDouble()
         }
     }
 }
@@ -123,6 +154,68 @@ private struct WriteFailureBanner: View {
         .padding()
         .background(Color(.secondarySystemBackground), in: .rect(cornerRadius: 12))
         .padding(.horizontal)
+    }
+}
+
+/// The points in play and who may offer the next double, shown throughout play whoever's turn it is.
+private struct StakeView: View {
+    let stake: Int
+    let doubleRight: String
+
+    var body: some View {
+        VStack(spacing: 2) {
+            Text(BoardText.stake(stake))
+                .font(.headline)
+                .accessibilityIdentifier("stake")
+            Text(doubleRight)
+                .font(.body)
+                .accessibilityIdentifier("doubleRight")
+        }
+        .multilineTextAlignment(.center)
+        .fixedSize(horizontal: false, vertical: true)
+        .padding(.horizontal)
+    }
+}
+
+/// The responder's choice, beside the board: the stake as it stands, what taking and declining each mean
+/// in points, and the two actions. Nothing else on the board can be done until one is chosen.
+private struct DoubleResponseView: View {
+    let stake: Int
+    let offerer: PieceColor
+    let take: () -> Void
+    let decline: () -> Void
+
+    var body: some View {
+        VStack(spacing: 12) {
+            VStack(alignment: .leading, spacing: 4) {
+                Text(BoardText.stake(stake))
+                    .font(.headline)
+                    .accessibilityIdentifier("stake")
+                Text(BoardText.takeEffect(stake: stake))
+                    .accessibilityIdentifier("takeEffect")
+                Text(BoardText.declineEffect(offerer: offerer, stake: stake))
+                    .accessibilityIdentifier("declineEffect")
+            }
+            .font(.body)
+            .fixedSize(horizontal: false, vertical: true)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            ViewThatFits(in: .horizontal) {
+                HStack(spacing: 12) { actions }
+                VStack(spacing: 12) { actions }
+            }
+            .gameActionStyle()
+        }
+        .padding()
+        .background(Color(.secondarySystemBackground), in: .rect(cornerRadius: 12))
+        .padding(.horizontal)
+    }
+
+    @ViewBuilder
+    private var actions: some View {
+        Button("Take", action: take)
+            .accessibilityHint(Text(BoardText.takeEffect(stake: stake)))
+        Button("Decline", action: decline)
+            .accessibilityHint(Text(BoardText.declineEffect(offerer: offerer, stake: stake)))
     }
 }
 
