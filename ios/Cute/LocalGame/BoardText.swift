@@ -16,6 +16,7 @@ enum BoardText {
             let reasonText = switch reason {
             case .checkmate: String(localized: "Checkmate")
             case .resignation: String(localized: "Resignation")
+            case .doubleDeclined: String(localized: "Double declined")
             }
             return String(localized: "\(side) wins · \(reasonText)")
         case let .draw(reason):
