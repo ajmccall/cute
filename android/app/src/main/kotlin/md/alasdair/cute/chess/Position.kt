@@ -86,7 +86,14 @@ data class Position(
     }
 }
 
-enum class EndReason { Checkmate, Resignation, Stalemate, InsufficientMaterial, Agreement }
+enum class EndReason {
+    Checkmate,
+    Resignation,
+    DoubleDeclined,
+    Stalemate,
+    InsufficientMaterial,
+    Agreement
+}
 
 /** How a game ended: the [winner], or none for a draw, and why. */
 data class GameResult(val winner: Side?, val reason: EndReason)

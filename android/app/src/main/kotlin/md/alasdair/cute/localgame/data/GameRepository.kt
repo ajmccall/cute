@@ -2,11 +2,36 @@ package md.alasdair.cute.localgame.data
 
 import md.alasdair.cute.chess.GameResult
 import md.alasdair.cute.chess.Position
+import md.alasdair.cute.chess.Side
 
-/** The current game as last committed: its position and, once it has ended, its result. */
-data class GameRecord(val position: Position, val result: GameResult?) {
+/**
+ * The current game as last committed: its position, its result once it has ended, and its
+ * doubling cube. [stake] is the points the game is played for; it is null only for a game that
+ * had already finished in a save from before the cube, which has no point award. [nextDoubler]
+ * is the only side that may offer the next double, or null while either may. While
+ * [doublePending], the side to move has offered a double and the other side must answer it.
+ */
+data class GameRecord(
+    val position: Position,
+    val result: GameResult?,
+    val stake: Int? = 1,
+    val nextDoubler: Side? = null,
+    val doublePending: Boolean = false
+) {
+    /**
+     * Whether the side to move may offer a double now: during play, with no offer pending,
+     * below the maximum stake, when either side may offer or the right is theirs. This
+     * includes the opening turn and turns in check.
+     */
+    val canOfferDouble: Boolean get() =
+        result == null && !doublePending && stake != null && stake < MAX_STAKE &&
+            (nextDoubler == null || nextDoubler == position.sideToMove)
+
     companion object {
         val New = GameRecord(Position.Opening, result = null)
+
+        /** The highest stake: no double is offered at it. */
+        const val MAX_STAKE = 64
     }
 }
 

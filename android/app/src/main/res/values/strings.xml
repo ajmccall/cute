@@ -10,6 +10,7 @@
     <string name="draw">Draw · %1$s</string>
     <string name="reason_checkmate">Checkmate</string>
     <string name="reason_resignation">Resignation</string>
+    <string name="reason_double_declined">Double declined</string>
     <string name="reason_stalemate">Stalemate</string>
     <string name="reason_insufficient_material">Insufficient material</string>
     <string name="reason_agreement">Agreement</string>

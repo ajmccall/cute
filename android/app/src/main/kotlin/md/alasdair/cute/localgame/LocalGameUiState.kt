@@ -22,13 +22,19 @@ data class LocalGameUiState(
 ) {
     val sideToMove: Side get() = game?.position?.sideToMove ?: Side.White
 
-    /** The side whose pieces are drawn at the bottom: the side to move. */
-    val bottomSide: Side get() = sideToMove
+    /**
+     * The side whose pieces are drawn at the bottom: the side to move, or, while a double
+     * awaits an answer, the side that must answer it. The chess turn doesn't change.
+     */
+    val bottomSide: Side get() = if (game?.doublePending == true) sideToMove.opponent else sideToMove
 
     val inCheck: Boolean get() = game?.let { it.result == null && it.position.isInCheck() } ?: false
+
+    /** Whether the side to move may offer a double now (GameRecord.canOfferDouble). */
+    val canOfferDouble: Boolean get() = game?.canOfferDouble ?: false
 }
 
 enum class Failure { Read, Write }
 
 /** An action waiting for the players at the board to confirm or cancel it. */
-enum class Confirmation { Resign, Draw, Replace }
+enum class Confirmation { Resign, Draw, Replace, OfferDouble }

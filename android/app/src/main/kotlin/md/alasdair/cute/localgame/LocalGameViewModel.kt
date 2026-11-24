@@ -43,7 +43,8 @@ class LocalGameViewModel @Inject constructor(private val repository: GameReposit
     fun onSquareTapped(square: Square) {
         val state = _uiState.value
         if (busy || state.promotion != null || state.confirmation != null) return
-        val position = state.game?.takeIf { it.result == null }?.position ?: return
+        val game = state.game?.takeIf { it.result == null && !it.doublePending } ?: return
+        val position = game.position
         val selection = state.selection
         if (position[square]?.side == position.sideToMove) {
             val moves = position.legalMovesFrom(square)
@@ -56,7 +57,7 @@ class LocalGameViewModel @Inject constructor(private val repository: GameReposit
             if (promotes) {
                 _uiState.update { it.copy(promotion = Move(selection, square)) }
             } else {
-                commit(position, Move(selection, square))
+                commit(game, Move(selection, square))
             }
         } else {
             // Neither an own piece nor a legal destination: clear the selection (#5, 1a).
@@ -67,9 +68,9 @@ class LocalGameViewModel @Inject constructor(private val repository: GameReposit
     fun onPromotionChosen(type: PieceType) {
         val state = _uiState.value
         val move = state.promotion ?: return
-        val position = state.game?.position ?: return
+        val game = state.game ?: return
         _uiState.update { it.copy(promotion = null) }
-        commit(position, move.copy(promotion = type))
+        commit(game, move.copy(promotion = type))
     }
 
     fun onPromotionCancelled() {
@@ -80,13 +81,18 @@ class LocalGameViewModel @Inject constructor(private val repository: GameReposit
 
     fun onDrawRequested() = askDuringPlay(Confirmation.Draw)
 
+    /** Asks the side to move to confirm a double, when they may offer one. */
+    fun onOfferDoubleRequested() {
+        if (_uiState.value.canOfferDouble) askDuringPlay(Confirmation.OfferDouble)
+    }
+
     /**
      * After the end, starts afresh at once. During play, or when the saved game couldn't be
      * read and so might still be in play, asks first.
      */
     fun onNewGameRequested() {
         val state = _uiState.value
-        if (busy || state.loading) return
+        if (busy || state.loading || state.game?.doublePending == true) return
         if (state.game?.result != null) {
             save(GameRecord.New)
         } else {
@@ -98,21 +104,50 @@ class LocalGameViewModel @Inject constructor(private val repository: GameReposit
         val state = _uiState.value
         val confirmation = state.confirmation ?: return
         _uiState.update { it.copy(confirmation = null) }
-        val position = state.game?.position
+        val game = state.game
         val record = when (confirmation) {
             Confirmation.Replace -> GameRecord.New
-            Confirmation.Resign -> position?.let {
-                GameRecord(it, GameResult(it.sideToMove.opponent, EndReason.Resignation))
-            }
-            Confirmation.Draw -> position?.let {
-                GameRecord(it, GameResult(null, EndReason.Agreement))
-            }
+            Confirmation.Resign -> game?.copy(
+                result = GameResult(game.position.sideToMove.opponent, EndReason.Resignation)
+            )
+            Confirmation.Draw -> game?.copy(result = GameResult(null, EndReason.Agreement))
+            Confirmation.OfferDouble -> game?.copy(doublePending = true)
         } ?: return
         save(record)
     }
 
     fun onCancelled() {
         _uiState.update { it.copy(confirmation = null) }
+    }
+
+    /**
+     * The responder takes the pending double: the game goes on from the same position, with
+     * the offerer to move, at twice the stake, and only the taker may offer the next double.
+     */
+    fun onDoubleTaken() {
+        val game = pendingDouble() ?: return
+        val stake = game.stake ?: return
+        save(
+            game.copy(
+                stake = stake * 2,
+                nextDoubler = game.position.sideToMove.opponent,
+                doublePending = false
+            )
+        )
+    }
+
+    /**
+     * The responder declines the pending double: the game ends without a move, won by the
+     * offerer at the stake as it was.
+     */
+    fun onDoubleDeclined() {
+        val game = pendingDouble() ?: return
+        save(
+            game.copy(
+                result = GameResult(game.position.sideToMove, EndReason.DoubleDeclined),
+                doublePending = false
+            )
+        )
     }
 
     /** Tries the failed read or save again. */
@@ -126,13 +161,20 @@ class LocalGameViewModel @Inject constructor(private val repository: GameReposit
 
     private fun askDuringPlay(confirmation: Confirmation) {
         val game = _uiState.value.game
-        if (busy || game == null || game.result != null) return
+        if (busy || game == null || game.result != null || game.doublePending) return
         _uiState.update { it.copy(confirmation = confirmation) }
     }
 
-    private fun commit(position: Position, move: Move) {
-        val next = position.play(move)
-        save(GameRecord(next, next.automaticResult()))
+    /** The game while a double awaits its answer and nothing else is under way, or null. */
+    private fun pendingDouble(): GameRecord? {
+        val state = _uiState.value
+        if (busy || state.confirmation != null) return null
+        return state.game?.takeIf { it.doublePending && it.result == null }
+    }
+
+    private fun commit(game: GameRecord, move: Move) {
+        val next = game.position.play(move)
+        save(game.copy(position = next, result = next.automaticResult()))
     }
 
     /**

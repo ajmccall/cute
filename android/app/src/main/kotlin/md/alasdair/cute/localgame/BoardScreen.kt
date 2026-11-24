@@ -169,6 +169,7 @@ private fun ConfirmDialog(confirmation: Confirmation, sideToMove: Side, actions:
         Confirmation.Resign -> stringResource(R.string.confirm_resign, sideName(sideToMove))
         Confirmation.Draw -> stringResource(R.string.confirm_draw)
         Confirmation.Replace -> stringResource(R.string.confirm_replace)
+        Confirmation.OfferDouble -> ""
     }
     AlertDialog(
         onDismissRequest = actions.onCancel,
@@ -225,6 +226,7 @@ private fun statusText(game: GameRecord, inCheck: Boolean): String {
         when (result.reason) {
             EndReason.Checkmate -> R.string.reason_checkmate
             EndReason.Resignation -> R.string.reason_resignation
+            EndReason.DoubleDeclined -> R.string.reason_double_declined
             EndReason.Stalemate -> R.string.reason_stalemate
             EndReason.InsufficientMaterial -> R.string.reason_insufficient_material
             EndReason.Agreement -> R.string.reason_agreement
