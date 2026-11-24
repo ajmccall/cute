@@ -634,21 +634,18 @@ def whats_left(plan):
         text += "\n\n  %s, Before you start:\n\n%s" % (path, indent(setup or "(none)", "    "))
     steps.append(text)
 
-    if plan.adapter == "claude-code":
-        steps.append("Each person, once per clone: open the project in Claude Code, accept the workspace trust dialog, then run\n\n"
-                     "    claude plugin install mattpocock-skills@dual-native --scope project\n\n"
-                     "(framework/adapters/claude-code/README.md, Wiring it in, steps 4 to 6).")
-    elif plan.adapter == "pi":
-        steps.append("Each person, once per machine: move any personal copy of Matt Pocock's skills out of the "
-                     "places pi reads personal skills from, which it loads before the project's pinned copy: "
-                     "<agent directory>/skills, any \"skills\" paths in <agent directory>/settings.json, and "
-                     "~/.agents/skills. The agent directory is $PI_CODING_AGENT_DIR when that's set, and ~/.pi/agent "
-                     "only when it isn't. Then, once per clone, open the project in pi and trust it: pi clones the "
-                     "pinned skills itself (framework/adapters/pi/README.md, Wiring it in, steps 4 and 5).")
+    readme = "framework/adapters/%s/README.md, Wiring it in" % plan.adapter
+    if release_file(release, "adapters/claude-code/.claude-plugin/marketplace.json") is not None:
+        # A release before 7.0.0, which pins the skills.
+        steps.append("Each person: install the skills, Matt Pocock's skills, at the commit this release pins, as %s says."
+                     % (readme if plan.adapter else "AGENTS.md, Skills and roles"))
     else:
-        steps.append("Each person: install the skills, Matt Pocock's skills as the plugin mattpocock-skills, at the commit "
-                     "framework/adapters/claude-code/.claude-plugin/marketplace.json names (AGENTS.md, Skills and roles). "
-                     "With Claude Code or pi, an adapter does this: add it later with a take ticket.")
+        if plan.adapter:
+            steps.append("Each person, once per clone: open the project in %s and trust it when asked (%s)."
+                         % ({"claude-code": "Claude Code", "pi": "pi"}[plan.adapter], readme))
+        steps.append("Each person: the framework's roles start with Matt Pocock's skills (AGENTS.md, Skills and roles), "
+                     "and install doesn't install them. Install them the way your harness installs skills, if you "
+                     "haven't; their README says how:\n\n    https://github.com/mattpocock/skills")
 
     steps.append("If the app already ships, its first ticket is the adoption ticket (framework/adoption.md). "
                  "Otherwise, the first ticket starts the app schema (framework/schema-template.md).")
@@ -771,6 +768,47 @@ class Wiring:
 
     def gaps(self):
         return [line for line in self.lines if line[0] != "ok"]
+
+
+SKILLS_PACKAGE = "git:github.com/mattpocock/skills"
+
+
+def dropped_settings(adapter, existing, adding):
+    """The settings an earlier release's adapter wired in that the project still
+    has and the checkout's release no longer sets: the skills pins, from before
+    the skills became a prerequisite each person installs. As (key, name or
+    list entry)."""
+    found = []
+    if adapter == "claude-code":
+        for key, name, only in (("extraKnownMarketplaces", "dual-native", None),
+                                ("enabledPlugins", "mattpocock-skills@dual-native", None),
+                                ("enabledPlugins", "mattpocock-skills@claude-plugins-official", False)):
+            theirs, ours = existing.get(key), adding.get(key)
+            if not isinstance(theirs, dict) or name not in theirs or (isinstance(ours, dict) and name in ours):
+                continue
+            if only is None or theirs[name] is only:
+                found.append((key, name))
+    elif adapter == "pi":
+        theirs, ours = existing.get("packages"), adding.get("packages")
+        if isinstance(theirs, list) and SKILLS_PACKAGE not in [package_name(e) for e in ours or []]:
+            for entry in theirs:
+                source = entry.get("source") if isinstance(entry, dict) else entry
+                if package_name(entry) == SKILLS_PACKAGE and re.search(r"@[0-9a-f]{40}$", source):
+                    found.append(("packages", entry))
+    return found
+
+
+def without_dropped(settings, dropped):
+    """`settings` without each dropped setting, and without a key that leaves empty."""
+    out = copy.deepcopy(settings)
+    for key, name in dropped:
+        if isinstance(out[key], dict):
+            del out[key][name]
+        else:
+            out[key].remove(name)
+        if not out[key]:
+            del out[key]
+    return out
 
 
 def settings_missing(existing, adding, path=()):
@@ -960,10 +998,15 @@ def check_wiring(co, adapter):
                     w.gap("different", "%s sets %s to %s, and %s sets it to %s."
                           % (path, key, json.dumps(theirs), source, json.dumps(ours)),
                           "Decide which to keep (framework/adapters/%s/README.md, Wiring it in, step 2)." % adapter)
-                if not missing and not clashes:
+                dropped = dropped_settings(adapter, existing, adding)
+                for key, name in dropped:
+                    what = "%s.%s" % (key, name) if isinstance(existing[key], dict) else "%s in %s" % (json.dumps(name), key)
+                    w.gap("different", "%s still has %s, a skills pin this release dropped: each person installs the "
+                          "skills now (AGENTS.md, Skills and roles)." % (path, what), "removes it.", wires=True)
+                if not missing and not clashes and not dropped:
                     w.ok("%s has everything in %s." % (path, source))
-                if missing:
-                    w.writes[path] = json.dumps(merged, indent=2, ensure_ascii=False) + "\n"
+                if missing or dropped:
+                    w.writes[path] = json.dumps(without_dropped(merged, dropped), indent=2, ensure_ascii=False) + "\n"
         if adapter == "claude-code":
             claude_md = work_file("CLAUDE.md")
             linked = os.path.islink(os.path.join(top, "CLAUDE.md"))

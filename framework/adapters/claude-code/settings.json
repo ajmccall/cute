@@ -1,16 +1,4 @@
 {
-  "extraKnownMarketplaces": {
-    "dual-native": {
-      "source": {
-        "source": "directory",
-        "path": "./framework/adapters/claude-code"
-      }
-    }
-  },
-  "enabledPlugins": {
-    "mattpocock-skills@dual-native": true,
-    "mattpocock-skills@claude-plugins-official": false
-  },
   "skillOverrides": {
     "code-review": "off"
   },
