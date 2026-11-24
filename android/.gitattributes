@@ -1,0 +1,4 @@
+# Store the wrapper scripts with LF; Windows scripts check out with CRLF, as Gradle generates them.
+gradlew text eol=lf
+*.bat text eol=crlf
+*.jar binary
