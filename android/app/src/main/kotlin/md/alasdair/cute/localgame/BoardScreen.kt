@@ -135,10 +135,7 @@ fun BoardScreen(state: LocalGameUiState, actions: BoardActions, modifier: Modifi
                 }
             }
         }
-        state.confirmation?.let { confirmation ->
-            val sideToMove = state.game?.position?.sideToMove ?: Side.White
-            ConfirmDialog(confirmation, sideToMove, actions)
-        }
+        state.confirmation?.let { ConfirmDialog(it, state.sideToMove, actions) }
         if (state.promotion != null) PromotionDialog(actions)
     }
 }

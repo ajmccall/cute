@@ -20,8 +20,10 @@ data class LocalGameUiState(
     val confirmation: Confirmation? = null,
     val failure: Failure? = null
 ) {
+    val sideToMove: Side get() = game?.position?.sideToMove ?: Side.White
+
     /** The side whose pieces are drawn at the bottom: the side to move. */
-    val bottomSide: Side get() = game?.position?.sideToMove ?: Side.White
+    val bottomSide: Side get() = sideToMove
 
     val inCheck: Boolean get() = game?.let { it.result == null && it.position.isInCheck() } ?: false
 }
