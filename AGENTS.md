@@ -59,8 +59,8 @@ Initial playtest settings (#2):
 
 - **App identifier:** `md.alasdair.cute` for the iOS bundle ID and Android `applicationId` and `namespace` (from `alasdair.md`, #2).
 - **iOS:** Minimum iOS 26; Xcode 27.0, iOS SDK 27.0.
-- **Android:** minSdk 36, compileSdk 36, targetSdk 36; Java 21.
-- **Android JDK** (Android rule 7.1): Set JAVA_HOME and Studio's Gradle JDK to the bundled JBR; no daemon JVM override. Local macOS path: `/Applications/Android Studio.app/Contents/jbr/Contents/Home`.
+- **Android:** minSdk 36, compileSdk 37 at minor release 2, targetSdk 36; Java 21. compileSdk 37 takes the latest stable AndroidX releases (product owner, 2b on #6).
+- **Android JDK** (Android rule 7.1): Set JAVA_HOME and Studio's Gradle JDK to the bundled JBR; no daemon JVM override. Local macOS path: `/Applications/Android Studio.app/Contents/jbr/Contents/Home`. Limit on the product owner's machine: `~/.gradle/gradle.properties` sets `org.gradle.java.home` to Homebrew JDK 17, so each Gradle command there passes `-Dorg.gradle.java.home="$JAVA_HOME"` (#6).
 - **Android colour** (Android rule 3.5): Dynamic colour where supported.
 - **Spoken screen-reader output** (builder override 11, reviewer override 9): Check at acceptance.
 - **Boundary terms:** Cute, Cute Up To Eleven
