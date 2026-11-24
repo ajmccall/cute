@@ -98,6 +98,8 @@ final class EndAndReplaceUITests: XCTestCase {
         let board = BoardRobot()
         board.launch()
         board.tap("e2", "e4")
+        // Audited before the stock alert opens: the system draws the alert itself.
+        try board.auditAccessibility()
 
         board.app.buttons["New game"].tap()
         let alert = board.app.alerts["Replace this game?"]

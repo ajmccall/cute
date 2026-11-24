@@ -88,12 +88,12 @@ private struct PieceGlyph: View {
             let center = CGPoint(x: canvasSize.width / 2, y: canvasSize.height / 2)
             let fill = Text(verbatim: glyph(filled: true))
                 .font(.system(size: size))
-                .foregroundStyle(piece.color == .white ? Color.white : Color.black)
+                .foregroundStyle(Color(piece.color == .white ? "WhitePiece" : "BlackPiece"))
             context.draw(fill, at: center)
             if piece.color == .white {
                 let outline = Text(verbatim: glyph(filled: false))
                     .font(.system(size: size))
-                    .foregroundStyle(Color.black)
+                    .foregroundStyle(Color("BlackPiece"))
                 context.draw(outline, at: center)
             }
         }
@@ -114,7 +114,7 @@ private struct PieceGlyph: View {
     }
 }
 
-/// A dot on an empty legal destination, or corner marks around a piece that can be captured,
+/// A dot on an empty legal destination, or a dashed ring around a piece that can be captured,
 /// so a destination never relies on colour alone.
 private struct DestinationMarker: View {
     let isCapture: Bool

@@ -16,8 +16,10 @@ final class RulePositionsUITests: XCTestCase {
         XCTAssertEqual(board.value(of: "e2"), "Selected")
         XCTAssertEqual(board.legalDestinations, [])
 
-        // Castling through check is not offered; legal castling moves king and rook together.
+        // Castling through check is not offered, and the rights are restored on relaunch;
+        // legal castling moves king and rook together.
         board.launch(seed: "4kr2/8/8/8/8/8/8/R3K2R w KQ -")
+        board.launch()
         board.tap("e1")
         XCTAssertEqual(board.legalDestinations, ["c1", "d1", "d2", "e2"])
         board.tap("c1")

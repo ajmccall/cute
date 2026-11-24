@@ -45,7 +45,7 @@ final class FailedSaveReadUITests: XCTestCase {
         XCTAssertTrue(board.app.buttons["Retry"].exists)
         XCTAssertFalse(board.app.buttons["square-e2"].exists)
         XCTAssertFalse(board.app.staticTexts["status"].exists)
-        XCTAssertFalse(board.app.buttons["New game"].exists)
+        XCTAssertTrue(board.app.buttons["New game"].exists)
         try board.auditAccessibility()
         board.attachScreenshot(named: "local-game-C5-read", to: self)
 
@@ -55,5 +55,31 @@ final class FailedSaveReadUITests: XCTestCase {
         board.launch()
         XCTAssertEqual(board.status, "Black to move")
         XCTAssertEqual(board.square("f3").label, "f3, White knight")
+    }
+
+    @MainActor
+    func testAfterAFailedReadNewGameReplacesTheSavedGameOnlyOnConfirmation() throws {
+        let board = BoardRobot()
+        board.launch(seed: Self.saved)
+        board.launch(fault: "read")
+        let notice = board.app.staticTexts["Couldn’t open the saved game."]
+        XCTAssertTrue(notice.waitForExistence(timeout: 5))
+
+        board.app.buttons["New game"].tap()
+        let alert = board.app.alerts["Replace this game?"]
+        XCTAssertTrue(alert.waitForExistence(timeout: 5))
+        alert.buttons["Cancel"].tap()
+        XCTAssertTrue(notice.exists)
+
+        board.app.buttons["New game"].tap()
+        XCTAssertTrue(alert.waitForExistence(timeout: 5))
+        alert.buttons["Confirm"].tap()
+        XCTAssertEqual(board.status, "White to move")
+        XCTAssertEqual(board.square("g1").label, "g1, White knight")
+        try board.auditAccessibility()
+
+        board.launch()
+        XCTAssertEqual(board.status, "White to move")
+        XCTAssertEqual(board.square("f3").label, "f3, Empty")
     }
 }

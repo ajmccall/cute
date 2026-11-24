@@ -2,10 +2,22 @@ nonisolated enum PieceColor: String, Codable, CaseIterable, Sendable {
     case white, black
 
     var opponent: PieceColor { self == .white ? .black : .white }
+
+    /// The rank direction this colour's pawns advance in.
+    var forward: Int { self == .white ? 1 : -1 }
+
+    /// The rank this colour's pawns start on, 0 being rank 1.
+    var pawnStartRank: Int { self == .white ? 1 : 6 }
+
+    /// The rank this colour's pawns promote on.
+    var promotionRank: Int { self == .white ? 7 : 0 }
 }
 
 nonisolated enum PieceKind: CaseIterable, Sendable {
     case king, queen, rook, bishop, knight, pawn
+
+    /// The pieces a pawn can become, in the order a choice offers them.
+    static let promotionChoices: [PieceKind] = [.queen, .rook, .bishop, .knight]
 }
 
 nonisolated struct Piece: Hashable, Sendable {

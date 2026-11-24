@@ -45,7 +45,7 @@ enum BoardText {
         }
     }
 
-    /// The name of a piece a pawn can become (`LocalGame.promotionChoices`).
+    /// The name of a piece a pawn can become (`PieceKind.promotionChoices`).
     static func promotionChoice(_ kind: PieceKind) -> String {
         switch kind {
         case .queen: String(localized: "Queen")
@@ -58,7 +58,8 @@ enum BoardText {
     /// "{coordinate}, {occupant}", where the occupant is Empty or the piece's colour and name.
     static func squareLabel(_ square: Square, occupant: Piece?) -> String {
         let occupantText = occupant.map(pieceName) ?? String(localized: "Empty")
-        return "\(square.coordinate), \(occupantText)"
+        let coordinate = square.coordinate
+        return String(localized: "\(coordinate), \(occupantText)")
     }
 
     static func confirmResign(_ color: PieceColor) -> String {

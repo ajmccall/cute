@@ -1,5 +1,5 @@
 /// A board square by its coordinate, independent of how the board is drawn.
-nonisolated struct Square: Hashable, Comparable, Sendable, CustomStringConvertible {
+nonisolated struct Square: Hashable, Sendable, CustomStringConvertible {
     /// 0 is file a, 7 is file h.
     let file: Int
     /// 0 is rank 1, 7 is rank 8.
@@ -16,13 +16,13 @@ nonisolated struct Square: Hashable, Comparable, Sendable, CustomStringConvertib
         let characters = Array(coordinate)
         guard characters.count == 2,
               let fileValue = characters[0].asciiValue, let rankValue = characters[1].asciiValue,
-              let square = Square(file: Int(fileValue) - 97, rank: Int(rankValue) - 49)
+              let square = Square(file: Int(fileValue) - Int(Self.firstFile), rank: Int(rankValue) - Int(Self.firstRank))
         else { return nil }
         self = square
     }
 
     var coordinate: String {
-        let fileLetter = Character(UnicodeScalar(UInt8(97 + file)))
+        let fileLetter = Character(UnicodeScalar(Self.firstFile + UInt8(file)))
         return "\(fileLetter)\(rank + 1)"
     }
 
@@ -34,9 +34,6 @@ nonisolated struct Square: Hashable, Comparable, Sendable, CustomStringConvertib
         Square(file: file + files, rank: rank + ranks)
     }
 
-    static let all: [Square] = (0..<8).flatMap { rank in (0..<8).map { Square(file: $0, rank: rank)! } }
-
-    static func < (lhs: Square, rhs: Square) -> Bool {
-        (lhs.rank, lhs.file) < (rhs.rank, rhs.file)
-    }
+    private static let firstFile = Character("a").asciiValue!
+    private static let firstRank = Character("1").asciiValue!
 }

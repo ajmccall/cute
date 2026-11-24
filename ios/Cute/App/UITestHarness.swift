@@ -8,18 +8,22 @@ struct UITestHarness {
     static let fileKey = "CUTE_UITEST_GAME_FILE"
     /// A FEN position written to the scenario's file at launch, replacing what was there.
     static let seedKey = "CUTE_UITEST_SEED_FEN"
-    /// "read" or "write": that store operation fails for this launch.
+    /// A `Fault` raw value: that store operation fails for this launch.
     static let faultKey = "CUTE_UITEST_FAULT"
+
+    enum Fault: String {
+        case read, write
+    }
 
     let fileURL: URL
     let seed: Position?
-    let fault: String?
+    let fault: Fault?
 
     init?(environment: [String: String], folder: URL) {
         guard let fileName = environment[Self.fileKey], !fileName.contains("/") else { return nil }
         fileURL = folder.appending(path: fileName)
         seed = environment[Self.seedKey].flatMap(Position.init(fen:))
-        fault = environment[Self.faultKey]
+        fault = environment[Self.faultKey].flatMap(Fault.init(rawValue:))
     }
 
     func makeStore() -> GameStore {
@@ -27,7 +31,7 @@ struct UITestHarness {
         if let seed {
             try? store.save(SavedGame(position: seed, result: nil))
         }
-        return FailingGameStore(wrapped: store, failsReads: fault == "read", failsWrites: fault == "write")
+        return FailingGameStore(wrapped: store, failsReads: fault == .read, failsWrites: fault == .write)
     }
 }
 

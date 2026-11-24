@@ -33,11 +33,11 @@ nonisolated extension Position {
             else { return false }
         }
         if let enPassantTarget {
-            // The pawn that passed stands one rank beyond the target, from the mover's point of view.
-            let passedRank = sideToMove == .white ? 5 : 2
-            let pawnRank = sideToMove == .white ? 4 : 3
+            // The opponent's pawn just passed over the target, and stands one rank beyond it.
+            let passer = sideToMove.opponent
+            let passedRank = passer.pawnStartRank + passer.forward
             guard enPassantTarget.rank == passedRank, self[enPassantTarget] == nil,
-                  self[Square(file: enPassantTarget.file, rank: pawnRank)!] == Piece(color: sideToMove.opponent, kind: .pawn)
+                  self[Square(file: enPassantTarget.file, rank: passedRank + passer.forward)!] == Piece(color: passer, kind: .pawn)
             else { return false }
         }
         return true
@@ -99,7 +99,7 @@ nonisolated extension Position {
 
     func isAttacked(_ square: Square, by attacker: PieceColor) -> Bool {
         // Pawns attack diagonally forward, so look one rank behind the square from the attacker's side.
-        let pawnRank = attacker == .white ? -1 : 1
+        let pawnRank = -attacker.forward
         for files in [-1, 1] {
             if let from = square.offset(files: files, ranks: pawnRank), self[from] == Piece(color: attacker, kind: .pawn) {
                 return true
@@ -226,17 +226,16 @@ nonisolated private extension Position {
     }
 
     func pawnMoves(from square: Square, color: PieceColor) -> [Move] {
-        let lastRank = color == .white ? 7 : 0
-        return pawnSteps(from: square, color: color).flatMap { move in
-            move.to.rank == lastRank
-                ? [PieceKind.queen, .rook, .bishop, .knight].map { Move(from: move.from, to: move.to, promotion: $0) }
+        pawnSteps(from: square, color: color).flatMap { move in
+            move.to.rank == color.promotionRank
+                ? PieceKind.promotionChoices.map { Move(from: move.from, to: move.to, promotion: $0) }
                 : [move]
         }
     }
 
     func pawnSteps(from square: Square, color: PieceColor) -> [Move] {
-        let forward = color == .white ? 1 : -1
-        let startRank = color == .white ? 1 : 6
+        let forward = color.forward
+        let startRank = color.pawnStartRank
         var moves: [Move] = []
         if let one = square.offset(files: 0, ranks: forward), self[one] == nil {
             moves.append(Move(from: square, to: one))

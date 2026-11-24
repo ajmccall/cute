@@ -14,7 +14,7 @@ struct BoardScreen: View {
     var body: some View {
         Group {
             if game.failure == .read {
-                ReadFailureView(retry: game.retry)
+                ReadFailureView(retry: game.retry, newGame: { confirmation = .replace })
             } else {
                 ScrollView {
                     playSurface
@@ -27,7 +27,7 @@ struct BoardScreen: View {
             Button("Cancel", role: .cancel) {}
         }
         .alert("Promote pawn", isPresented: isChoosingPromotion) {
-            ForEach(LocalGame.promotionChoices, id: \.self) { kind in
+            ForEach(PieceKind.promotionChoices, id: \.self) { kind in
                 Button(BoardText.promotionChoice(kind)) { game.choosePromotion(kind) }
             }
             Button("Cancel", role: .cancel) { game.cancelPromotion() }
@@ -54,8 +54,7 @@ struct BoardScreen: View {
                 HStack(spacing: 12) { actions }
                 VStack(spacing: 12) { actions }
             }
-            .buttonStyle(.bordered)
-            .tint(.primary)
+            .gameActionStyle()
             .padding(.horizontal)
         }
         .padding(.vertical)
@@ -114,8 +113,7 @@ private struct WriteFailureBanner: View {
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .accessibilityIdentifier("failureNotice")
             Button("Retry", action: retry)
-                .buttonStyle(.bordered)
-                .tint(.primary)
+                .gameActionStyle()
         }
         .font(.body)
         .padding()
@@ -124,8 +122,10 @@ private struct WriteFailureBanner: View {
     }
 }
 
+/// Retry, or replace the saved game that couldn't be read once the players confirm.
 private struct ReadFailureView: View {
     let retry: () -> Void
+    let newGame: () -> Void
 
     var body: some View {
         ContentUnavailableView {
@@ -133,8 +133,16 @@ private struct ReadFailureView: View {
                 .accessibilityIdentifier("failureNotice")
         } actions: {
             Button("Retry", action: retry)
-                .buttonStyle(.bordered)
-                .tint(.primary)
+                .gameActionStyle()
+            Button("New game", action: newGame)
+                .gameActionStyle()
         }
+    }
+}
+
+private extension View {
+    /// Stock bordered buttons in the primary colour, whose labels keep full text contrast.
+    func gameActionStyle() -> some View {
+        buttonStyle(.bordered).tint(.primary)
     }
 }

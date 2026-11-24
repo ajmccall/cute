@@ -30,11 +30,12 @@ final class LocalGame {
     }
 
     /// Reads the current game, or starts the opening position when none is saved.
+    /// A saved position the rules have already ended opens with that result.
     func open() {
         do {
             let saved = try store.load() ?? .opening
             position = saved.position
-            result = saved.result
+            result = saved.result ?? saved.position.automaticResult
             failure = nil
         } catch {
             failure = .read
@@ -72,8 +73,8 @@ final class LocalGame {
 
     var canResignOrAgreeDraw: Bool { result == nil && failure != .read }
 
-    /// Whether starting over abandons a game still in play.
-    var newGameNeedsConfirmation: Bool { result == nil }
+    /// Whether starting over abandons a game still in play, or a saved game that couldn't be read.
+    var newGameNeedsConfirmation: Bool { result == nil || failure == .read }
 
     /// Records a loss for the side to move. The board asks for confirmation first.
     func resign() {
@@ -89,9 +90,9 @@ final class LocalGame {
         commit(SavedGame(position: position, result: .draw(.agreement)))
     }
 
-    /// Replaces the current game with the opening position. The board confirms first while still playing.
+    /// Replaces the current game with the opening position. The board confirms first while still playing,
+    /// and after a failed read, when this replaces the saved game that couldn't be read.
     func newGame() {
-        guard failure != .read else { return }
         clearSelection()
         commit(.opening)
     }
@@ -106,11 +107,8 @@ final class LocalGame {
 
     var isChoosingPromotion: Bool { promotionMove != nil }
 
-    /// The pieces a pawn can become, in the order the choice offers them.
-    static let promotionChoices: [PieceKind] = [.queen, .rook, .bishop, .knight]
-
     func choosePromotion(_ kind: PieceKind) {
-        guard var move = promotionMove, Self.promotionChoices.contains(kind) else { return }
+        guard var move = promotionMove, PieceKind.promotionChoices.contains(kind) else { return }
         move.promotion = kind
         clearSelection()
         play(move)

@@ -114,6 +114,30 @@ import Testing
         #expect(game.failure == nil)
     }
 
+    @Test func afterAFailedReadNewGameReplacesTheUnreadableGameOnlyOnConfirmation() throws {
+        let storage = try TemporaryStorage()
+        try Data("not json".utf8).write(to: storage.fileURL)
+        let game = LocalGame(store: storage.store)
+        game.open()
+        #expect(game.failure == .read)
+        #expect(game.newGameNeedsConfirmation)
+
+        game.newGame()
+
+        #expect(game.failure == nil)
+        #expect(game.position == .opening)
+        #expect(try storage.store.load() == .opening)
+    }
+
+    @Test func aSavedPositionThatAlreadyEndedOpensWithItsResult() throws {
+        let storage = try TemporaryStorage()
+        // Fool's mate, saved without its result.
+        let game = try openGame(at: "rnb1kbnr/pppp1ppp/8/4p3/6Pq/5P2/PPPPP2P/RNBQKBNR w KQkq -", in: storage)
+
+        #expect(game.result == .win(.black, .checkmate))
+        #expect(!game.canResignOrAgreeDraw)
+    }
+
     private func expectReadFailure(_ contents: Data, sourceLocation: SourceLocation = #_sourceLocation) throws {
         let storage = try TemporaryStorage()
         try contents.write(to: storage.fileURL)
@@ -124,7 +148,6 @@ import Testing
         #expect(game.failure == .read, sourceLocation: sourceLocation)
         #expect(!game.canResignOrAgreeDraw, sourceLocation: sourceLocation)
         game.tap("e2")
-        game.newGame()
         game.resign()
         game.agreeDraw()
         #expect(game.selection == nil, sourceLocation: sourceLocation)
