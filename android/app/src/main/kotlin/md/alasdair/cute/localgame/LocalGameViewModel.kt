@@ -125,10 +125,10 @@ class LocalGameViewModel @Inject constructor(private val repository: GameReposit
      */
     fun onDoubleTaken() {
         val game = pendingDouble() ?: return
-        val stake = game.stake ?: return
+        val doubled = game.doubledStake ?: return
         save(
             game.copy(
-                stake = stake * 2,
+                stake = doubled,
                 nextDoubler = game.position.sideToMove.opponent,
                 doublePending = false
             )

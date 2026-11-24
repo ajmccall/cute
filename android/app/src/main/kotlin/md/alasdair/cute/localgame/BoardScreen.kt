@@ -99,12 +99,8 @@ fun BoardScreen(state: LocalGameUiState, actions: BoardActions, modifier: Modifi
                 FailureNotice(state.failure, actions.onRetry)
             }
             if (game != null) {
-                if (game.doublePending) {
-                    DoubleResponse(game, actions)
-                } else {
-                    GameStatus(game, state.inCheck)
-                    if (game.result == null) StakeSummary(game)
-                }
+                GameStatus(game, state.inCheck)
+                if (game.result == null && !game.doublePending) StakeSummary(game)
                 ChessBoard(
                     position = game.position,
                     bottomSide = state.bottomSide,
@@ -115,8 +111,10 @@ fun BoardScreen(state: LocalGameUiState, actions: BoardActions, modifier: Modifi
                     modifier = Modifier.fillMaxWidth()
                 )
             }
-            // While a double awaits its answer, Take and Decline are the only game actions.
-            if (!state.loading && game?.doublePending != true) {
+            if (game?.doublePending == true) {
+                // While a double awaits its answer, Take and Decline are the only game actions.
+                DoubleResponse(game, actions)
+            } else if (!state.loading) {
                 FlowRow(
                     Modifier.padding(horizontal = 16.dp),
                     horizontalArrangement = Arrangement.spacedBy(
@@ -228,7 +226,7 @@ private fun award(result: GameResult, stake: Int): Award {
 private fun StakeSummary(game: GameRecord) {
     val stake = game.stake ?: return
     val nextDoubler = game.nextDoubler
-    val right = when {
+    val rightToOffer = when {
         stake >= GameRecord.MAX_STAKE -> stringResource(R.string.double_right_max)
         nextDoubler == null -> stringResource(R.string.double_right_either)
         else -> stringResource(R.string.double_right_only, sideName(nextDoubler))
@@ -244,20 +242,22 @@ private fun StakeSummary(game: GameRecord) {
             stringResource(R.string.stake, points(stake)),
             style = MaterialTheme.typography.titleMedium
         )
-        Text(right, style = MaterialTheme.typography.bodyMedium)
+        Text(rightToOffer, style = MaterialTheme.typography.bodyMedium)
     }
 }
 
 /**
- * The Double response surface, in place of the status while a double awaits its answer: it
- * names the responder, shows the stake as it is and what taking or declining means, and holds
- * the only two game actions.
+ * The Double response surface, below the board in place of the game actions while a double
+ * awaits its answer, under the status that names the responder: the stake as it is, what
+ * taking or declining means, and the only two game actions, with equal weight so that neither
+ * answer is suggested.
  */
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun DoubleResponse(game: GameRecord, actions: BoardActions) {
     val offerer = game.position.sideToMove
     val stake = game.stake ?: return
+    val doubled = game.doubledStake ?: return
     Surface(
         color = MaterialTheme.colorScheme.secondaryContainer,
         contentColor = MaterialTheme.colorScheme.onSecondaryContainer,
@@ -266,21 +266,11 @@ private fun DoubleResponse(game: GameRecord, actions: BoardActions) {
     ) {
         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Text(
-                text = stringResource(R.string.response, sideName(offerer.opponent)),
-                style = MaterialTheme.typography.headlineSmall,
-                modifier = Modifier
-                    .testTag("status")
-                    .semantics {
-                        heading()
-                        liveRegion = LiveRegionMode.Polite
-                    }
-            )
-            Text(
                 stringResource(R.string.stake, points(stake)),
                 style = MaterialTheme.typography.titleMedium
             )
             Text(
-                stringResource(R.string.take_effect, points(stake * 2)),
+                stringResource(R.string.take_effect, points(doubled)),
                 style = MaterialTheme.typography.bodyLarge
             )
             Text(
@@ -289,13 +279,13 @@ private fun DoubleResponse(game: GameRecord, actions: BoardActions) {
             )
             FlowRow(
                 Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.End),
+                horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterHorizontally),
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
+                OutlinedButton(onClick = actions.onTake) { Text(stringResource(R.string.take)) }
                 OutlinedButton(onClick = actions.onDecline) {
                     Text(stringResource(R.string.decline))
                 }
-                Button(onClick = actions.onTake) { Text(stringResource(R.string.take)) }
             }
         }
     }
@@ -314,8 +304,11 @@ private fun ConfirmDialog(
         Confirmation.Resign -> stringResource(R.string.confirm_resign, sideName(state.sideToMove))
         Confirmation.Draw -> stringResource(R.string.confirm_draw)
         Confirmation.Replace -> stringResource(R.string.confirm_replace)
-        Confirmation.OfferDouble ->
-            stringResource(R.string.confirm_offer, points((state.game?.stake ?: 1) * 2))
+        Confirmation.OfferDouble -> {
+            // Offer double is only asked for while the game has a stake (canOfferDouble).
+            val doubled = state.game?.doubledStake ?: return
+            stringResource(R.string.confirm_offer, points(doubled))
+        }
     }
     AlertDialog(
         onDismissRequest = actions.onCancel,
@@ -363,6 +356,9 @@ private val promotionChoices = listOf(
 
 @Composable
 private fun statusText(game: GameRecord, inCheck: Boolean): String {
+    if (game.doublePending) {
+        return stringResource(R.string.answer_double, sideName(game.position.sideToMove.opponent))
+    }
     val result = game.result
         ?: return stringResource(
             if (inCheck) R.string.turn_check else R.string.turn,

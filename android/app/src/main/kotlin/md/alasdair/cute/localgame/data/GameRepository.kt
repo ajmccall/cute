@@ -30,6 +30,9 @@ data class GameRecord(
             stake < MAX_STAKE &&
             (nextDoubler == null || nextDoubler == position.sideToMove)
 
+    /** The stake a double offers, and a take plays for: twice [stake]. */
+    val doubledStake: Int? get() = stake?.times(2)
+
     companion object {
         val New = GameRecord(Position.Opening, result = null)
 

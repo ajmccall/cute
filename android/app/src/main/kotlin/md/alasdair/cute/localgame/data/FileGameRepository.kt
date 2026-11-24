@@ -50,7 +50,7 @@ class FileGameRepository @Inject constructor(
 
         /** Saves from before the doubling cube: position and result only. Read, never written. */
         private const val HEADER_V1 = "cute-game 1"
-        private const val HEADER = "cute-game 2"
+        private const val HEADER_V2 = "cute-game 2"
         private const val PLAYING = "playing"
         private const val NO_STAKE = "none"
         private const val EITHER = "Either"
@@ -65,7 +65,7 @@ class FileGameRepository @Inject constructor(
         fun encode(record: GameRecord): String {
             val result = record.result?.let { "${it.winner?.name ?: "Draw"} ${it.reason.name}" }
             return listOf(
-                HEADER,
+                HEADER_V2,
                 record.position.toFen(),
                 result ?: PLAYING,
                 record.stake?.toString() ?: NO_STAKE,
@@ -81,7 +81,7 @@ class FileGameRepository @Inject constructor(
             require(lines.isNotEmpty() && lines.last().isEmpty()) { "Not a saved game" }
             return when (lines[0]) {
                 HEADER_V1 -> decodeV1(lines)
-                HEADER -> decodeV2(lines)
+                HEADER_V2 -> decodeV2(lines)
                 else -> throw IllegalArgumentException("Not a saved game")
             }
         }
@@ -147,10 +147,7 @@ class FileGameRepository @Inject constructor(
             require(parts.size == 2) { "Bad result: $text" }
             val winner = if (parts[0] == "Draw") null else Side.valueOf(parts[0])
             val reason = EndReason.valueOf(parts[1])
-            val decisive = reason == EndReason.Checkmate ||
-                reason == EndReason.Resignation ||
-                reason == EndReason.DoubleDeclined
-            require(decisive == (winner != null)) { "Bad result: $text" }
+            require(reason.decisive == (winner != null)) { "Bad result: $text" }
             return GameResult(winner, reason)
         }
     }
