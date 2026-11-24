@@ -4,6 +4,17 @@
     "%@ bishop": {
       "extractionState": "manual"
     },
+    "%@ earns %@.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%1$@ earns %2$@."
+          }
+        }
+      }
+    },
     "%@ king": {
       "extractionState": "manual"
     },
@@ -47,6 +58,32 @@
         }
       }
     },
+    "%@, answer the double": {
+      "extractionState": "manual"
+    },
+    "%lld points": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "variations": {
+            "plural": {
+              "one": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%lld point"
+                }
+              },
+              "other": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%lld points"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "Agree draw": {
       "extractionState": "manual"
     },
@@ -77,10 +114,33 @@
     "Couldn’t open the saved game.": {
       "extractionState": "manual"
     },
+    "Decline": {
+      "extractionState": "manual"
+    },
+    "Decline: %@ wins %@.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Decline: %1$@ wins %2$@."
+          }
+        }
+      }
+    },
     "Do both players agree to a draw?": {
       "extractionState": "manual"
     },
+    "Double declined": {
+      "extractionState": "manual"
+    },
     "Draw · %@": {
+      "extractionState": "manual"
+    },
+    "Each player earns %@.": {
+      "extractionState": "manual"
+    },
+    "Either player can offer": {
       "extractionState": "manual"
     },
     "Empty": {
@@ -95,7 +155,19 @@
     "Legal destination": {
       "extractionState": "manual"
     },
+    "Maximum stake reached": {
+      "extractionState": "manual"
+    },
     "New game": {
+      "extractionState": "manual"
+    },
+    "Offer double": {
+      "extractionState": "manual"
+    },
+    "Offer to raise the stake to %@?": {
+      "extractionState": "manual"
+    },
+    "Only %@ can offer": {
       "extractionState": "manual"
     },
     "Opens the saved game again": {
@@ -131,10 +203,25 @@
     "Selected": {
       "extractionState": "manual"
     },
+    "Stake: %@": {
+      "extractionState": "manual"
+    },
     "Stalemate": {
       "extractionState": "manual"
     },
+    "Take": {
+      "extractionState": "manual"
+    },
+    "Take: play for %@.": {
+      "extractionState": "manual"
+    },
     "White": {
+      "extractionState": "manual"
+    },
+    "half a point": {
+      "extractionState": "manual"
+    },
+    "½ point": {
       "extractionState": "manual"
     }
   },

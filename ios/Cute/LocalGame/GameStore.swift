@@ -1,11 +1,27 @@
 import Foundation
 
-/// The one current game a device keeps: its committed position and any result.
+/// The one current game a device keeps: its committed position, any result, and the doubling cube.
 nonisolated struct SavedGame: Equatable, Sendable {
+    /// The highest stake: once a game is played for this, neither side can offer.
+    static let maximumStake = 64
+
     var position: Position
     var result: GameResult?
+    /// The points the game is played for. Nil only in a game saved before the cube.
+    var stake: Int? = 1
+    /// The side that took the last double and alone may offer the next; nil before the first take.
+    var nextDoubler: PieceColor? = nil
+    /// An offer the side to move confirmed, waiting for the other side to take or decline.
+    var doublePending = false
 
     static let opening = SavedGame(position: .opening, result: nil)
+
+    /// Whether the side to move is entitled to offer a double: below the maximum stake, and either before
+    /// the first take or as the side that took the last double.
+    var sideToMoveMayOffer: Bool {
+        guard let stake else { return false }
+        return stake < Self.maximumStake && (nextDoubler == nil || nextDoubler == position.sideToMove)
+    }
 }
 
 /// Keeps the current game. Errors mean the game couldn't be read or the change wasn't saved.

@@ -16,6 +16,7 @@ enum BoardText {
             let reasonText = switch reason {
             case .checkmate: String(localized: "Checkmate")
             case .resignation: String(localized: "Resignation")
+            case .doubleDeclined: String(localized: "Double declined")
             }
             return String(localized: "\(side) wins · \(reasonText)")
         case let .draw(reason):
@@ -26,10 +27,75 @@ enum BoardText {
             }
             return String(localized: "Draw · \(reasonText)")
         case nil:
+            if game.isAwaitingDoubleResponse {
+                let responder = side(game.responder)
+                return String(localized: "\(responder), answer the double")
+            }
             let side = side(game.position.sideToMove)
             return game.isInCheck
                 ? String(localized: "\(side) to move · Check")
                 : String(localized: "\(side) to move")
+        }
+    }
+
+    /// What VoiceOver announces when the status changes: the status, and any point award after it.
+    static func announcement(of game: LocalGame) -> String {
+        guard let award = game.award else { return status(of: game) }
+        return status(of: game) + "\n" + self.award(award, spoken: true)
+    }
+
+    /// A number of whole points, with its unit: "1 point", "2 points".
+    static func points(_ count: Int) -> String {
+        String(localized: "\(count) points")
+    }
+
+    /// Half of a stake, with its unit. Half of one point is "½ point", or "half a point" when spoken.
+    static func halfOf(_ stake: Int, spoken: Bool) -> String {
+        guard stake == 1 else { return points(stake / 2) }
+        return spoken ? String(localized: "half a point") : String(localized: "½ point")
+    }
+
+    static func stake(_ stake: Int) -> String {
+        let points = points(stake)
+        return String(localized: "Stake: \(points)")
+    }
+
+    /// Who may offer the next double on their own turn.
+    static func doubleRight(of game: LocalGame) -> String {
+        if let stake = game.stake, stake >= SavedGame.maximumStake {
+            return String(localized: "Maximum stake reached")
+        }
+        guard let nextDoubler = game.nextDoubler else { return String(localized: "Either player can offer") }
+        let side = side(nextDoubler)
+        return String(localized: "Only \(side) can offer")
+    }
+
+    static func confirmOffer(stake: Int) -> String {
+        let doubled = points(stake * 2)
+        return String(localized: "Offer to raise the stake to \(doubled)?")
+    }
+
+    static func takeEffect(stake: Int) -> String {
+        let doubled = points(stake * 2)
+        return String(localized: "Take: play for \(doubled).")
+    }
+
+    static func declineEffect(offerer: PieceColor, stake: Int) -> String {
+        let side = side(offerer)
+        let points = points(stake)
+        return String(localized: "Decline: \(side) wins \(points).")
+    }
+
+    /// "{winner} earns {stake}." or "Each player earns {half stake}.", with half a point in words when spoken.
+    static func award(_ award: PointAward, spoken: Bool) -> String {
+        switch award {
+        case let .win(winner, stake):
+            let side = side(winner)
+            let points = points(stake)
+            return String(localized: "\(side) earns \(points).")
+        case let .split(stake):
+            let half = halfOf(stake, spoken: spoken)
+            return String(localized: "Each player earns \(half).")
         }
     }
 

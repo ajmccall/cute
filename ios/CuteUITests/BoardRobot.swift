@@ -7,17 +7,28 @@ struct BoardRobot {
     /// The scenario's own current-game file, kept across relaunches within the scenario.
     let gameFile = "uitest-\(UUID().uuidString).json"
 
-    /// Launches the app on this scenario's game, optionally seeding a position or failing one store operation.
-    func launch(seed fen: String? = nil, fault: String? = nil) {
+    /// Launches the app on this scenario's game, optionally seeding a position or a whole saved file,
+    /// or failing one store operation.
+    func launch(seed fen: String? = nil, seedFile: String? = nil, fault: String? = nil) {
         app.terminate()
         app.launchEnvironment = ["CUTE_UITEST_GAME_FILE": gameFile]
         if let fen { app.launchEnvironment["CUTE_UITEST_SEED_FEN"] = fen }
+        if let seedFile { app.launchEnvironment["CUTE_UITEST_SEED_FILE"] = seedFile }
         if let fault { app.launchEnvironment["CUTE_UITEST_FAULT"] = fault }
         app.launch()
     }
 
     func square(_ coordinate: String) -> XCUIElement {
         app.buttons["square-\(coordinate)"]
+    }
+
+    var offerDouble: XCUIElement { app.buttons["Offer double"] }
+
+    /// The label of the text with this identifier, such as "stake" or "award", once it appears.
+    func text(_ identifier: String) -> String {
+        let element = app.staticTexts[identifier]
+        XCTAssertTrue(element.waitForExistence(timeout: 5), identifier)
+        return element.label
     }
 
     func tap(_ coordinates: String...) {
@@ -59,11 +70,20 @@ struct BoardRobot {
         try app.performAccessibilityAudit { issue in
             // Stock bordered buttons are reported as "partially" supporting Dynamic Type, though their labels
             // grow and wrap up to the largest accessibility size (checked by screenshot at
-            // accessibility-extra-extra-extra-large). Every other issue fails the test.
-            let ignored = issue.auditType == .dynamicType
-                && issue.compactDescription.contains("partially")
-                && issue.element?.elementType == .button
+            // accessibility-extra-extra-extra-large).
+            // A game action dimmed because it can't be used now, such as Offer double for a side not entitled
+            // to it, keeps the stock disabled look; WCAG 1.4.3 sets no contrast for inactive controls.
+            // A draw at one point shows "½ point" and is spoken "half a point" (local-game Interface text); the
+            // audit measures the longer spoken label against the shown text and reports it clipped.
+            // Every other issue fails the test.
+            let isGameAction = issue.element?.elementType == .button
                 && Self.gameActions.contains(issue.element?.label ?? "")
+            let isSpokenHalfPoint = issue.auditType == .textClipped
+                && issue.element?.identifier == "award"
+                && issue.element?.label.contains("half a point") == true
+            let ignored = isSpokenHalfPoint || isGameAction && (
+                (issue.auditType == .dynamicType && issue.compactDescription.contains("partially"))
+                || (issue.auditType == .contrast && issue.element?.isEnabled == false))
             if !ignored {
                 print("Accessibility audit issue: \(issue.compactDescription) on \(issue.element?.debugDescription ?? "no element")")
             }
@@ -71,5 +91,5 @@ struct BoardRobot {
         }
     }
 
-    static let gameActions: Set<String> = ["New game", "Resign", "Agree draw"]
+    static let gameActions: Set<String> = ["New game", "Resign", "Agree draw", "Offer double", "Take", "Decline"]
 }
