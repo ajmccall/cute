@@ -15,6 +15,13 @@ nonisolated struct SavedGame: Equatable, Sendable {
     var doublePending = false
 
     static let opening = SavedGame(position: .opening, result: nil)
+
+    /// Whether the side to move is entitled to offer a double: below the maximum stake, and either before
+    /// the first take or as the side that took the last double.
+    var sideToMoveMayOffer: Bool {
+        guard let stake else { return false }
+        return stake < Self.maximumStake && (nextDoubler == nil || nextDoubler == position.sideToMove)
+    }
 }
 
 /// Keeps the current game. Errors mean the game couldn't be read or the change wasn't saved.

@@ -47,6 +47,7 @@ final class DoublingUITests: XCTestCase {
         XCTAssertEqual(board.text("stake"), "Stake: 1 point")
         XCTAssertEqual(board.text("doubleRight"), "Either player can offer")
         XCTAssertTrue(board.offerDouble.isEnabled)
+        try board.auditAccessibility()
     }
 
     @MainActor
@@ -107,6 +108,7 @@ final class DoublingUITests: XCTestCase {
         XCTAssertTrue(board.isAtBottom("Black"))
         XCTAssertEqual(board.square("e2").label, "e2, White pawn")
         XCTAssertEqual(board.value(of: "e2"), "")
+        XCTAssertEqual(board.text("responder"), "Black, answer the double")
         XCTAssertEqual(board.text("stake"), "Stake: 1 point")
         XCTAssertEqual(board.text("takeEffect"), "Take: play for 2 points.")
         XCTAssertEqual(board.text("declineEffect"), "Decline: White wins 1 point.")

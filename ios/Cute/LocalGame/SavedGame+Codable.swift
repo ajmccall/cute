@@ -67,18 +67,16 @@ nonisolated extension SavedGame: Codable {
             throw DecodingError.dataCorruptedError(
                 forKey: .stake, in: container, debugDescription: "Stake \(stake) with next doubler \(String(describing: nextDoubler))")
         }
+        self.stake = stake
+        self.nextDoubler = nextDoubler
+        self.doublePending = doublePending
         // Only the side to move, entitled to double, can have an offer waiting, in a game still being played.
         if doublePending {
-            guard result == nil, position.automaticResult == nil, stake < Self.maximumStake,
-                  nextDoubler == nil || nextDoubler == position.sideToMove
-            else {
+            guard result == nil, position.automaticResult == nil, sideToMoveMayOffer else {
                 throw DecodingError.dataCorruptedError(
                     forKey: .doublePending, in: container, debugDescription: "An offer no one could have made")
             }
         }
-        self.stake = stake
-        self.nextDoubler = nextDoubler
-        self.doublePending = doublePending
     }
 
     func encode(to encoder: any Encoder) throws {

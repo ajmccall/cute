@@ -72,15 +72,11 @@ struct BoardScreen: View {
             BoardView(game: game)
             if game.isAwaitingDoubleResponse, let stake = game.stake {
                 DoubleResponseView(
-                    stake: stake, offerer: game.position.sideToMove,
+                    responder: BoardText.status(of: game), stake: stake, offerer: game.position.sideToMove,
                     take: game.takeDouble, decline: game.declineDouble)
             } else {
-                ViewThatFits(in: .horizontal) {
-                    HStack(spacing: 12) { actions }
-                    VStack(spacing: 12) { actions }
-                }
-                .gameActionStyle()
-                .padding(.horizontal)
+                ActionRow { actions }
+                    .padding(.horizontal)
             }
         }
     }
@@ -151,9 +147,7 @@ private struct WriteFailureBanner: View {
                 .accessibilityIdentifier("retrySave")
         }
         .font(.body)
-        .padding()
-        .background(Color(.secondarySystemBackground), in: .rect(cornerRadius: 12))
-        .padding(.horizontal)
+        .panelStyle()
     }
 }
 
@@ -177,9 +171,11 @@ private struct StakeView: View {
     }
 }
 
-/// The responder's choice, beside the board: the stake as it stands, what taking and declining each mean
-/// in points, and the two actions. Nothing else on the board can be done until one is chosen.
+/// The responder's choice, beside the board: who answers, the stake as it stands, what taking and declining
+/// each mean in points, and the two actions. Nothing else on the board can be done until one is chosen.
 private struct DoubleResponseView: View {
+    /// "{responder}, answer the double".
+    let responder: String
     let stake: Int
     let offerer: PieceColor
     let take: () -> Void
@@ -188,8 +184,10 @@ private struct DoubleResponseView: View {
     var body: some View {
         VStack(spacing: 12) {
             VStack(alignment: .leading, spacing: 4) {
-                Text(BoardText.stake(stake))
+                Text(responder)
                     .font(.headline)
+                    .accessibilityIdentifier("responder")
+                Text(BoardText.stake(stake))
                     .accessibilityIdentifier("stake")
                 Text(BoardText.takeEffect(stake: stake))
                     .accessibilityIdentifier("takeEffect")
@@ -199,23 +197,25 @@ private struct DoubleResponseView: View {
             .font(.body)
             .fixedSize(horizontal: false, vertical: true)
             .frame(maxWidth: .infinity, alignment: .leading)
-            ViewThatFits(in: .horizontal) {
-                HStack(spacing: 12) { actions }
-                VStack(spacing: 12) { actions }
+            ActionRow {
+                Button("Take", action: take)
+                Button("Decline", action: decline)
             }
-            .gameActionStyle()
         }
-        .padding()
-        .background(Color(.secondarySystemBackground), in: .rect(cornerRadius: 12))
-        .padding(.horizontal)
+        .panelStyle()
     }
+}
 
-    @ViewBuilder
-    private var actions: some View {
-        Button("Take", action: take)
-            .accessibilityHint(Text(BoardText.takeEffect(stake: stake)))
-        Button("Decline", action: decline)
-            .accessibilityHint(Text(BoardText.declineEffect(offerer: offerer, stake: stake)))
+/// Game actions side by side, or stacked when they don't fit across, as stock bordered buttons.
+private struct ActionRow<Actions: View>: View {
+    @ViewBuilder let actions: Actions
+
+    var body: some View {
+        ViewThatFits(in: .horizontal) {
+            HStack(spacing: 12) { actions }
+            VStack(spacing: 12) { actions }
+        }
+        .gameActionStyle()
     }
 }
 
@@ -243,5 +243,12 @@ private extension View {
     /// Stock bordered buttons in the primary colour, whose labels keep full text contrast.
     func gameActionStyle() -> some View {
         buttonStyle(.bordered).tint(.primary)
+    }
+
+    /// A rounded panel on the secondary background, inset from the screen's edges.
+    func panelStyle() -> some View {
+        padding()
+            .background(Color(.secondarySystemBackground), in: .rect(cornerRadius: 12))
+            .padding(.horizontal)
     }
 }

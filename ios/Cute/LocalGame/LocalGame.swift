@@ -50,8 +50,8 @@ final class LocalGame {
         }
     }
 
-    /// A game is in play and no offer is waiting, so moves, resigning, a draw or an offer can be made.
-    private var isPlaying: Bool { isInPlay && !doublePending }
+    /// A game is in play and no offer is waiting, so the side to move can move, resign, agree a draw or offer.
+    private var isAwaitingMove: Bool { isInPlay && !doublePending }
 
     /// Where the selected piece can legally move.
     var legalDestinations: Set<Square> {
@@ -62,7 +62,7 @@ final class LocalGame {
     /// Whether the side to move is in check while the game is still being played.
     var isInCheck: Bool { result == nil && position.isInCheck(position.sideToMove) }
 
-    var canResignOrAgreeDraw: Bool { isPlaying }
+    var canResignOrAgreeDraw: Bool { isAwaitingMove }
 
     /// New game is offered at any time except while an offer waits for its answer.
     var canStartNewGame: Bool { !isAwaitingDoubleResponse }
@@ -72,12 +72,8 @@ final class LocalGame {
 
     var isChoosingPromotion: Bool { promotionMove != nil }
 
-    /// Whether the side to move may offer to double the stake now: below the maximum stake,
-    /// and before the first take or when it was the side to move that took the last double.
-    var canOfferDouble: Bool {
-        guard isPlaying, let stake else { return false }
-        return stake < SavedGame.maximumStake && (nextDoubler == nil || nextDoubler == position.sideToMove)
-    }
+    /// Whether the side to move may offer to double the stake now (`SavedGame.sideToMoveMayOffer`).
+    var canOfferDouble: Bool { isAwaitingMove && committed.sideToMoveMayOffer }
 
     /// Reads the current game, or starts the opening position when none is saved.
     /// A saved position the rules have already ended opens with that result. Nothing is saved until a change.
@@ -100,7 +96,7 @@ final class LocalGame {
     /// A tap on a board square: selects an own piece, or moves the selected one to a legal destination.
     /// Any other square clears the selection.
     func tap(_ square: Square) {
-        guard isPlaying, !isChoosingPromotion else { return }
+        guard isAwaitingMove, !isChoosingPromotion else { return }
         if position[square]?.color == position.sideToMove {
             selection = square
             return
