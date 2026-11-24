@@ -108,7 +108,9 @@ final class DoublingUITests: XCTestCase {
         XCTAssertTrue(board.isAtBottom("Black"))
         XCTAssertEqual(board.square("e2").label, "e2, White pawn")
         XCTAssertEqual(board.value(of: "e2"), "")
-        XCTAssertEqual(board.text("responder"), "Black, answer the double")
+        // Named once, in the status above the board, not again in the panel (product owner, on #17).
+        let responderTexts = board.app.staticTexts.matching(NSPredicate(format: "label == %@", "Black, answer the double"))
+        XCTAssertEqual(responderTexts.count, 1)
         XCTAssertEqual(board.text("stake"), "Stake: 1 point")
         XCTAssertEqual(board.text("takeEffect"), "Take: play for 2 points.")
         XCTAssertEqual(board.text("declineEffect"), "Decline: White wins 1 point.")

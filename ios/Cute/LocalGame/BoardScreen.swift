@@ -72,7 +72,7 @@ struct BoardScreen: View {
             BoardView(game: game)
             if game.isAwaitingDoubleResponse, let stake = game.stake {
                 DoubleResponseView(
-                    responder: BoardText.status(of: game), stake: stake, offerer: game.position.sideToMove,
+                    stake: stake, offerer: game.position.sideToMove,
                     take: game.takeDouble, decline: game.declineDouble)
             } else {
                 ActionRow { actions }
@@ -171,11 +171,10 @@ private struct StakeView: View {
     }
 }
 
-/// The responder's choice, beside the board: who answers, the stake as it stands, what taking and declining
-/// each mean in points, and the two actions. Nothing else on the board can be done until one is chosen.
+/// The responder's choice, beside the board: the stake as it stands, what taking and declining each mean
+/// in points, and the two actions. The status above the board names the responder; the panel doesn't
+/// (product owner, 2026-11-24, on #17). Nothing else on the board can be done until one is chosen.
 private struct DoubleResponseView: View {
-    /// "{responder}, answer the double".
-    let responder: String
     let stake: Int
     let offerer: PieceColor
     let take: () -> Void
@@ -184,10 +183,8 @@ private struct DoubleResponseView: View {
     var body: some View {
         VStack(spacing: 12) {
             VStack(alignment: .leading, spacing: 4) {
-                Text(responder)
-                    .font(.headline)
-                    .accessibilityIdentifier("responder")
                 Text(BoardText.stake(stake))
+                    .font(.headline)
                     .accessibilityIdentifier("stake")
                 Text(BoardText.takeEffect(stake: stake))
                     .accessibilityIdentifier("takeEffect")
