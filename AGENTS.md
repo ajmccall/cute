@@ -39,30 +39,30 @@ Alasdair McCall holds both roles.
 
 | What | Path |
 |---|---|
-| App schema | <folder holding the schema's `README.md` index and one file per feature (`framework/schema-template.md`)> |
-| Product brief | <path of the brief, which holds the app's purpose and open questions> |
+| App schema | `docs/schema/` |
+| Product brief | `docs/brief.md` |
 | Decision records | <folder, where the skills' ADRs also go> |
-| Glossary | <path of the app's domain glossary, which `grill-with-docs` keeps, or "None yet": it's created when the first term is settled> |
-| iOS app | <folder> |
-| Android app | <folder> |
+| Glossary | `GLOSSARY.md` |
+| iOS app | ios/ (created by #5) |
+| Android app | android/ (created by #6) |
 | iOS convention reference | `framework/conventions/ios.md` |
 | Android convention reference | `framework/conventions/android.md` |
-| Design source | <path of the design system or designs, or "each platform's standard components"> |
-| Testing reference | <path of the project's app interaction checks, which the reviewer role's Run the app section relies on> |
+| Design source | Each platform's standard components (#2). |
+| Testing reference | `docs/testing.md` |
 | Tracker | GitHub Issues on `ajmccall/cute` |
 | Tracker binding | `framework/trackers/github.md` |
 | Harness adapter | `framework/adapters/pi` |
 
 ## App settings
 
-<Set by the ticket that sets up the app, and changed only by a ticket. Give the ticket or decision record behind each.>
+Initial playtest settings (#2):
 
-- **App identifier:** <the iOS bundle ID, and Android's `applicationId` and `namespace`>
-- **iOS:** <the minimum iOS version, and the Xcode version and SDK the app builds with>
-- **Android:** <`minSdk`, `compileSdk` and `targetSdk`, and the Java toolchain>
-- **Android JDK** (Android rule 7.1): <how the Gradle daemon finds Android Studio's JetBrains Runtime, and any machine-specific path, recorded as a limit>
-- **Android colour** (Android rule 3.5): <dynamic colour where the device supports it, or the static schemes only. Only needed when the design source is each platform's standard components.>
-- **Spoken screen-reader output** (builder override 11, reviewer override 9): <"not checked per ticket", when the product owner decides that nobody checks what VoiceOver and TalkBack say aloud, at review or at acceptance. Without this line, it is a check for acceptance.>
+- **App identifier:** `md.alasdair.cute` for the iOS bundle ID and Android `applicationId` and `namespace` (from `alasdair.md`, #2).
+- **iOS:** Minimum iOS 26; Xcode 27.0, iOS SDK 27.0.
+- **Android:** minSdk 36, compileSdk 37 at minor release 2, targetSdk 36; Java 21. compileSdk 37 takes the latest stable AndroidX releases (product owner, 2b on #6).
+- **Android JDK** (Android rule 7.1): Set JAVA_HOME and Studio's Gradle JDK to the bundled JBR; no daemon JVM override. Local macOS path: `/Applications/Android Studio.app/Contents/jbr/Contents/Home`. Limit on the product owner's machine: `~/.gradle/gradle.properties` sets `org.gradle.java.home` to Homebrew JDK 17, so each Gradle command there passes `-Dorg.gradle.java.home="$JAVA_HOME"` (#6).
+- **Android colour** (Android rule 3.5): Dynamic colour where supported.
+- **Spoken screen-reader output** (builder override 11, reviewer override 9): Check at acceptance.
 - **Boundary terms:** Cute, Cute Up To Eleven
 
 Other settings:
