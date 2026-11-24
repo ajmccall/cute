@@ -12,25 +12,21 @@ struct BoardScreen: View {
     }
 
     var body: some View {
-        Group {
-            if game.couldNotReadSavedGame {
-                ScrollView {
-                    VStack(spacing: 0) {
-                        if game.hasUnsavedChange {
-                            WriteFailureBanner(retry: game.retrySave)
-                                .padding(.top)
-                        }
-                        ReadFailureView(retry: game.retryRead, newGame: { confirmation = .replace })
-                    }
+        ScrollView {
+            VStack(spacing: 16) {
+                if game.hasUnsavedChange {
+                    WriteFailureBanner(retry: game.retrySave)
                 }
-                .scrollBounceBehavior(.basedOnSize)
-            } else {
-                ScrollView {
+                // While the saved game is unread there is no board or turn to show.
+                if game.couldNotReadSavedGame {
+                    ReadFailureView(retry: game.retryRead, newGame: { confirmation = .replace })
+                } else {
                     playSurface
                 }
-                .scrollBounceBehavior(.basedOnSize)
             }
+            .padding(.vertical)
         }
+        .scrollBounceBehavior(.basedOnSize)
         .alert(confirmationTitle, isPresented: isConfirming, presenting: confirmation) { confirmation in
             Button("Confirm", role: confirmation == .agreeDraw ? nil : .destructive) { perform(confirmation) }
             Button("Cancel", role: .cancel) {}
@@ -48,9 +44,6 @@ struct BoardScreen: View {
 
     private var playSurface: some View {
         VStack(spacing: 16) {
-            if game.hasUnsavedChange {
-                WriteFailureBanner(retry: game.retrySave)
-            }
             Text(BoardText.status(of: game))
                 .font(.title2.weight(.semibold))
                 .multilineTextAlignment(.center)
@@ -66,7 +59,6 @@ struct BoardScreen: View {
             .gameActionStyle()
             .padding(.horizontal)
         }
-        .padding(.vertical)
     }
 
     /// New game is always offered; resigning and agreeing a draw only during play.
@@ -116,24 +108,21 @@ private struct WriteFailureBanner: View {
     let retry: () -> Void
 
     var body: some View {
-        HStack(spacing: 12) { content }
+        HStack(spacing: 12) {
+            Label("Change not saved.", systemImage: "exclamationmark.triangle.fill")
+                .symbolRenderingMode(.multicolor)
+                .fixedSize(horizontal: false, vertical: true)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .accessibilityIdentifier("writeFailureNotice")
+            Button("Retry", action: retry)
+                .gameActionStyle()
+                .accessibilityHint(Text("Saves the change again"))
+                .accessibilityIdentifier("retrySave")
+        }
         .font(.body)
         .padding()
         .background(Color(.secondarySystemBackground), in: .rect(cornerRadius: 12))
         .padding(.horizontal)
-    }
-
-    @ViewBuilder
-    private var content: some View {
-        Label("Change not saved.", systemImage: "exclamationmark.triangle.fill")
-            .symbolRenderingMode(.multicolor)
-            .fixedSize(horizontal: false, vertical: true)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .accessibilityIdentifier("writeFailureNotice")
-        Button("Retry", action: retry)
-            .gameActionStyle()
-            .accessibilityHint(Text("Saves the change again"))
-            .accessibilityIdentifier("retrySave")
     }
 }
 

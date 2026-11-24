@@ -14,18 +14,18 @@ import Testing
         try storage.makeReadOnly()
         game.tap("e7"); game.tap("e5")
 
-        #expect(game.failure == .write)
+        #expect(game.hasUnsavedChange)
         #expect(game.position.fen == Self.savedPosition)
         #expect(try Data(contentsOf: storage.fileURL) == savedBytes)
 
         game.retrySave()
-        #expect(game.failure == .write)
+        #expect(game.hasUnsavedChange)
         #expect(game.position.fen == Self.savedPosition)
 
         try storage.makeWritable()
         game.retrySave()
         let afterMove = "rnbqkbnr/pppp1ppp/8/4p3/8/5N2/PPPPPPPP/RNBQKB1R w KQkq e6"
-        #expect(game.failure == nil)
+        #expect(game.hasNoFailure)
         #expect(game.position.fen == afterMove)
         #expect(try storage.store.load()?.position.fen == afterMove)
     }
@@ -42,7 +42,7 @@ import Testing
         default: game.newGame()
         }
 
-        #expect(game.failure == .write)
+        #expect(game.hasUnsavedChange)
         #expect(game.result == nil)
         #expect(game.position.fen == Self.savedPosition)
     }
@@ -56,7 +56,7 @@ import Testing
         try storage.makeWritable()
         game.tap("d7"); game.tap("d5")
 
-        #expect(game.failure == nil)
+        #expect(game.hasNoFailure)
         #expect(game.position.fen == "rnbqkbnr/ppp1pppp/8/3p4/8/5N2/PPPPPPPP/RNBQKB1R w KQkq d6")
         game.retrySave()
         #expect(game.position.fen == "rnbqkbnr/ppp1pppp/8/3p4/8/5N2/PPPPPPPP/RNBQKB1R w KQkq d6")
@@ -111,7 +111,7 @@ import Testing
         let game = LocalGame(store: storage.store)
         game.open()
 
-        #expect(game.failure == nil)
+        #expect(game.hasNoFailure)
     }
 
     @Test func afterAFailedReadNewGameReplacesTheUnreadableGameOnlyOnConfirmation() throws {
@@ -119,12 +119,12 @@ import Testing
         try Data("not json".utf8).write(to: storage.fileURL)
         let game = LocalGame(store: storage.store)
         game.open()
-        #expect(game.failure == .read)
+        #expect(game.couldNotReadSavedGame)
         #expect(game.newGameNeedsConfirmation)
 
         game.newGame()
 
-        #expect(game.failure == nil)
+        #expect(game.hasNoFailure)
         #expect(game.position == .opening)
         #expect(try storage.store.load() == .opening)
     }
@@ -139,7 +139,7 @@ import Testing
 
         game.newGame()
 
-        #expect(game.failure == .read)
+        #expect(game.couldNotReadSavedGame)
         #expect(game.couldNotReadSavedGame)
         #expect(game.hasUnsavedChange)
         #expect(!game.canResignOrAgreeDraw)
@@ -154,7 +154,7 @@ import Testing
         // Once the folder takes writes again, retrying the save starts the new game.
         try storage.makeWritable()
         game.retrySave()
-        #expect(game.failure == nil)
+        #expect(game.hasNoFailure)
         #expect(!game.couldNotReadSavedGame)
         #expect(!game.hasUnsavedChange)
         #expect(game.position == .opening)
@@ -174,7 +174,7 @@ import Testing
             .write(to: storage.fileURL)
         game.retryRead()
 
-        #expect(game.failure == nil)
+        #expect(game.hasNoFailure)
         #expect(!game.hasUnsavedChange)
         #expect(game.position.fen == Self.savedPosition)
         game.retrySave()
@@ -197,7 +197,7 @@ import Testing
         let game = LocalGame(store: storage.store)
         game.open()
 
-        #expect(game.failure == .read, sourceLocation: sourceLocation)
+        #expect(game.couldNotReadSavedGame, sourceLocation: sourceLocation)
         #expect(!game.canResignOrAgreeDraw, sourceLocation: sourceLocation)
         game.tap("e2")
         game.resign()
@@ -209,7 +209,7 @@ import Testing
         try SavedGame(position: try #require(Position(fen: Self.savedPosition)), result: nil).encodedForTest()
             .write(to: storage.fileURL)
         game.retryRead()
-        #expect(game.failure == nil, sourceLocation: sourceLocation)
+        #expect(game.hasNoFailure, sourceLocation: sourceLocation)
         #expect(game.position.fen == Self.savedPosition, sourceLocation: sourceLocation)
     }
 }

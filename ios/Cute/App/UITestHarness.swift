@@ -23,7 +23,12 @@ struct UITestHarness {
         guard let fileName = environment[Self.fileKey], !fileName.contains("/") else { return nil }
         fileURL = folder.appending(path: fileName)
         seed = environment[Self.seedKey].flatMap(Position.init(fen:))
-        faults = Set((environment[Self.faultKey] ?? "").split(separator: ",").compactMap { Fault(rawValue: String($0)) })
+        faults = Set((environment[Self.faultKey] ?? "").split(separator: ",").map { name in
+            guard let fault = Fault(rawValue: String(name)) else {
+                preconditionFailure("Unknown \(Self.faultKey) value: \(name)")
+            }
+            return fault
+        })
     }
 
     func makeStore() -> GameStore {
@@ -31,7 +36,7 @@ struct UITestHarness {
         if let seed {
             try? store.save(SavedGame(position: seed, result: nil))
         }
-        return FailingGameStore(wrapped: store, failsReads: faults.contains(.read), failsWrites: faults.contains(.write))
+        return FailingGameStore(wrapped: store, faults: faults)
     }
 }
 
@@ -39,16 +44,15 @@ private struct FailingGameStore: GameStore {
     struct InjectedFailure: Error {}
 
     let wrapped: GameStore
-    let failsReads: Bool
-    let failsWrites: Bool
+    let faults: Set<UITestHarness.Fault>
 
     func load() throws -> SavedGame? {
-        if failsReads { throw InjectedFailure() }
+        if faults.contains(.read) { throw InjectedFailure() }
         return try wrapped.load()
     }
 
     func save(_ game: SavedGame) throws {
-        if failsWrites { throw InjectedFailure() }
+        if faults.contains(.write) { throw InjectedFailure() }
         try wrapped.save(game)
     }
 }

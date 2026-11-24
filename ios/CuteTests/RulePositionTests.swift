@@ -168,6 +168,6 @@ func openGame(at fen: String, result: GameResult? = nil, in storage: TemporarySt
     try storage.store.save(SavedGame(position: try #require(Position(fen: fen)), result: result))
     let game = LocalGame(store: storage.store)
     game.open()
-    try #require(game.failure == nil)
+    try #require(game.hasNoFailure)
     return game
 }

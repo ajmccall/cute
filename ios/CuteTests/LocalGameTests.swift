@@ -12,7 +12,7 @@ import Testing
         #expect(game.position.fen == "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq -")
         #expect(game.position.sideToMove == .white)
         #expect(game.result == nil)
-        #expect(game.failure == nil)
+        #expect(game.hasNoFailure)
     }
 
     @Test func selectingAnOwnPieceShowsOnlyItsLegalDestinationsAndCanBeChanged() throws {
@@ -52,7 +52,7 @@ import Testing
         let afterMove = "rnbqkbnr/pppppppp/8/8/8/5N2/PPPPPPPP/RNBQKB1R b KQkq -"
         #expect(game.position.fen == afterMove)
         #expect(game.selection == nil)
-        #expect(game.failure == nil)
+        #expect(game.hasNoFailure)
 
         let reopened = LocalGame(store: storage.store)
         reopened.open()
@@ -98,4 +98,7 @@ extension LocalGame {
     func tap(_ coordinate: String) {
         tap(Square(coordinate)!)
     }
+
+    /// The saved game was read or saved, and no change is waiting to be saved.
+    var hasNoFailure: Bool { !couldNotReadSavedGame && !hasUnsavedChange }
 }

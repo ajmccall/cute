@@ -3,19 +3,13 @@ import Observation
 /// The one pass-and-play game on this device, and the actions the board offers on it.
 @Observable
 final class LocalGame {
-    enum Failure: Equatable {
-        /// The saved game couldn't be read; nothing is playable until it is read or replaced.
-        case read
-        /// The last change wasn't saved; the board still shows the last saved game.
-        case write
-    }
-
     private let store: GameStore
 
     /// The last committed position. Not a game to show while `couldNotReadSavedGame`.
     private(set) var position: Position = .opening
     private(set) var result: GameResult?
     /// The saved game couldn't be read, and no game has been read or saved since.
+    /// Nothing is playable and no board is shown until it is read or replaced.
     private(set) var couldNotReadSavedGame = false
     /// A change that failed to save, kept so Retry can save it again. Never shown as the saved game.
     private var unsavedChange: SavedGame?
@@ -28,13 +22,11 @@ final class LocalGame {
         self.store = store
     }
 
+    /// The last change wasn't saved; any board shown is still the last saved game.
     var hasUnsavedChange: Bool { unsavedChange != nil }
 
-    /// What failed, the unread saved game first: while it is unread there is no board to show.
-    var failure: Failure? {
-        if couldNotReadSavedGame { return .read }
-        return hasUnsavedChange ? .write : nil
-    }
+    /// A game is on the board and still being played.
+    var isInPlay: Bool { result == nil && !couldNotReadSavedGame }
 
     /// Where the selected piece can legally move.
     var legalDestinations: Set<Square> {
@@ -45,7 +37,7 @@ final class LocalGame {
     /// Whether the side to move is in check while the game is still being played.
     var isInCheck: Bool { result == nil && position.isInCheck(position.sideToMove) }
 
-    var canResignOrAgreeDraw: Bool { result == nil && !couldNotReadSavedGame }
+    var canResignOrAgreeDraw: Bool { isInPlay }
 
     /// Whether starting over abandons a game still in play, or a saved game that couldn't be read.
     var newGameNeedsConfirmation: Bool { result == nil || couldNotReadSavedGame }
@@ -69,7 +61,7 @@ final class LocalGame {
     /// A tap on a board square: selects an own piece, or moves the selected one to a legal destination.
     /// Any other square clears the selection.
     func tap(_ square: Square) {
-        guard result == nil, !couldNotReadSavedGame, !isChoosingPromotion else { return }
+        guard isInPlay, !isChoosingPromotion else { return }
         if position[square]?.color == position.sideToMove {
             selection = square
             return
