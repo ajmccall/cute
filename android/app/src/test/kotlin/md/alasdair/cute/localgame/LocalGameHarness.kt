@@ -40,6 +40,9 @@ fun sq(name: String) = Square.of(name)
 
 fun squares(vararg names: String) = names.map(Square::of).toSet()
 
+/** Taps each of [squares] in turn, as a player does. */
+fun LocalGameViewModel.tap(vararg squares: String) = squares.forEach { onSquareTapped(sq(it)) }
+
 /** Taps the piece on [from], then the square [to], as a player does. */
 fun LocalGameViewModel.move(from: String, to: String) {
     onSquareTapped(sq(from))

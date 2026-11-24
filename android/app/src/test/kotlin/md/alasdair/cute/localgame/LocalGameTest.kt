@@ -54,7 +54,7 @@ class LocalGameTest {
         runTest {
             val game = device.launch()
 
-            game.move("g1", "g3")
+            game.tap("g1", "g3")
 
             assertEquals(OPENING, game.state.fen)
             assertEquals(Side.White, game.state.bottomSide)
@@ -66,7 +66,7 @@ class LocalGameTest {
     fun `tapping an empty square that isn't a destination clears the selection`() = runTest {
         val game = device.launch()
 
-        game.move("g1", "d4")
+        game.tap("g1", "d4")
 
         assertEquals(OPENING, game.state.fen)
         assertNull(game.state.selection)
@@ -77,7 +77,7 @@ class LocalGameTest {
     fun `tapping an opponent's piece that can't be taken clears the selection`() = runTest {
         val game = device.launch()
 
-        game.move("g1", "e7")
+        game.tap("g1", "e7")
 
         assertEquals(OPENING, game.state.fen)
         assertNull(game.state.selection)
@@ -88,7 +88,7 @@ class LocalGameTest {
     fun `tapping the selected piece again keeps it selected`() = runTest {
         val game = device.launch()
 
-        game.move("g1", "g1")
+        game.tap("g1", "g1")
 
         assertEquals(sq("g1"), game.state.selection)
         assertEquals(squares("f3", "h3"), game.state.destinations)

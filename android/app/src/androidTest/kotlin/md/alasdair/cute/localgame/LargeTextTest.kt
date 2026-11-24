@@ -31,7 +31,7 @@ import org.junit.runners.Parameterized
 @RunWith(Parameterized::class)
 class LargeTextTest(private val orientation: Int) {
     private val rule = createAndroidComposeRule<ComponentActivity>()
-    private val display = DisplayAtFontScale(FONT_SCALE)
+    private val display = DisplaySettings(FONT_SCALE)
 
     @get:Rule val chain: RuleChain = RuleChain.outerRule(display).around(rule)
 
@@ -114,11 +114,11 @@ class LargeTextTest(private val orientation: Int) {
 }
 
 /**
- * Sets the font scale for one test, waiting until it is in effect, and locks the rotation when
- * asked. Afterwards it puts back the font scale it found (or none, if none was set) and frees
- * the rotation, even when a step fails.
+ * The display settings for one test: sets the font scale, waiting until it is in effect, and
+ * locks the rotation when asked. Afterwards it puts back the font scale it found (or none, if
+ * none was set) and frees the rotation, even when a step fails.
  */
-private class DisplayAtFontScale(private val fontScale: Float) : ExternalResource() {
+private class DisplaySettings(private val fontScale: Float) : ExternalResource() {
     private val automation: UiAutomation get() =
         InstrumentationRegistry.getInstrumentation().uiAutomation
     private var previousFontScale: String? = null
