@@ -141,7 +141,7 @@ The one file that maps the framework's generic ticket operations (open a ticket,
 _Avoid_: tracker integration, tracker adapter
 
 **Harness adapter**:
-An optional folder per agent harness, named in the consumer contract, that pins the default skills' version, runs the framework's local checks setup when a session starts, and reports each session's cost line as that harness measures it, and may say how its harness runs an orchestrator; the framework never requires one.
+An optional folder per agent harness, named in the consumer contract, that runs the framework's local checks setup when a session starts, and reports each session's cost line as that harness measures it, and may say how its harness runs an orchestrator; the framework never requires one.
 _Avoid_: plugin, integration
 
 **Framework release**:

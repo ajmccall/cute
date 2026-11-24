@@ -1,6 +1,6 @@
 # Claude Code adapter
 
-The framework's harness adapter for Claude Code (`framework-changes.md`, Plain core). It does four things and no more: pins the default skills' version, runs the framework's pre-commit install when a session starts, prints each session's Cost line, and says how Claude Code runs an orchestrator (Orchestrating a ticket). Nothing in the framework requires it; without it the Cost line reads `not recorded`, and the session runs `framework/hooks/install` itself.
+The framework's harness adapter for Claude Code (`framework-changes.md`, Plain core). It does three things and no more: runs the framework's pre-commit install when a session starts, prints each session's Cost line, and says how Claude Code runs an orchestrator (Orchestrating a ticket). Nothing in the framework requires it; without it the Cost line reads `not recorded`, and the session runs `framework/hooks/install` itself.
 
 Built and checked against Claude Code 2.1.302. It needs 2.1.277 or later, the first version that reads `AGENTS.md` natively, and the `python3` that Xcode's Command Line Tools provide, like the hook.
 
@@ -8,7 +8,6 @@ Built and checked against Claude Code 2.1.302. It needs 2.1.277 or later, the fi
 
 | File | Job |
 |---|---|
-| `.claude-plugin/marketplace.json` | A marketplace with one entry: `mattpocock-skills`, pinned to the commit the roles were written against. |
 | `session-start` | The SessionStart hook: runs `framework/hooks/install` and exports the session's id and transcript path to the session's shell. |
 | `statusline` | The status line command: saves the session's cost figures to a cache on every refresh, then prints your own status line or a default one. |
 | `cost` | Prints the Cost line for a handoff entry from that cache and the session's transcript, or an orchestrator's session total. |
@@ -23,22 +22,20 @@ Once per consumer app. At the first install, `install --adapter claude-code` doe
 1. Name the adapter in `AGENTS.md`, in the **Harness adapter** row of Where things live: `framework/adapters/claude-code`.
 2. Merge `framework/adapters/claude-code/settings.json` into the project's `.claude/settings.json` (shared, committed): add each key the project doesn't have, append each hook entry it doesn't already have, and keep every key it has. Where the project already sets one of these keys to a different value, such as its own `statusLine`, decide which to keep; for a status line of your own, see step 6.
 
-   The official marketplace's copy of the skills is switched off so that only the pinned one loads: two enabled plugins with one name load only one set of hooks, and which copy's skills win isn't documented.
-
-   `skillOverrides` switches off Claude Code's own `code-review` skill, which shares its short name with the pinned skill the reviewer role runs on. A plugin's skill is reached only as `/<plugin>:<skill>`, so a bare `/code-review` runs the built-in, a bug hunt on the diff that reports to the session and never posts a review ([Skills](https://code.claude.com/docs/en/skills)). Without the key, one wrong keystroke runs the wrong review.
+   `skillOverrides` switches off Claude Code's own `code-review` skill, which shares its short name with the skill the reviewer role runs on. A plugin's skill is reached only as `/<plugin>:<skill>`, so a bare `/code-review` runs the built-in, a bug hunt on the diff that reports to the session and never posts a review ([Skills](https://code.claude.com/docs/en/skills)). Without the key, one wrong keystroke runs the wrong review.
 
    The `PreToolUse` hook rewrites only the documented `framework/adapters/claude-code/cost …` Bash command when a subagent runs it. Claude Code supplies its parent transcript path to the hook, plus the subagent's `agent_id`; the hook derives `<session>/subagents/agent-<agent_id>.jsonl`, or `<session>/subagents/<agent_id>.jsonl` where only that file exists, and exports it for that one command. The orchestrating session has no `agent_id`, so its command keeps the whole-session transcript.
 3. If the project has a `CLAUDE.md`, put one line in it, `@AGENTS.md`, because Claude Code reads `AGENTS.md` only when there is no `CLAUDE.md`. If it has none, don't add one.
 
 Then, once per person and clone:
 
-4. Open the project in Claude Code and accept the workspace trust dialog. Project settings, their hooks, the status line and the marketplace all wait for it.
-5. Run `claude plugin install mattpocock-skills@dual-native --scope project`. Project settings enable the plugin but don't fetch it. Run it after a session has started in the project (step 4): a session registers the `dual-native` marketplace, and until then the command fails with "Plugin not found in marketplace dual-native". The install rewrites `.claude/settings.json` with the same content in its own key order and formatting.
+4. Open the project in Claude Code and accept the workspace trust dialog. Project settings, their hooks and the status line all wait for it.
+5. Install Matt Pocock's skills (`AGENTS.md`, Skills and roles) as Claude Code installs skills, if you haven't: the framework doesn't install them. As a plugin, such as the official marketplace's `mattpocock-skills` (`claude plugin install mattpocock-skills@claude-plugins-official`), each skill is `/mattpocock-skills:<name>`, as the framework writes it. Installed as personal skills instead, each is `/<name>`, and step 2's `skillOverrides` may switch the personal `code-review` off with the built-in one: prefer the plugin.
 6. Optional: to keep your own status line, put it at `~/.claude/dual-native-statusline` (or under `CLAUDE_CONFIG_DIR` when you set that) and make it executable. It receives the same JSON Claude Code sends, and `statusline` prints what it prints. Without one, the default line shows the folder, branch, model, context used and the session's dollars so far.
 
 ## Starting a session
 
-Start Claude Code in the project's main checkout. A session started in any other folder runs without the project's settings: the skills are the unpinned copy, `session-start` doesn't run and there is no status line, so its Cost line reads `not recorded`. Check it first: if `echo $DUAL_NATIVE_SESSION_ID` prints nothing in the session's shell, stop and ask the human to start the session again in the project.
+Start Claude Code in the project's main checkout. A session started in any other folder runs without the project's settings: `session-start` doesn't run and there is no status line, so its Cost line reads `not recorded`. Check it first: if `echo $DUAL_NATIVE_SESSION_ID` prints nothing in the session's shell, stop and ask the human to start the session again in the project.
 
 Type the skill with its plugin prefix, then the ticket and, for platform work, the platform, as the handoff entry's **Next session** line gives them (`ticket-template.md`, part 3). Land takes no skill: type its prompt as the last line shows (`AGENTS.md`, Skills and roles).
 
@@ -61,7 +58,7 @@ Under auto mode, Claude Code's classifier may refuse the reviewer's merge into t
 
 ## Orchestrating a ticket
 
-**Run on one live ticket** ([issue #78](https://github.com/ajmccall/dual-native/issues/78)): two builders at once, two reviewers one at a time, a role's question relayed and resumed, and a stop at ready for acceptance. On that run every role subagent's Cost line read `not recorded`; the fix ([issue #84](https://github.com/ajmccall/dual-native/issues/84)) hasn't been on a live run yet. The procedure is `orchestrate.md`; this section is how Claude Code does it. No other harness is claimed.
+**Run on one live ticket** ([issue #78](https://github.com/ajmccall/dual-native/issues/78)): two builders at once, two reviewers one at a time, a role's question relayed and resumed, and a stop at ready for acceptance. On that run every role subagent's Cost line read `not recorded`; the fix ([issue #84](https://github.com/ajmccall/dual-native/issues/84)) hasn't been on a live run yet. Nor has a builder that reads `implement`'s file: one subagent did it on a scratch ticket, starting `tdd` and `code-review` with its two nested sessions, and committing ([issue #128](https://github.com/ajmccall/dual-native/issues/128)). The procedure is `orchestrate.md`; this section is how Claude Code does it. No other harness is claimed.
 
 Start the orchestrator as any session, in the project's main checkout, by typing its prompt:
 
@@ -74,10 +71,13 @@ Orchestrate ticket 43
 
 - It runs in the main checkout: `git rev-parse --path-format=absolute --git-dir` and `git rev-parse --path-format=absolute --git-common-dir` print the same folder.
 - `echo $DUAL_NATIVE_SESSION_ID` prints a session id.
-- `claude plugin list` shows `mattpocock-skills@dual-native` enabled and `mattpocock-skills@claude-plugins-official` not enabled.
+- Its skill list has `tdd`, `code-review` and `diagnosing-bugs` from Matt Pocock's skills.
+- It can read the installed `implement` skill's file (The builder's skill file, below).
 - It has the Agent and SendMessage tools, and `CLAUDE_CODE_MAX_SUBAGENT_SPAWN_DEPTH` is unset or at least 2: a role session is one level down, and the review sessions `code-review` starts are a second.
 
-**Role sessions are subagents.** The orchestrator starts each builder and reviewer with the Agent tool, as a `general-purpose` subagent run in the background, named after its scratch folder, such as `42-ios-builder` or `42-ios-reviewer-2`. It never passes `isolation: worktree`, which branches from `main`: the role adds its own worktree from the ticket branch, as its role page says. Its prompt is what `orchestrate.md` lists under What each role session is told, plus its scratch folder (Starting a session), which the orchestrator assigns, with a new suffix for each repeated invocation. A subagent can run `tdd`, `code-review` and `diagnosing-bugs` through the Skill tool, but not `implement`, which only a human can start: that's why the builder follows `orchestrate.md`'s practice instead.
+**Role sessions are subagents.** The orchestrator starts each builder and reviewer with the Agent tool, as a `general-purpose` subagent run in the background, named after its scratch folder, such as `42-ios-builder` or `42-ios-reviewer-2`. It never passes `isolation: worktree`, which branches from `main`: the role adds its own worktree from the ticket branch, as its role page says. Its prompt is what `orchestrate.md` lists under What each role session is told, plus its scratch folder (Starting a session), which the orchestrator assigns, with a new suffix for each repeated invocation. A subagent can run `tdd`, `code-review` and `diagnosing-bugs` through the Skill tool, but not `implement`, which only a human can start: that's why the builder reads `implement`'s file and follows it (`orchestrate.md`, The builder's skill).
+
+**The builder's skill file.** The file is `implement/SKILL.md`, inside wherever Claude Code installed the skills. For a plugin, `claude plugin list --json` gives the enabled `mattpocock-skills` plugin's `installPath`, and the file is under it: `find <installPath> -path '*/implement/SKILL.md'`. For skills installed without a plugin, it is `.claude/skills/implement/SKILL.md` in the project, or in `~/.claude` (`CLAUDE_CONFIG_DIR` when that's set). Where more than one is installed, take the one whose skills the session lists. The orchestrator reads the file once to check it is there, then gives each builder its absolute path.
 
 **A role's question.** A subagent can't ask the human: Claude Code removes AskUserQuestion from every subagent. It ends its turn with the question instead, and the orchestrator relays it. The orchestrator resumes it with the answer through SendMessage, which keeps the subagent's context, so the question and its answer stay within one session.
 
@@ -129,7 +129,3 @@ What each figure is, and its limits:
 ## Correcting earlier Cost lines
 
 After taking this version, a consumer adds one correction comment to each ticket whose roles posted Cost lines from one orchestrating Claude Code session before this change. It says that those lines each reported the running whole-session total, not the named role's cost; the ticket uses the latest such line once as its session total and records each role's Cost as `not recorded`. Do not edit the earlier handoffs.
-
-## Changing the pinned skills
-
-Bumping `mattpocock-skills` is a framework change (`framework-changes.md`): change the `sha` in `marketplace.json` to the new 40-character commit, check the roles' skill overrides against the new skills, re-read `implement`'s diff since the commit `orchestrate.md` names and bring its builder practice up to date, then set that commit to the new one, and add a changelog line. The self-test fails while `orchestrate.md` names a different commit from `marketplace.json`. Change the pi adapter's `settings.json` to the same commit; its self-test fails while they differ. A consumer picks it up with its next framework release, and each person runs `claude plugin update mattpocock-skills@dual-native` or reinstalls.

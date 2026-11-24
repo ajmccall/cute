@@ -12,7 +12,7 @@ Turn a request into the smallest useful ticket, land it once accepted, and keep 
 | Retro | the product owner says a ticket hurt | `mattpocock-skills:retro` |
 | Roadmap | the product owner asks for ideas to be made ready | `mattpocock-skills:grilling` |
 
-The skills and their pinned version: `AGENTS.md`, Skills and roles.
+The skills: `AGENTS.md`, Skills and roles.
 
 ## Overrides
 
