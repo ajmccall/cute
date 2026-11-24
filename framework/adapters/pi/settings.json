@@ -1,5 +1,0 @@
-{
-  "extensions": [
-    "../framework/adapters/pi/dual-native.js"
-  ]
-}

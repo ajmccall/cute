@@ -1,0 +1,174 @@
+#!/usr/bin/python3
+"""Print this pi session's Cost line for its handoff entry.
+
+    framework/adapters/pi/cost <platform> <role>
+
+<platform> is iOS, Android or shared; <role> is product, builder or reviewer.
+Paste the line it prints as the last line of the handoff entry
+(`measures.md`, Cost per session).
+
+Every pi session has a session file of its own, a role session an orchestrator
+started included, so the line has no scope field (`measures.md`):
+
+    Cost: <platform> · <role> · <tokens> tokens · $<dollars> · not recorded
+
+Where each figure comes from: pi passes every command its bash tool runs the
+session file's path in PI_SESSION_FILE, a JSONL file whose format pi
+documents (docs/session-format.md). Each assistant message, and each
+compaction and branch summary, records its request's usage: tokens (input,
+output, cache read and cache write) and pi's own dollar estimate of them,
+`usage.cost.total`. The command sums them over the whole file, every branch
+included, since each was a request made. Agent time is `not recorded`: pi
+records no request durations.
+
+From the second line for the same session, it adds the figures since that
+session's previous line, kept in ~/.cache/dual-native/pi/.
+
+Any figure that can't be read prints `not recorded`, with the reason on
+stderr. Exit 0 whenever a line was printed; 2 for bad arguments.
+"""
+
+import json
+import os
+import re
+import sys
+
+CACHE_DIR = os.path.join(
+    os.environ.get("XDG_CACHE_HOME") or os.path.join(os.path.expanduser("~"), ".cache"),
+    "dual-native",
+    "pi",
+)
+PLATFORMS = ("iOS", "Android", "shared")
+ROLES = ("product", "builder", "reviewer")
+TOKEN_FIELDS = ("input", "output", "cacheRead", "cacheWrite")
+SAFE_ID = re.compile(r"^[A-Za-z0-9._-]+$")
+
+
+def usage():
+    sys.stderr.write("usage: cost <iOS|Android|shared> <product|builder|reviewer>\n")
+    return 2
+
+
+def entry_usage(entry):
+    kind = entry.get("type")
+    if kind == "message":
+        message = entry.get("message")
+        if isinstance(message, dict) and message.get("role") == "assistant":
+            return message.get("usage")
+    elif kind in ("compaction", "branch_summary"):
+        return entry.get("usage")
+    return None
+
+
+def read_session(path):
+    """(session id, tokens, dollars) from a pi session file; None for any figure it lacks."""
+    session_id, tokens, dollars, counted = None, 0, 0.0, 0
+    with open(path, encoding="utf-8") as f:
+        for line in f:
+            try:
+                entry = json.loads(line)
+            except ValueError:
+                continue
+            if not isinstance(entry, dict):
+                continue
+            if entry.get("type") == "session" and session_id is None:
+                session_id = entry.get("id")
+            found = entry_usage(entry)
+            if not isinstance(found, dict):
+                continue
+            counted += 1
+            for field in TOKEN_FIELDS:
+                value = found.get(field)
+                if isinstance(value, (int, float)):
+                    tokens += int(value)
+            cost = found.get("cost")
+            if isinstance(cost, dict) and isinstance(cost.get("total"), (int, float)):
+                dollars += cost["total"]
+    if not counted:
+        return session_id, None, None
+    return session_id, tokens, dollars
+
+
+def last_line_path(session_id):
+    if not session_id or not SAFE_ID.match(session_id):
+        return None
+    return os.path.join(CACHE_DIR, session_id + ".last-cost.json")
+
+
+def read_last(path):
+    if not path:
+        return None
+    try:
+        with open(path, encoding="utf-8") as f:
+            record = json.load(f)
+    except (OSError, ValueError):
+        return None
+    return record if isinstance(record, dict) else None
+
+
+def save_last(path, figures):
+    if not path:
+        return
+    try:
+        os.makedirs(CACHE_DIR, exist_ok=True)
+        tmp = "%s.%d.tmp" % (path, os.getpid())
+        with open(tmp, "w", encoding="utf-8") as f:
+            json.dump(figures, f)
+        os.replace(tmp, path)
+    except OSError:
+        pass
+
+
+def show_tokens(n):
+    return "{:,} tokens".format(int(n)) if n is not None else "not recorded"
+
+
+def show_dollars(d):
+    return "$%.2f" % d if d is not None else "not recorded"
+
+
+def since(now, previous):
+    def delta(key):
+        a, b = now.get(key), previous.get(key)
+        if isinstance(a, (int, float)) and isinstance(b, (int, float)):
+            return max(0, a - b)
+        return None
+
+    return show_tokens(delta("tokens")), show_dollars(delta("dollars"))
+
+
+def main(argv):
+    if len(argv) != 3 or argv[1] not in PLATFORMS or argv[2] not in ROLES:
+        return usage()
+    platform, role = argv[1], argv[2]
+
+    tokens = dollars = session_id = None
+    notes = []
+    path = os.environ.get("PI_SESSION_FILE")
+    if not path:
+        notes.append("PI_SESSION_FILE isn't set: run this through pi's bash tool, not a `!` command")
+    else:
+        try:
+            session_id, tokens, dollars = read_session(path)
+            if tokens is None:
+                notes.append("no request in %s records its usage" % path)
+        except OSError as error:
+            notes.append("couldn't read %s (%s)" % (path, error))
+    session_id = session_id or os.environ.get("PI_SESSION_ID")
+
+    line = "Cost: %s · %s · %s · %s · not recorded" % (platform, role, show_tokens(tokens), show_dollars(dollars))
+    last_path = last_line_path(session_id)
+    previous = read_last(last_path)
+    figures = {"tokens": tokens, "dollars": dollars}
+    if previous is not None:
+        line += " · since the previous Cost line: %s · %s · not recorded" % since(figures, previous)
+    save_last(last_path, figures)
+
+    print(line)
+    for note in notes:
+        sys.stderr.write("cost: %s\n" % note)
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main(sys.argv))
