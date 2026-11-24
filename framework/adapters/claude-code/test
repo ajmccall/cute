@@ -3,9 +3,8 @@
 
 Runs `statusline`, `cost` and `session-start` against fixtures in a temp
 folder, with HOME and the Claude config directory pointed there, so nothing
-touches the real caches. Also checks that `orchestrate.md` names the skills
-commit `marketplace.json` pins, and that `settings.json` parses and every
-command it names exists. Run it by hand after any change to this folder and
+touches the real caches. Also checks that `settings.json` parses, every
+command it names exists and it pins no skills. Run it by hand after any change to this folder and
 show its output on the change request:
 
     framework/adapters/claude-code/test
@@ -25,8 +24,6 @@ import textwrap
 
 HERE = os.path.dirname(os.path.realpath(__file__))
 HOOKS_DIR = os.path.normpath(os.path.join(HERE, "..", "..", "hooks"))
-ORCHESTRATE = os.path.normpath(os.path.join(HERE, "..", "..", "orchestrate.md"))
-MARKETPLACE = os.path.join(HERE, ".claude-plugin", "marketplace.json")
 
 results = []
 
@@ -342,7 +339,7 @@ def test_session_start(root, env):
 
 def settings_problems(text):
     """Why `settings.json` won't work in a consumer: it doesn't parse, or a
-    command, hook condition or marketplace it names isn't in the framework.
+    command or hook condition it names isn't in the framework.
     A consumer path `framework/<x>` is this repository's `<x>`."""
     try:
         settings = json.loads(text)
@@ -361,9 +358,6 @@ def settings_problems(text):
                     named.append(("hooks.%s if" % event, condition.group(1), True))
     if "statusLine" in settings:
         named.append(("statusLine command", settings["statusLine"].get("command", "").split()[0], True))
-    for name, market in (settings.get("extraKnownMarketplaces") or {}).items():
-        path = market.get("source", {}).get("path", "")
-        named.append(("extraKnownMarketplaces.%s" % name, path.rstrip("/") + "/.claude-plugin/marketplace.json", False))
     problems = []
     for where, path, executable in named:
         path = path.replace('"$CLAUDE_PROJECT_DIR"/', "")
@@ -395,44 +389,9 @@ def test_settings():
         "\n".join(problems) or "no problem reported",
     )
     report("the settings check fails on JSON that doesn't parse", bool(settings_problems(text + "}")))
-
-
-# --- orchestrate.md pin ---------------------------------------------------------
-
-def pin_mismatch(marketplace_text, orchestrate_text):
-    """None when orchestrate.md names the commit marketplace.json pins, else why not."""
-    try:
-        plugins = json.loads(marketplace_text).get("plugins", [])
-        pinned = [p["source"]["sha"] for p in plugins if p.get("name") == "mattpocock-skills"]
-    except (ValueError, KeyError, TypeError, AttributeError):
-        return "marketplace.json has no readable mattpocock-skills sha"
-    if len(pinned) != 1:
-        return "marketplace.json pins mattpocock-skills %d times" % len(pinned)
-    named = re.findall(r"`implement` at commit `([0-9a-f]{40})`", orchestrate_text)
-    if len(named) != 1:
-        return "orchestrate.md names the `implement` commit %d times" % len(named)
-    if named[0] != pinned[0]:
-        return ("orchestrate.md's builder practice is from %s, but marketplace.json pins %s: "
-                "re-read implement's diff, update the practice, then its commit" % (named[0], pinned[0]))
-    return None
-
-
-def test_orchestrate_pin():
-    with open(MARKETPLACE, encoding="utf-8") as f:
-        marketplace = f.read()
-    with open(ORCHESTRATE, encoding="utf-8") as f:
-        orchestrate = f.read()
-    problem = pin_mismatch(marketplace, orchestrate)
-    report("orchestrate.md names the skills commit marketplace.json pins", problem is None, problem or "")
-
-    other = "0" * 40
-    bumped = re.sub(r'"sha": "[0-9a-f]{40}"', '"sha": "%s"' % other, marketplace)
-    problem = pin_mismatch(bumped, orchestrate)
-    report(
-        "the pin check fails when the pinned skills move without orchestrate.md",
-        problem is not None and other in problem,
-        problem or "no mismatch reported",
-    )
+    settings = json.loads(text)
+    pins = [key for key in ("extraKnownMarketplaces", "enabledPlugins") if key in settings]
+    report("settings.json enables no plugin: the skills are a prerequisite, not a pin", not pins, ", ".join(pins))
 
 
 def main():
@@ -443,7 +402,6 @@ def main():
         test_statusline(root, env)
         test_cost(root, env)
         test_session_start(root, env)
-        test_orchestrate_pin()
         test_settings()
     finally:
         shutil.rmtree(root, ignore_errors=True)

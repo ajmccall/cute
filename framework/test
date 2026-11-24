@@ -191,7 +191,7 @@ def test_new_project(world):
     report("new project: nothing else in AGENTS.md is filled in", len(changed) == 3, "\n".join(changed))
     report("new project: no .claude/settings.json or CLAUDE.md",
            show(world, wt, "HEAD:.claude/settings.json") is None and show(world, wt, "HEAD:CLAUDE.md") is None)
-    for needle in ("line 1    App name", "You, the product owner", "Product brief", "setup-matt-pocock-skills", "marketplace.json names"):
+    for needle in ("line 1    App name", "You, the product owner", "Product brief", "setup-matt-pocock-skills", "https://github.com/mattpocock/skills"):
         report("new project: what's left lists %r" % needle, needle in out.stdout, out.stdout)
 
 
@@ -206,8 +206,9 @@ def test_new_project_with_adapter(world):
     report("with adapter: .claude/settings.json is the adapter's settings",
            settings is not None and json.loads(settings) == json.loads(adapter or "null"), settings or "missing")
     report("with adapter: no CLAUDE.md is created", show(world, wt, "HEAD:CLAUDE.md") is None)
-    report("with adapter: what's left names the plugin install",
-           "claude plugin install mattpocock-skills@dual-native --scope project" in out.stdout, out.stdout)
+    report("with adapter: what's left says to trust the project and install the skills, and installs none",
+           "open the project in Claude Code and trust it" in out.stdout and "https://github.com/mattpocock/skills" in out.stdout
+           and "claude plugin install" not in out.stdout and "enabledPlugins" not in (settings or ""), out.stdout)
 
 
 def test_pi(world):
@@ -223,26 +224,20 @@ def test_pi(world):
            settings is not None and json.loads(settings) == json.loads(adapter or "null"), settings or "missing")
     report("pi: no .claude/settings.json, and CLAUDE.md is left alone",
            show(world, wt, "HEAD:.claude/settings.json") is None and show(world, wt, "HEAD:CLAUDE.md") == "# Ours\n")
-    report("pi: what's left says to move personal skills and trust the project",
-           "~/.agents/skills" in out.stdout and "$PI_CODING_AGENT_DIR" in out.stdout and "trust it" in out.stdout
-           and "claude plugin install" not in out.stdout, out.stdout)
+    report("pi: what's left says to trust the project and install the skills, and lists no package",
+           "open the project in pi and trust it" in out.stdout and "https://github.com/mattpocock/skills" in out.stdout
+           and "packages" not in (settings or ""), out.stdout)
     report("pi: the wiring commit names .pi/settings.json",
            ".pi/settings.json, with framework/adapters/pi/settings.json merged in" in world.git(wt, "log", "-1", "--format=%b").stdout)
 
-    pinned = json.loads(adapter)["packages"][0]
     ours = {"packages": ["npm:other-tool@1.0.0"], "extensions": ["./ours.ts"], "theme": "dark"}
     project = world.project("pi-existing", {".pi/settings.json": json.dumps(ours) + "\n"})
     out = world.install(project, "--boundary-terms", TERMS, "--adapter", "pi")
     expect("pi with existing settings: install succeeds", out, fail=False, needle="What's left")
     merged = json.loads(show(world, world.worktree(project), "HEAD:.pi/settings.json") or "{}")
     report("pi with existing settings: the project's entries are kept and the adapter's appended",
-           merged.get("packages") == ["npm:other-tool@1.0.0", pinned] and merged.get("theme") == "dark"
+           merged.get("packages") == ["npm:other-tool@1.0.0"] and merged.get("theme") == "dark"
            and merged.get("extensions") == ["./ours.ts"] + json.loads(adapter)["extensions"], json.dumps(merged))
-
-    other = pinned.rsplit("@", 1)[0] + "@v1.0.0"
-    refuses(world, "a .pi/settings.json with the skills at another ref",
-            world.project("pi-clash", {".pi/settings.json": json.dumps({"packages": [{"source": other}]}) + "\n"}),
-            ["--boundary-terms", TERMS, "--adapter", "pi"], "sets packages to {\"source\": \"%s\"}" % other)
 
     # Added later, and checked.
     clean = "Wired as framework release %s expects" % RELEASE[1:]
@@ -253,11 +248,21 @@ def test_pi(world):
            and "AGENTS.md's Harness adapter row is None, not framework/adapters/pi" in out.stdout, out.stdout)
     expect("--wire --adapter pi wires it in", check(world, p, "--wire", "--adapter", "pi"), fail=False, needle=clean)
     expect("after --wire --adapter pi, --check alone passes", check(world, p, "--check"), fail=False, needle=clean)
-    edit(p, ".pi/settings.json", lambda text: text.replace(pinned, other))
-    out = check(world, p, "--check")
-    report("--check reports the skills pinned at another ref as different, and --wire can't fix it",
-           out.returncode == 1 and "different  .pi/settings.json sets packages to \"%s\"" % other in out.stdout
-           and "lacks" not in out.stdout and "each by a person" in out.stdout, out.stdout)
+
+    # The skills pin an earlier release wired in.
+    skills = "git:github.com/mattpocock/skills"
+    pin = skills + "@" + "0123456789abcdef" * 2 + "01234567"
+    edit(p, ".pi/settings.json", lambda text: json.dumps(dict(json.loads(text), packages=[pin, skills, "npm:other-tool@1.0.0"])) + "\n")
+    world.git(p, "add", "-A")
+    world.git(p, "commit", "-qm", "Pinned skills", "--no-verify")
+    out = unchanged(world, "--check on a pi project with the old skills pin", [p], lambda: check(world, p, "--check"))
+    report("--check reports the old pi skills pin, and only the pin",
+           out.returncode == 1 and out.stdout.count("a skills pin this release dropped") == 1
+           and "different  .pi/settings.json still has \"%s\" in packages" % pin in out.stdout
+           and "fixes them all" in out.stdout, out.stdout)
+    expect("--wire removes the old pi skills pin", check(world, p, "--wire"), fail=False, needle=clean)
+    report("--wire keeps the project's own packages, the skills without a commit included",
+           json.loads(read(p, ".pi/settings.json")).get("packages") == [skills, "npm:other-tool@1.0.0"], read(p, ".pi/settings.json"))
 
 
 EXISTING_AGENTS = """# Our app
@@ -275,7 +280,7 @@ EXISTING_AGENTS = """# Our app
 
 EXISTING_SETTINGS = {
     "permissions": {"allow": ["Bash(ls)"]},
-    "enabledPlugins": {"other@somewhere": True, "mattpocock-skills@dual-native": True},
+    "enabledPlugins": {"other@somewhere": True},
     "hooks": {"SessionStart": [{"hooks": [{"type": "command", "command": "echo hello"}]}]},
 }
 
@@ -498,6 +503,26 @@ def test_check(world):
            and "Nothing is committed" in out.stdout, out.stdout)
     expect("--wire's changes pass the hooks when committed",
            world.git(p, "commit", "-qam", "Wire in again", check=False), fail=False)
+
+    # The skills pins an earlier release wired in.
+    q = installed(world, "old-pins", "--adapter", "claude-code")
+    settings = json.loads(read(q, ".claude/settings.json"))
+    settings["extraKnownMarketplaces"] = {"dual-native": {"source": {"source": "directory", "path": "./framework/adapters/claude-code"}}}
+    settings["enabledPlugins"] = {"mattpocock-skills@dual-native": True, "mattpocock-skills@claude-plugins-official": False}
+    edit(q, ".claude/settings.json", lambda _: json.dumps(settings, indent=2) + "\n")
+    world.git(q, "commit", "-qam", "Pinned skills", "--no-verify")
+    out = unchanged(world, "--check on a project with the old skills pins", [q], lambda: check(world, q, "--check"))
+    report("--check reports each old skills pin",
+           out.returncode == 1 and out.stdout.count("a skills pin this release dropped") == 3
+           and "still has enabledPlugins.mattpocock-skills@dual-native" in out.stdout
+           and "3 to fix. ./install --wire %s fixes them all" % q in out.stdout, out.stdout)
+    expect("--wire removes the old skills pins", check(world, q, "--wire"), fail=False, needle=clean)
+    after = json.loads(read(q, ".claude/settings.json"))
+    report("--wire leaves no emptied key, and the rest as the adapter has it",
+           after == json.loads(show(world, q, "HEAD:framework/adapters/claude-code/settings.json")), json.dumps(after, indent=2))
+    settings = dict(after, enabledPlugins={"mattpocock-skills@claude-plugins-official": True, "other@somewhere": False})
+    edit(q, ".claude/settings.json", lambda _: json.dumps(settings, indent=2) + "\n")
+    expect("--check leaves a project's own choice to enable the official skills plugin", check(world, q, "--check"), fail=False, needle=clean)
 
     # Adding the adapter to a project installed without it.
     p = installed(world, "add-adapter")

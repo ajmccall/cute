@@ -4,6 +4,19 @@ Each framework release says what a consumer app must change in its own files. Re
 
 ## Unreleased
 
+## 7.0.0 (2026-11-23)
+
+An app on 6.3.3 takes this release with `git subtree pull --prefix=framework <framework repository> v7.0.0 --squash` in a take ticket, and these lines are that ticket's acceptance criteria (`framework-changes.md`, Taking a release). It is a major release because a consumer changes its own files: its `AGENTS.md`, and with an adapter, the skills pins in its harness's project settings.
+
+What a consumer must change:
+
+- **Matt Pocock's skills are a prerequisite, not a pin** ([#127](https://github.com/ajmccall/dual-native/issues/127), part of [#125](https://github.com/ajmccall/dual-native/issues/125)). The framework no longer installs the skills, pins a commit or checks which copy loaded: each person installs them the way their harness installs skills, at whatever version that gives, and a session started without them stops and tells the human, as before. The Claude Code adapter's marketplace, the pi adapter's skills package and its session-start skills check, and the self-tests that kept the three commits in step are gone, and no file names a skills commit. Sessions on one ticket may now run different versions of a skill, and a change upstream arrives unannounced; `framework-changes.md` (The skills) lists what the roles rely on, for the steward to read against upstream. This replaces the advice [#124](https://github.com/ajmccall/dual-native/issues/124) added to the pi adapter's README. A consumer changes:
+  - **`AGENTS.md`, Skills and roles:** replace the paragraph's sentences about the pinned commit with the template's (`agents-template.md`): the skills are installed the way each person's harness installs skills, and a harness names a skill its own way.
+  - **A project with the Claude Code adapter:** run `install --wire <ticket worktree>`, which removes the old pins from `.claude/settings.json`: `extraKnownMarketplaces.dual-native`, and in `enabledPlugins`, `mattpocock-skills@dual-native` and `mattpocock-skills@claude-plugins-official: false`. `install --check` reports each until it's gone. Each person then installs the skills themselves, such as with `claude plugin install mattpocock-skills@claude-plugins-official`, and may remove the old copy with `claude plugin uninstall mattpocock-skills@dual-native`.
+  - **A project with the pi adapter:** run `install --wire <ticket worktree>`, which removes `git:github.com/mattpocock/skills@<commit>` from the `packages` list of `.pi/settings.json`. Each person keeps the skills anywhere pi reads skills from, such as `~/.agents/skills` or a package in their own agent directory's settings; a personal copy no longer stops a session.
+  - **A project with no adapter:** nothing beyond `AGENTS.md`.
+- **An orchestrated builder follows the installed `implement`** ([#128](https://github.com/ajmccall/dual-native/issues/128), part of [#125](https://github.com/ajmccall/dual-native/issues/125)). `orchestrate.md` no longer holds a copy of `implement`'s steps. The orchestrator finds the installed skill's file, as the harness adapter's README says how, and gives each builder its path; the builder reads and follows it, with the builder role's overrides winning, so a builder it starts and one a person starts run the same steps. The Claude Code adapter's README says where the file is, and its pre-flight checks the orchestrator can read it. Builder override 12 now names the self-check's fixed point: the ticket branch, or `main` on a ticket with no platform work. Tried by one subagent on a scratch ticket, not yet on a live one. Nothing to change.
+
 ## 6.3.3 (2026-11-21)
 
 An app on 6.3.2 takes this release with `git subtree pull --prefix=framework <framework repository> v6.3.3 --squash` in a take ticket, and these lines are that ticket's acceptance criteria (`framework-changes.md`, Taking a release). It is a patch because it changes wording only.
