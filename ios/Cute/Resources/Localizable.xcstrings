@@ -98,6 +98,9 @@
     "New game": {
       "extractionState": "manual"
     },
+    "Opens the saved game again": {
+      "extractionState": "manual"
+    },
     "Promote pawn": {
       "extractionState": "manual"
     },
@@ -120,6 +123,9 @@
       "extractionState": "manual"
     },
     "Rook": {
+      "extractionState": "manual"
+    },
+    "Saves the change again": {
       "extractionState": "manual"
     },
     "Selected": {

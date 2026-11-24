@@ -128,7 +128,8 @@ import Testing
         game.cancelPromotion()
         #expect(!game.isChoosingPromotion)
         #expect(game.position.fen == Self.promotionPosition)
-        #expect(game.selection == nil)
+        #expect(game.selection == Square("e7"))
+        #expect(game.legalDestinations == squares("e8", "d8"))
     }
 
     @Test(arguments: [

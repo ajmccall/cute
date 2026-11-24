@@ -18,12 +18,12 @@ import Testing
         #expect(game.position.fen == Self.savedPosition)
         #expect(try Data(contentsOf: storage.fileURL) == savedBytes)
 
-        game.retry()
+        game.retrySave()
         #expect(game.failure == .write)
         #expect(game.position.fen == Self.savedPosition)
 
         try storage.makeWritable()
-        game.retry()
+        game.retrySave()
         let afterMove = "rnbqkbnr/pppp1ppp/8/4p3/8/5N2/PPPPPPPP/RNBQKB1R w KQkq e6"
         #expect(game.failure == nil)
         #expect(game.position.fen == afterMove)
@@ -58,7 +58,7 @@ import Testing
 
         #expect(game.failure == nil)
         #expect(game.position.fen == "rnbqkbnr/ppp1pppp/8/3p4/8/5N2/PPPPPPPP/RNBQKB1R w KQkq d6")
-        game.retry()
+        game.retrySave()
         #expect(game.position.fen == "rnbqkbnr/ppp1pppp/8/3p4/8/5N2/PPPPPPPP/RNBQKB1R w KQkq d6")
     }
 
@@ -129,6 +129,58 @@ import Testing
         #expect(try storage.store.load() == .opening)
     }
 
+    @Test func whenNewGameCannotBeSavedAfterAFailedReadNoBoardIsPlayableAndBothFailuresAreIdentified() throws {
+        let storage = try TemporaryStorage()
+        let unreadable = Data("not json".utf8)
+        try unreadable.write(to: storage.fileURL)
+        try storage.makeReadOnly()
+        let game = LocalGame(store: storage.store)
+        game.open()
+
+        game.newGame()
+
+        #expect(game.failure == .read)
+        #expect(game.couldNotReadSavedGame)
+        #expect(game.hasUnsavedChange)
+        #expect(!game.canResignOrAgreeDraw)
+        game.tap("e2")
+        #expect(game.selection == nil)
+        #expect(try Data(contentsOf: storage.fileURL) == unreadable)
+
+        game.retrySave()
+        #expect(game.couldNotReadSavedGame)
+        #expect(game.hasUnsavedChange)
+
+        // Once the folder takes writes again, retrying the save starts the new game.
+        try storage.makeWritable()
+        game.retrySave()
+        #expect(game.failure == nil)
+        #expect(!game.couldNotReadSavedGame)
+        #expect(!game.hasUnsavedChange)
+        #expect(game.position == .opening)
+        #expect(try storage.store.load() == .opening)
+    }
+
+    @Test func whenTheSavedGameReadsOnRetryTheUnsavedNewGameIsDropped() throws {
+        let storage = try TemporaryStorage()
+        try Data("not json".utf8).write(to: storage.fileURL)
+        try storage.makeReadOnly()
+        let game = LocalGame(store: storage.store)
+        game.open()
+        game.newGame()
+
+        try storage.makeWritable()
+        try SavedGame(position: try #require(Position(fen: Self.savedPosition)), result: nil).encodedForTest()
+            .write(to: storage.fileURL)
+        game.retryRead()
+
+        #expect(game.failure == nil)
+        #expect(!game.hasUnsavedChange)
+        #expect(game.position.fen == Self.savedPosition)
+        game.retrySave()
+        #expect(game.position.fen == Self.savedPosition)
+    }
+
     @Test func aSavedPositionThatAlreadyEndedOpensWithItsResult() throws {
         let storage = try TemporaryStorage()
         // Fool's mate, saved without its result.
@@ -156,7 +208,7 @@ import Testing
         // Once readable again, a retry opens the saved game.
         try SavedGame(position: try #require(Position(fen: Self.savedPosition)), result: nil).encodedForTest()
             .write(to: storage.fileURL)
-        game.retry()
+        game.retryRead()
         #expect(game.failure == nil, sourceLocation: sourceLocation)
         #expect(game.position.fen == Self.savedPosition, sourceLocation: sourceLocation)
     }

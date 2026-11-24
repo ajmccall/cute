@@ -13,8 +13,17 @@ struct BoardScreen: View {
 
     var body: some View {
         Group {
-            if game.failure == .read {
-                ReadFailureView(retry: game.retry, newGame: { confirmation = .replace })
+            if game.couldNotReadSavedGame {
+                ScrollView {
+                    VStack(spacing: 0) {
+                        if game.hasUnsavedChange {
+                            WriteFailureBanner(retry: game.retrySave)
+                                .padding(.top)
+                        }
+                        ReadFailureView(retry: game.retryRead, newGame: { confirmation = .replace })
+                    }
+                }
+                .scrollBounceBehavior(.basedOnSize)
             } else {
                 ScrollView {
                     playSurface
@@ -39,8 +48,8 @@ struct BoardScreen: View {
 
     private var playSurface: some View {
         VStack(spacing: 16) {
-            if game.failure == .write {
-                WriteFailureBanner(retry: game.retry)
+            if game.hasUnsavedChange {
+                WriteFailureBanner(retry: game.retrySave)
             }
             Text(BoardText.status(of: game))
                 .font(.title2.weight(.semibold))
@@ -107,18 +116,24 @@ private struct WriteFailureBanner: View {
     let retry: () -> Void
 
     var body: some View {
-        HStack(spacing: 12) {
-            Label("Change not saved.", systemImage: "exclamationmark.triangle.fill")
-                .symbolRenderingMode(.multicolor)
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .accessibilityIdentifier("failureNotice")
-            Button("Retry", action: retry)
-                .gameActionStyle()
-        }
+        HStack(spacing: 12) { content }
         .font(.body)
         .padding()
         .background(Color(.secondarySystemBackground), in: .rect(cornerRadius: 12))
         .padding(.horizontal)
+    }
+
+    @ViewBuilder
+    private var content: some View {
+        Label("Change not saved.", systemImage: "exclamationmark.triangle.fill")
+            .symbolRenderingMode(.multicolor)
+            .fixedSize(horizontal: false, vertical: true)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .accessibilityIdentifier("writeFailureNotice")
+        Button("Retry", action: retry)
+            .gameActionStyle()
+            .accessibilityHint(Text("Saves the change again"))
+            .accessibilityIdentifier("retrySave")
     }
 }
 
@@ -130,10 +145,12 @@ private struct ReadFailureView: View {
     var body: some View {
         ContentUnavailableView {
             Label("Couldn’t open the saved game.", systemImage: "exclamationmark.triangle")
-                .accessibilityIdentifier("failureNotice")
+                .accessibilityIdentifier("readFailureNotice")
         } actions: {
             Button("Retry", action: retry)
                 .gameActionStyle()
+                .accessibilityHint(Text("Opens the saved game again"))
+                .accessibilityIdentifier("retryRead")
             Button("New game", action: newGame)
                 .gameActionStyle()
         }

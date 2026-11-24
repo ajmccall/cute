@@ -4,7 +4,7 @@ import Observation
 @Observable
 final class LocalGame {
     enum Failure: Equatable {
-        /// The saved game couldn't be read; nothing is playable until a retry succeeds.
+        /// The saved game couldn't be read; nothing is playable until it is read or replaced.
         case read
         /// The last change wasn't saved; the board still shows the last saved game.
         case write
@@ -12,12 +12,29 @@ final class LocalGame {
 
     private let store: GameStore
 
-    /// The last committed position.
+    /// The last committed position. Not a game to show while `couldNotReadSavedGame`.
     private(set) var position: Position = .opening
     private(set) var result: GameResult?
-    private(set) var failure: Failure?
+    /// The saved game couldn't be read, and no game has been read or saved since.
+    private(set) var couldNotReadSavedGame = false
+    /// A change that failed to save, kept so Retry can save it again. Never shown as the saved game.
+    private var unsavedChange: SavedGame?
     /// The selected piece's square; never saved.
     private(set) var selection: Square?
+    /// A pawn's move to the last rank, waiting for the player to choose its new piece; never saved.
+    private var promotionMove: Move?
+
+    init(store: GameStore) {
+        self.store = store
+    }
+
+    var hasUnsavedChange: Bool { unsavedChange != nil }
+
+    /// What failed, the unread saved game first: while it is unread there is no board to show.
+    var failure: Failure? {
+        if couldNotReadSavedGame { return .read }
+        return hasUnsavedChange ? .write : nil
+    }
 
     /// Where the selected piece can legally move.
     var legalDestinations: Set<Square> {
@@ -25,9 +42,15 @@ final class LocalGame {
         return Set(position.legalMoves(from: selection).map(\.to))
     }
 
-    init(store: GameStore) {
-        self.store = store
-    }
+    /// Whether the side to move is in check while the game is still being played.
+    var isInCheck: Bool { result == nil && position.isInCheck(position.sideToMove) }
+
+    var canResignOrAgreeDraw: Bool { result == nil && !couldNotReadSavedGame }
+
+    /// Whether starting over abandons a game still in play, or a saved game that couldn't be read.
+    var newGameNeedsConfirmation: Bool { result == nil || couldNotReadSavedGame }
+
+    var isChoosingPromotion: Bool { promotionMove != nil }
 
     /// Reads the current game, or starts the opening position when none is saved.
     /// A saved position the rules have already ended opens with that result.
@@ -36,15 +59,17 @@ final class LocalGame {
             let saved = try store.load() ?? .opening
             position = saved.position
             result = saved.result ?? saved.position.automaticResult
-            failure = nil
+            couldNotReadSavedGame = false
+            unsavedChange = nil
         } catch {
-            failure = .read
+            couldNotReadSavedGame = true
         }
     }
 
     /// A tap on a board square: selects an own piece, or moves the selected one to a legal destination.
+    /// Any other square clears the selection.
     func tap(_ square: Square) {
-        guard result == nil, failure != .read, !isChoosingPromotion else { return }
+        guard result == nil, !couldNotReadSavedGame, !isChoosingPromotion else { return }
         if position[square]?.color == position.sideToMove {
             selection = square
             return
@@ -63,18 +88,18 @@ final class LocalGame {
         }
     }
 
-    private func play(_ move: Move) {
-        let next = position.applying(move)
-        commit(SavedGame(position: next, result: next.automaticResult))
+    func choosePromotion(_ kind: PieceKind) {
+        guard var move = promotionMove, PieceKind.promotionChoices.contains(kind) else { return }
+        move.promotion = kind
+        clearSelection()
+        play(move)
     }
 
-    /// Whether the side to move is in check while the game is still being played.
-    var isInCheck: Bool { result == nil && position.isInCheck(position.sideToMove) }
-
-    var canResignOrAgreeDraw: Bool { result == nil && failure != .read }
-
-    /// Whether starting over abandons a game still in play, or a saved game that couldn't be read.
-    var newGameNeedsConfirmation: Bool { result == nil || failure == .read }
+    /// Leaves the position and turn as they were before the promotion destination was tapped,
+    /// with the pawn still selected and its legal destinations marked.
+    func cancelPromotion() {
+        promotionMove = nil
+    }
 
     /// Records a loss for the side to move. The board asks for confirmation first.
     func resign() {
@@ -97,55 +122,39 @@ final class LocalGame {
         commit(.opening)
     }
 
+    /// Tries saving the change that failed to save again.
+    func retrySave() {
+        if let unsavedChange { commit(unsavedChange) }
+    }
+
+    /// Tries reading the saved game again. Once it reads, any change still waiting to be saved is dropped.
+    func retryRead() {
+        guard couldNotReadSavedGame else { return }
+        open()
+    }
+
+    private func play(_ move: Move) {
+        let next = position.applying(move)
+        commit(SavedGame(position: next, result: next.automaticResult))
+    }
+
     private func clearSelection() {
         selection = nil
         promotionMove = nil
     }
 
-    /// A pawn's move to the last rank, waiting for the player to choose its new piece; never saved.
-    private var promotionMove: Move?
-
-    var isChoosingPromotion: Bool { promotionMove != nil }
-
-    func choosePromotion(_ kind: PieceKind) {
-        guard var move = promotionMove, PieceKind.promotionChoices.contains(kind) else { return }
-        move.promotion = kind
-        clearSelection()
-        play(move)
-    }
-
-    /// Leaves the position and turn as they were before the promotion destination was tapped.
-    func cancelPromotion() {
-        clearSelection()
-    }
-
-    /// A change that failed to save, kept so Retry can try it again. Never shown as the saved game.
-    private var unsavedChange: SavedGame?
-
     /// Saves a change, and shows it only once it is saved.
+    /// A failed save leaves an unread saved game unread, so no board is offered in its place.
     private func commit(_ game: SavedGame) {
         do {
             try store.save(game)
         } catch {
             unsavedChange = game
-            failure = .write
             return
         }
         unsavedChange = nil
+        couldNotReadSavedGame = false
         position = game.position
         result = game.result
-        failure = nil
-    }
-
-    /// Tries the failed operation again: reading the saved game, or saving the last change.
-    func retry() {
-        switch failure {
-        case .read:
-            open()
-        case .write:
-            if let unsavedChange { commit(unsavedChange) }
-        case nil:
-            break
-        }
     }
 }

@@ -66,12 +66,14 @@ final class RulePositionsUITests: XCTestCase {
         }
         board.attachScreenshot(named: "local-game-C2-promotion", to: self)
 
-        // Cancelling changes neither position nor turn.
+        // Cancelling changes neither position nor turn, and keeps the pawn selected with its destinations.
         board.app.buttons["Cancel"].tap()
         XCTAssertFalse(choice.waitForExistence(timeout: 1))
         XCTAssertEqual(board.status, "White to move")
         XCTAssertEqual(board.square("e7").label, "e7, White pawn")
         XCTAssertEqual(board.square("e8").label, "e8, Empty")
+        XCTAssertEqual(board.value(of: "e7"), "Selected")
+        XCTAssertEqual(board.legalDestinations, ["d8", "e8"])
 
         // Underpromotion to a knight on a capture.
         board.tap("e7", "d8")

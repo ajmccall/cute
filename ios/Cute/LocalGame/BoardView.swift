@@ -66,7 +66,6 @@ private struct SquareView: View {
         .buttonStyle(.plain)
         .accessibilityLabel(Text(BoardText.squareLabel(square, occupant: piece)))
         .accessibilityValue(accessibilityState)
-        .accessibilityAddTraits(isSelected ? .isSelected : [])
         .accessibilityIdentifier("square-\(square.coordinate)")
     }
 
