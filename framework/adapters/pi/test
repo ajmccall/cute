@@ -4,7 +4,7 @@
     framework/adapters/pi/test
 
 It needs no pi install. It checks that the settings point at the extension
-and name no package, the extension's dollar sum (with node, when `node` is
+and the agents folder and name no package, the role agent's definition, the extension's dollar sum (with node, when `node` is
 on the PATH), and the `cost` command against a session file it writes. Exit 0 when every check passes.
 """
 
@@ -41,6 +41,25 @@ def check_settings():
     resolved = [os.path.normpath(os.path.join(FRAMEWORK, "..", ".pi", e)) for e in extensions]
     expected = os.path.normpath(os.path.join(FRAMEWORK, "..", "framework", "adapters", "pi", "dual-native.js"))
     report("settings.json loads the extension from framework/", resolved == [expected], extensions)
+    scan = settings.get("subagents", {}).get("agentScanDirs", [])
+    # pi-subagents resolves a scan folder from the folder pi started in: the project's root.
+    report("settings.json adds the adapter's agents folder to pi-subagents' scan, from the project's root",
+           scan == ["framework/adapters/pi/agents"] and os.path.isdir(os.path.join(FRAMEWORK, "adapters", "pi", "agents")), scan)
+
+
+def check_role_agent():
+    """The role agent an orchestrator starts (README, Orchestrating a ticket)."""
+    text = read("adapters", "pi", "agents", "dual-native-role.md")
+    parts = text.split("---\n", 2)
+    report("the role agent has frontmatter and a body", len(parts) == 3 and parts[0] == "" and parts[2].strip(), text[:80])
+    if len(parts) != 3:
+        return
+    fields = dict((k.strip(), v.strip()) for k, v in (line.split(":", 1) for line in parts[1].splitlines() if ":" in line))
+    tools = [t.strip() for t in fields.get("tools", "").split(",")]
+    report("the role agent is named dual-native-role", fields.get("name") == "dual-native-role", fields.get("name"))
+    report("the role agent can start nested sessions and run commands", "subagent" in tools and "bash" in tools, tools)
+    report("the role agent keeps the skills and the project's context",
+           fields.get("inheritSkills") == "true" and fields.get("inheritProjectContext") == "true", fields)
 
 
 EXTENSION_CHECKS = r"""
@@ -124,6 +143,7 @@ def check_cost():
 
 def main():
     check_settings()
+    check_role_agent()
     check_extension()
     check_cost()
     print("\n%d failed" % len(failures) if failures else "\nall passed")

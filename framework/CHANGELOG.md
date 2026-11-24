@@ -4,6 +4,14 @@ Each framework release says what a consumer app must change in its own files. Re
 
 ## Unreleased
 
+## 8.0.0 (2026-11-24)
+
+An app on 7.0.0 takes this release with `git subtree pull --prefix=framework <framework repository> v8.0.0 --squash` in a take ticket, and these lines are that ticket's acceptance criteria (`framework-changes.md`, Taking a release). It is a major release because a consumer with the pi adapter changes its own `.pi/settings.json`; any other consumer changes nothing.
+
+What a consumer must change:
+
+- **The pi adapter says how pi runs an orchestrator** ([#135](https://github.com/ajmccall/dual-native/issues/135)). Its README has an Orchestrating a ticket section, so the Orchestrate prompt no longer stops at its Harness check under pi. Role sessions are subagents of `pi-subagents`, which each person who orchestrates installs; the adapter ships the agent they start as, `agents/dual-native-role.md`, and its `settings.json` names that folder in `subagents.agentScanDirs`. Run in a scratch project, not yet on a live ticket. **A project with the pi adapter:** run `install --wire <ticket worktree>`, which adds `subagents.agentScanDirs` to `.pi/settings.json`; `install --check` reports it until it's there. Anyone else: nothing to change.
+
 ## 7.0.0 (2026-11-23)
 
 An app on 6.3.3 takes this release with `git subtree pull --prefix=framework <framework repository> v7.0.0 --squash` in a take ticket, and these lines are that ticket's acceptance criteria (`framework-changes.md`, Taking a release). It is a major release because a consumer changes its own files: its `AGENTS.md`, and with an adapter, the skills pins in its harness's project settings.

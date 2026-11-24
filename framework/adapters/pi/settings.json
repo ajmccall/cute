@@ -1,5 +1,10 @@
 {
   "extensions": [
     "../framework/adapters/pi/dual-native.js"
-  ]
+  ],
+  "subagents": {
+    "agentScanDirs": [
+      "framework/adapters/pi/agents"
+    ]
+  }
 }
