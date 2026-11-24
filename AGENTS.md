@@ -26,7 +26,7 @@ The skills are a prerequisite: Matt Pocock's skills (`github.com/mattpocock/skil
 | `mattpocock-skills:code-review` | `framework/roles/reviewer.md` |
 | `Orchestrate ticket <n> for iOS and Android`, `for iOS` or `for Android`; `Orchestrate ticket <n>` with no platform work | `framework/orchestrate.md` |
 
-`framework/` is a git subtree of `git@github.com-personal:ajmccall/dual-native.git`, taken at framework release 7.0.0. Only a take ticket edits it (`framework/framework-changes.md`).
+`framework/` is a git subtree of `git@github.com-personal:ajmccall/dual-native.git`, taken at framework release 8.0.0. Only a take ticket edits it (`framework/framework-changes.md`).
 
 ## Human roles
 

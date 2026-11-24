@@ -7,7 +7,8 @@
 Paste the line it prints as the last line of the handoff entry
 (`measures.md`, Cost per session).
 
-pi has no subagents, so the line has no scope field (`measures.md`):
+Every pi session has a session file of its own, a role session an orchestrator
+started included, so the line has no scope field (`measures.md`):
 
     Cost: <platform> · <role> · <tokens> tokens · $<dollars> · not recorded
 
