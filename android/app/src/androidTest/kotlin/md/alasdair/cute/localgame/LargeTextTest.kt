@@ -101,6 +101,32 @@ class LargeTextTest(private val orientation: Int) {
         }
     }
 
+    @Test
+    fun c7_theOfferCanBeConfirmed_andTheResponseReadAndAnswered() {
+        board.launch()
+        board.awaitText("White to move")
+
+        rule.onNodeWithText("Offer double").performScrollTo()
+        board.tapText("Offer double")
+        rule.onNodeWithText("Confirm").assertIsDisplayed()
+        rule.onNodeWithText("Cancel").assertIsDisplayed()
+        board.tapText("Confirm")
+        board.awaitText("Black, answer the double")
+
+        for (text in listOf(
+            "Stake: 1 point",
+            "Take: play for 2 points.",
+            "Decline: White wins 1 point.",
+            "Decline",
+            "Take"
+        )) {
+            rule.onNodeWithText(text).performScrollTo().assertIsDisplayed()
+        }
+        board.tapText("Take")
+        board.awaitText("White to move")
+        rule.onNodeWithText("Stake: 2 points").performScrollTo().assertIsDisplayed()
+    }
+
     companion object {
         const val FONT_SCALE = 2.0f
         const val DISPLAY_TIMEOUT_MS = 30_000L
