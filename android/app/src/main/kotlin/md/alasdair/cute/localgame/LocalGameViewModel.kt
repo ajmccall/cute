@@ -95,16 +95,17 @@ class LocalGameViewModel @Inject constructor(private val repository: GameReposit
         val state = _uiState.value
         val confirmation = state.confirmation ?: return
         _uiState.update { it.copy(confirmation = null) }
-        if (confirmation == Confirmation.Replace) {
-            save(GameRecord.New)
-            return
-        }
-        val position = state.game?.position ?: return
-        val result = when (confirmation) {
-            Confirmation.Resign -> GameResult(position.sideToMove.opponent, EndReason.Resignation)
-            else -> GameResult(null, EndReason.Agreement)
-        }
-        save(GameRecord(position, result))
+        val position = state.game?.position
+        val record = when (confirmation) {
+            Confirmation.Replace -> GameRecord.New
+            Confirmation.Resign -> position?.let {
+                GameRecord(it, GameResult(it.sideToMove.opponent, EndReason.Resignation))
+            }
+            Confirmation.Draw -> position?.let {
+                GameRecord(it, GameResult(null, EndReason.Agreement))
+            }
+        } ?: return
+        save(record)
     }
 
     fun onCancelled() {

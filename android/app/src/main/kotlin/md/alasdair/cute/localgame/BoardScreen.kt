@@ -135,7 +135,10 @@ fun BoardScreen(state: LocalGameUiState, actions: BoardActions, modifier: Modifi
                 }
             }
         }
-        state.confirmation?.let { ConfirmDialog(it, state.bottomSide, actions) }
+        state.confirmation?.let { confirmation ->
+            val sideToMove = state.game?.position?.sideToMove ?: Side.White
+            ConfirmDialog(confirmation, sideToMove, actions)
+        }
         if (state.promotion != null) PromotionDialog(actions)
     }
 }
@@ -188,7 +191,8 @@ private fun PromotionDialog(actions: BoardActions) {
         onDismissRequest = actions.onPromotionCancelled,
         title = { Text(stringResource(R.string.promotion)) },
         text = {
-            Column {
+            // Scrolls so that every choice stays reachable at large font scales in landscape.
+            Column(Modifier.verticalScroll(rememberScrollState())) {
                 for ((type, label) in promotionChoices) {
                     TextButton(
                         onClick = { actions.onPromotionChosen(type) },
