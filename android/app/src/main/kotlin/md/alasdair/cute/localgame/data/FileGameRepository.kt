@@ -147,7 +147,8 @@ class FileGameRepository @Inject constructor(
             require(parts.size == 2) { "Bad result: $text" }
             val winner = if (parts[0] == "Draw") null else Side.valueOf(parts[0])
             val reason = EndReason.valueOf(parts[1])
-            val decisive = reason == EndReason.Checkmate || reason == EndReason.Resignation ||
+            val decisive = reason == EndReason.Checkmate ||
+                reason == EndReason.Resignation ||
                 reason == EndReason.DoubleDeclined
             require(decisive == (winner != null)) { "Bad result: $text" }
             return GameResult(winner, reason)

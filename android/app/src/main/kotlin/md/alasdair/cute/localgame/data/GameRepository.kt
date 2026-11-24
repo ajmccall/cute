@@ -24,7 +24,10 @@ data class GameRecord(
      * includes the opening turn and turns in check.
      */
     val canOfferDouble: Boolean get() =
-        result == null && !doublePending && stake != null && stake < MAX_STAKE &&
+        result == null &&
+            !doublePending &&
+            stake != null &&
+            stake < MAX_STAKE &&
             (nextDoubler == null || nextDoubler == position.sideToMove)
 
     companion object {

@@ -14,7 +14,6 @@ import md.alasdair.cute.chess.EndReason
 import md.alasdair.cute.chess.GameResult
 import md.alasdair.cute.chess.Move
 import md.alasdair.cute.chess.PieceType
-import md.alasdair.cute.chess.Position
 import md.alasdair.cute.chess.Square
 import md.alasdair.cute.chess.automaticResult
 import md.alasdair.cute.chess.legalMovesFrom

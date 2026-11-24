@@ -89,7 +89,7 @@ class DoublingCubeTest {
     }
 
     @Test
-    fun `taking doubles the stake, returns the board to the offerer and gives the taker the next right`() =
+    fun `taking doubles the stake, the offerer moves on and only the taker may offer next`() =
         runTest {
             val game = device.launch()
             game.offerDouble()
@@ -114,29 +114,28 @@ class DoublingCubeTest {
         }
 
     @Test
-    fun `declining ends the game without a move, won by the offerer at the old stake`() =
-        runTest {
-            val game = device.launch()
-            game.offerDouble()
-            game.onDoubleTaken()
-            game.move("e2", "e4")
-            game.offerDouble()
+    fun `declining ends the game without a move, won by the offerer at the old stake`() = runTest {
+        val game = device.launch()
+        game.offerDouble()
+        game.onDoubleTaken()
+        game.move("e2", "e4")
+        game.offerDouble()
 
-            game.onDoubleDeclined()
+        game.onDoubleDeclined()
 
-            val declined = GameResult(Side.Black, EndReason.DoubleDeclined)
-            assertEquals(declined, game.state.game?.result)
-            assertFalse(game.state.game!!.doublePending)
-            assertEquals(2, game.state.game?.stake)
-            assertEquals(AFTER_E4, game.state.fen)
-            game.onSquareTapped(sq("e7"))
-            assertNull(game.state.selection)
+        val declined = GameResult(Side.Black, EndReason.DoubleDeclined)
+        assertEquals(declined, game.state.game?.result)
+        assertFalse(game.state.game!!.doublePending)
+        assertEquals(2, game.state.game?.stake)
+        assertEquals(AFTER_E4, game.state.fen)
+        game.onSquareTapped(sq("e7"))
+        assertNull(game.state.selection)
 
-            val reopened = device.launch()
-            assertEquals(declined, reopened.state.game?.result)
-            assertEquals(2, reopened.state.game?.stake)
-            assertEquals(AFTER_E4, reopened.state.fen)
-        }
+        val reopened = device.launch()
+        assertEquals(declined, reopened.state.game?.result)
+        assertEquals(2, reopened.state.game?.stake)
+        assertEquals(AFTER_E4, reopened.state.fen)
+    }
 
     @Test
     fun `no double is offered at 64 points`() = runTest {
@@ -182,7 +181,7 @@ class DoublingCubeTest {
     }
 
     @Test
-    fun `an ongoing game saved before the cube goes on at one point with either side free to offer`() =
+    fun `an ongoing game saved before the cube goes on at one point, either side free to offer`() =
         runTest {
             device.gameFile.writeText("cute-game 1\n$AFTER_E4\nplaying\n")
 
@@ -211,23 +210,22 @@ class DoublingCubeTest {
     }
 
     @Test
-    fun `resigning or agreeing a draw after a take keeps the stake, and a new game starts at one point`() =
-        runTest {
-            val game = device.launch()
-            game.offerDouble()
-            game.onDoubleTaken()
+    fun `a draw after a take keeps the stake, and a new game starts at one point`() = runTest {
+        val game = device.launch()
+        game.offerDouble()
+        game.onDoubleTaken()
 
-            game.onDrawRequested()
-            game.onConfirmed()
-            assertEquals(GameResult(null, EndReason.Agreement), game.state.game?.result)
-            assertEquals(2, game.state.game?.stake)
+        game.onDrawRequested()
+        game.onConfirmed()
+        assertEquals(GameResult(null, EndReason.Agreement), game.state.game?.result)
+        assertEquals(2, game.state.game?.stake)
 
-            game.onNewGameRequested()
-            assertEquals(OPENING, game.state.fen)
-            assertEquals(1, game.state.game?.stake)
-            assertNull(game.state.game?.nextDoubler)
-            assertTrue(game.state.canOfferDouble)
-        }
+        game.onNewGameRequested()
+        assertEquals(OPENING, game.state.fen)
+        assertEquals(1, game.state.game?.stake)
+        assertNull(game.state.game?.nextDoubler)
+        assertTrue(game.state.canOfferDouble)
+    }
 
     @Test
     fun `games at the cube's limits reopen exactly as saved`() = runTest {
@@ -236,8 +234,12 @@ class DoublingCubeTest {
             GameRecord(opening, null, stake = 64, nextDoubler = Side.Black),
             GameRecord(opening, null, stake = 32, nextDoubler = Side.White, doublePending = true),
             GameRecord(opening, null, stake = 1, nextDoubler = null, doublePending = true),
-            GameRecord(opening, GameResult(Side.White, EndReason.DoubleDeclined), stake = 64,
-                nextDoubler = Side.White),
+            GameRecord(
+                opening,
+                GameResult(Side.White, EndReason.DoubleDeclined),
+                stake = 64,
+                nextDoubler = Side.White
+            ),
             GameRecord(opening, GameResult(null, EndReason.Agreement), stake = null)
         )
         for (record in limits) {

@@ -22,8 +22,10 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.LiveRegionMode
+import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.semantics
@@ -54,6 +56,9 @@ fun BoardRoute(viewModel: LocalGameViewModel = hiltViewModel()) {
             onNewGame = viewModel::onNewGameRequested,
             onResign = viewModel::onResignRequested,
             onAgreeDraw = viewModel::onDrawRequested,
+            onOfferDouble = viewModel::onOfferDoubleRequested,
+            onTake = viewModel::onDoubleTaken,
+            onDecline = viewModel::onDoubleDeclined,
             onConfirm = viewModel::onConfirmed,
             onCancel = viewModel::onCancelled,
             onRetry = viewModel::onRetry
@@ -68,6 +73,9 @@ class BoardActions(
     val onNewGame: () -> Unit = {},
     val onResign: () -> Unit = {},
     val onAgreeDraw: () -> Unit = {},
+    val onOfferDouble: () -> Unit = {},
+    val onTake: () -> Unit = {},
+    val onDecline: () -> Unit = {},
     val onConfirm: () -> Unit = {},
     val onCancel: () -> Unit = {},
     val onRetry: () -> Unit = {}
@@ -91,28 +99,24 @@ fun BoardScreen(state: LocalGameUiState, actions: BoardActions, modifier: Modifi
                 FailureNotice(state.failure, actions.onRetry)
             }
             if (game != null) {
-                Text(
-                    text = statusText(game, state.inCheck),
-                    style = MaterialTheme.typography.headlineSmall,
-                    modifier = Modifier
-                        .padding(horizontal = 16.dp)
-                        .testTag("status")
-                        .semantics {
-                            heading()
-                            liveRegion = LiveRegionMode.Polite
-                        }
-                )
+                if (game.doublePending) {
+                    DoubleResponse(game, actions)
+                } else {
+                    GameStatus(game, state.inCheck)
+                    if (game.result == null) StakeSummary(game)
+                }
                 ChessBoard(
                     position = game.position,
                     bottomSide = state.bottomSide,
                     selection = state.selection,
                     destinations = state.destinations,
-                    enabled = game.result == null,
+                    enabled = game.result == null && !game.doublePending,
                     onSquareTapped = actions.onSquareTapped,
                     modifier = Modifier.fillMaxWidth()
                 )
             }
-            if (!state.loading) {
+            // While a double awaits its answer, Take and Decline are the only game actions.
+            if (!state.loading && game?.doublePending != true) {
                 FlowRow(
                     Modifier.padding(horizontal = 16.dp),
                     horizontalArrangement = Arrangement.spacedBy(
@@ -131,11 +135,17 @@ fun BoardScreen(state: LocalGameUiState, actions: BoardActions, modifier: Modifi
                         OutlinedButton(onClick = actions.onAgreeDraw) {
                             Text(stringResource(R.string.agree_draw))
                         }
+                        OutlinedButton(
+                            onClick = actions.onOfferDouble,
+                            enabled = state.canOfferDouble
+                        ) {
+                            Text(stringResource(R.string.offer_double))
+                        }
                     }
                 }
             }
         }
-        state.confirmation?.let { ConfirmDialog(it, state.sideToMove, actions) }
+        state.confirmation?.let { ConfirmDialog(it, state, actions) }
         if (state.promotion != null) PromotionDialog(actions)
     }
 }
@@ -163,13 +173,149 @@ private fun FailureNotice(failure: Failure, onRetry: () -> Unit) {
     }
 }
 
+/**
+ * The game's result, or whose turn or check it is, announced as it changes. A finished game
+ * with a stake also shows each player's award, spoken with "half a point" for ½ point.
+ */
 @Composable
-private fun ConfirmDialog(confirmation: Confirmation, sideToMove: Side, actions: BoardActions) {
+private fun GameStatus(game: GameRecord, inCheck: Boolean) {
+    val headline = statusText(game, inCheck)
+    val award = game.result?.let { result -> game.stake?.let { award(result, it) } }
+    val spoken = award?.let { stringResource(R.string.status_with_award, headline, it.spoken) }
+    Column(
+        Modifier
+            .padding(horizontal = 16.dp)
+            .testTag("status")
+            .semantics(mergeDescendants = true) {
+                heading()
+                liveRegion = LiveRegionMode.Polite
+                if (spoken != null) contentDescription = spoken
+            },
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(4.dp)
+    ) {
+        Text(headline, style = MaterialTheme.typography.headlineSmall)
+        if (award != null) Text(award.shown, style = MaterialTheme.typography.titleMedium)
+    }
+}
+
+/** What a finished game awards: as shown, and as a screen reader speaks it. */
+private class Award(val shown: String, val spoken: String)
+
+@Composable
+private fun award(result: GameResult, stake: Int): Award {
+    val winner = result.winner
+    if (winner != null) {
+        val text = stringResource(R.string.win_award, sideName(winner), points(stake))
+        return Award(text, text)
+    }
+    return if (stake == 1) {
+        Award(
+            shown = stringResource(R.string.draw_award, stringResource(R.string.half_point)),
+            spoken = stringResource(
+                R.string.draw_award,
+                stringResource(R.string.half_point_spoken)
+            )
+        )
+    } else {
+        val text = stringResource(R.string.draw_award, points(stake / 2))
+        Award(text, text)
+    }
+}
+
+/** The points in play and who may offer the next double, during play. */
+@Composable
+private fun StakeSummary(game: GameRecord) {
+    val stake = game.stake ?: return
+    val nextDoubler = game.nextDoubler
+    val right = when {
+        stake >= GameRecord.MAX_STAKE -> stringResource(R.string.double_right_max)
+        nextDoubler == null -> stringResource(R.string.double_right_either)
+        else -> stringResource(R.string.double_right_only, sideName(nextDoubler))
+    }
+    Column(
+        Modifier
+            .padding(horizontal = 16.dp)
+            .testTag("stake")
+            .semantics(mergeDescendants = true) {},
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        Text(
+            stringResource(R.string.stake, points(stake)),
+            style = MaterialTheme.typography.titleMedium
+        )
+        Text(right, style = MaterialTheme.typography.bodyMedium)
+    }
+}
+
+/**
+ * The Double response surface, in place of the status while a double awaits its answer: it
+ * names the responder, shows the stake as it is and what taking or declining means, and holds
+ * the only two game actions.
+ */
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun DoubleResponse(game: GameRecord, actions: BoardActions) {
+    val offerer = game.position.sideToMove
+    val stake = game.stake ?: return
+    Surface(
+        color = MaterialTheme.colorScheme.secondaryContainer,
+        contentColor = MaterialTheme.colorScheme.onSecondaryContainer,
+        shape = MaterialTheme.shapes.medium,
+        modifier = Modifier.padding(horizontal = 16.dp).fillMaxWidth()
+    ) {
+        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Text(
+                text = stringResource(R.string.response, sideName(offerer.opponent)),
+                style = MaterialTheme.typography.headlineSmall,
+                modifier = Modifier
+                    .testTag("status")
+                    .semantics {
+                        heading()
+                        liveRegion = LiveRegionMode.Polite
+                    }
+            )
+            Text(
+                stringResource(R.string.stake, points(stake)),
+                style = MaterialTheme.typography.titleMedium
+            )
+            Text(
+                stringResource(R.string.take_effect, points(stake * 2)),
+                style = MaterialTheme.typography.bodyLarge
+            )
+            Text(
+                stringResource(R.string.decline_effect, sideName(offerer), points(stake)),
+                style = MaterialTheme.typography.bodyLarge
+            )
+            FlowRow(
+                Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.End),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                OutlinedButton(onClick = actions.onDecline) {
+                    Text(stringResource(R.string.decline))
+                }
+                Button(onClick = actions.onTake) { Text(stringResource(R.string.take)) }
+            }
+        }
+    }
+}
+
+@Composable
+private fun points(count: Int) = pluralStringResource(R.plurals.points, count, count)
+
+@Composable
+private fun ConfirmDialog(
+    confirmation: Confirmation,
+    state: LocalGameUiState,
+    actions: BoardActions
+) {
     val question = when (confirmation) {
-        Confirmation.Resign -> stringResource(R.string.confirm_resign, sideName(sideToMove))
+        Confirmation.Resign -> stringResource(R.string.confirm_resign, sideName(state.sideToMove))
         Confirmation.Draw -> stringResource(R.string.confirm_draw)
         Confirmation.Replace -> stringResource(R.string.confirm_replace)
-        Confirmation.OfferDouble -> ""
+        Confirmation.OfferDouble ->
+            stringResource(R.string.confirm_offer, points((state.game?.stake ?: 1) * 2))
     }
     AlertDialog(
         onDismissRequest = actions.onCancel,
@@ -260,6 +406,26 @@ private fun FinishedBoardScreenPreview() {
                 loading = false,
                 game = GameRecord(Position.Opening, GameResult(Side.Black, EndReason.Resignation)),
                 failure = Failure.Write
+            ),
+            actions = BoardActions()
+        )
+    }
+}
+
+@Preview(widthDp = 360, heightDp = 800)
+@Composable
+private fun DoubleResponseBoardScreenPreview() {
+    CuteTheme {
+        BoardScreen(
+            state = LocalGameUiState(
+                loading = false,
+                game = GameRecord(
+                    Position.Opening,
+                    result = null,
+                    stake = 2,
+                    nextDoubler = Side.White,
+                    doublePending = true
+                )
             ),
             actions = BoardActions()
         )
