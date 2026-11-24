@@ -16,7 +16,7 @@ Everything else is lookup, named where it's needed. This file only says which ro
 
 ## Skills and roles
 
-The skills are a prerequisite: Matt Pocock's skills (`github.com/mattpocock/skills`), at the commit the harness adapter pins, installed as its README says, or where the project runs without an adapter, at the commit the Claude Code adapter's `marketplace.json` names. A harness without plugin prefixes, such as pi, names a skill `mattpocock-skills:<name>` by its own name for `<name>`. A session starts with one row's first column, on a ticket or an idea: a skill by its qualified name, the Land prompt, or the Orchestrate prompt. It also follows the page beside it: a role page, whose overrides win over the skill, or for the Orchestrate prompt, `framework/orchestrate.md`, which starts the builder and reviewer sessions itself. A session started without the skills stops and tells the human.
+The skills are a prerequisite: Matt Pocock's skills (`github.com/mattpocock/skills`), which each person installs the way their harness installs skills, at whatever version that gives. The framework doesn't install or pin them. A harness names a skill its own way: where this table writes `mattpocock-skills:<name>`, start the harness's own name for `<name>`. A session starts with one row's first column, on a ticket or an idea: a skill by its qualified name, the Land prompt, or the Orchestrate prompt. It also follows the page beside it: a role page, whose overrides win over the skill, or for the Orchestrate prompt, `framework/orchestrate.md`, which starts the builder and reviewer sessions itself. A session started without the skills stops and tells the human.
 
 | Start a session with | Page |
 |---|---|
