@@ -151,7 +151,7 @@ private fun PieceGlyph(piece: Piece, squareSize: Dp) {
 }
 
 /** U+FE0E asks for the text form, so that no symbol is drawn as an emoji. */
-private const val TEXT_STYLE = "︎"
+private const val TEXT_PRESENTATION = "\uFE0E"
 
 private val Piece.filled: String
     get() = when (type) {
@@ -161,7 +161,7 @@ private val Piece.filled: String
         PieceType.Bishop -> "♝"
         PieceType.Knight -> "♞"
         PieceType.Pawn -> "♟"
-    } + TEXT_STYLE
+    } + TEXT_PRESENTATION
 
 private val Piece.outline: String
     get() = when (type) {
@@ -171,7 +171,7 @@ private val Piece.outline: String
         PieceType.Bishop -> "♗"
         PieceType.Knight -> "♘"
         PieceType.Pawn -> "♙"
-    } + TEXT_STYLE
+    } + TEXT_PRESENTATION
 
 @get:StringRes
 private val Piece.nameRes: Int

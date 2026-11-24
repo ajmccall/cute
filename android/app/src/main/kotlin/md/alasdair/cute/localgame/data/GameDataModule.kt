@@ -1,6 +1,7 @@
 package md.alasdair.cute.localgame.data
 
 import android.content.Context
+import dagger.Binds
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -16,18 +17,26 @@ import kotlinx.coroutines.Dispatchers
 @Retention(AnnotationRetention.BINARY)
 annotation class IoDispatcher
 
+/** The file that holds the device's current game. */
+@Qualifier
+@Retention(AnnotationRetention.BINARY)
+annotation class GameFile
+
 @Module
 @InstallIn(SingletonComponent::class)
-object GameDataModule {
-    @Provides
-    @IoDispatcher
-    fun provideIoDispatcher(): CoroutineDispatcher = Dispatchers.IO
-
-    @Provides
+abstract class GameDataModule {
+    @Binds
     @Singleton
-    fun provideGameRepository(
-        @ApplicationContext context: Context,
-        @IoDispatcher ioDispatcher: CoroutineDispatcher
-    ): GameRepository =
-        FileGameRepository(File(context.filesDir, FileGameRepository.FILE_NAME), ioDispatcher)
+    abstract fun bindGameRepository(repository: FileGameRepository): GameRepository
+
+    companion object {
+        @Provides
+        @IoDispatcher
+        fun provideIoDispatcher(): CoroutineDispatcher = Dispatchers.IO
+
+        @Provides
+        @GameFile
+        fun provideGameFile(@ApplicationContext context: Context): File =
+            File(context.filesDir, FileGameRepository.FILE_NAME)
+    }
 }

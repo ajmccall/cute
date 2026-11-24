@@ -136,6 +136,7 @@ class LocalGameViewModel @Inject constructor(private val repository: GameReposit
      * game as it was, with nothing selected, and Retry can try the same change again.
      */
     private fun save(record: GameRecord) {
+        if (busy) return
         busy = true
         viewModelScope.launch {
             val failure = try {
@@ -164,6 +165,7 @@ class LocalGameViewModel @Inject constructor(private val repository: GameReposit
     }
 
     private fun load() {
+        if (busy) return
         busy = true
         _uiState.update { it.copy(loading = true) }
         viewModelScope.launch {

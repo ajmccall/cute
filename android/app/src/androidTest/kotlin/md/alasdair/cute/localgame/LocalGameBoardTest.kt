@@ -63,6 +63,9 @@ class LocalGameBoardTest {
         board.tap("b8")
         board.assertSquare("c6", "c6, Empty", "Legal destination")
         board.assertSquare("a6", "a6, Empty", "Legal destination")
+        board.tap("c6")
+        board.awaitText("White to move")
+        board.assertSquare("c6", "c6, Black knight")
     }
 
     @Test

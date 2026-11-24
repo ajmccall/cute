@@ -4,11 +4,13 @@ import java.io.File
 import java.io.FileOutputStream
 import java.nio.file.Files
 import java.nio.file.StandardCopyOption
+import javax.inject.Inject
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.withContext
 import md.alasdair.cute.chess.EndReason
 import md.alasdair.cute.chess.GameResult
 import md.alasdair.cute.chess.Side
+import md.alasdair.cute.chess.automaticResult
 import md.alasdair.cute.chess.positionFromFen
 import md.alasdair.cute.chess.toFen
 
@@ -17,11 +19,14 @@ import md.alasdair.cute.chess.toFen
  * the disk and renames it over the old one, so the file always holds either the previous game
  * or the new one, never part of either.
  */
-class FileGameRepository(private val file: File, private val ioDispatcher: CoroutineDispatcher) :
-    GameRepository {
+class FileGameRepository @Inject constructor(
+    @GameFile private val file: File,
+    @IoDispatcher private val ioDispatcher: CoroutineDispatcher
+) : GameRepository {
 
     override suspend fun load(): GameRecord? = withContext(ioDispatcher) {
-        if (!file.exists()) null else decode(file.readText())
+        // Only a file known to be absent means no game: one that can't be checked is a failure.
+        if (Files.notExists(file.toPath())) null else decode(file.readText())
     }
 
     override suspend fun save(record: GameRecord) = withContext(ioDispatcher) {
@@ -57,6 +62,9 @@ class FileGameRepository(private val file: File, private val ioDispatcher: Corou
             }
             val position = positionFromFen(lines[1])
             val result = if (lines[2] == PLAYING) null else decodeResult(lines[2])
+            require(result != null || position.automaticResult() == null) {
+                "A game in play can't already have ended"
+            }
             return GameRecord(position, result)
         }
 
