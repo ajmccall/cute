@@ -58,6 +58,9 @@ class LocalGameViewModel @Inject constructor(private val repository: GameReposit
             } else {
                 commit(position, Move(selection, square))
             }
+        } else {
+            // Neither an own piece nor a legal destination: clear the selection (#5, 1a).
+            _uiState.update { it.copy(selection = null, destinations = emptySet()) }
         }
     }
 

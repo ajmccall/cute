@@ -50,13 +50,48 @@ class LocalGameTest {
     }
 
     @Test
-    fun `an illegal destination leaves position, turn and selection unchanged`() = runTest {
+    fun `an illegal destination clears the selection and leaves position and turn unchanged`() =
+        runTest {
+            val game = device.launch()
+
+            game.move("g1", "g3")
+
+            assertEquals(OPENING, game.state.fen)
+            assertEquals(Side.White, game.state.bottomSide)
+            assertNull(game.state.selection)
+            assertEquals(emptySet<Any>(), game.state.destinations)
+        }
+
+    @Test
+    fun `tapping an empty square that isn't a destination clears the selection`() = runTest {
         val game = device.launch()
 
-        game.move("g1", "g3")
+        game.move("g1", "d4")
 
         assertEquals(OPENING, game.state.fen)
+        assertNull(game.state.selection)
+        assertEquals(emptySet<Any>(), game.state.destinations)
+    }
+
+    @Test
+    fun `tapping an opponent's piece that can't be taken clears the selection`() = runTest {
+        val game = device.launch()
+
+        game.move("g1", "e7")
+
+        assertEquals(OPENING, game.state.fen)
+        assertNull(game.state.selection)
+        assertEquals(emptySet<Any>(), game.state.destinations)
+    }
+
+    @Test
+    fun `tapping the selected piece again keeps it selected`() = runTest {
+        val game = device.launch()
+
+        game.move("g1", "g1")
+
         assertEquals(sq("g1"), game.state.selection)
+        assertEquals(squares("f3", "h3"), game.state.destinations)
     }
 
     @Test

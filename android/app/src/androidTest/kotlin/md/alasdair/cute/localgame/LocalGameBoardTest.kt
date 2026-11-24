@@ -4,14 +4,10 @@ import androidx.activity.ComponentActivity
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.assertTextEquals
-import androidx.compose.ui.test.junit4.accessibility.enableAccessibilityChecks
 import androidx.compose.ui.test.junit4.v2.createAndroidComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.test.ext.junit.runners.AndroidJUnit4
-import com.google.android.apps.common.testing.accessibility.framework.AccessibilityCheckResultUtils.matchesCheck
-import com.google.android.apps.common.testing.accessibility.framework.checks.TouchTargetSizeCheck
-import com.google.android.apps.common.testing.accessibility.framework.integrations.espresso.AccessibilityValidator
 import org.junit.After
 import org.junit.Assert.assertTrue
 import org.junit.Before
@@ -21,9 +17,8 @@ import org.junit.runner.RunWith
 
 /**
  * The interaction checks in docs/testing.md, one or more per local-game criterion, on the
- * running board. Accessibility checks run on every action. The board's squares are exempt from
- * the touch-target check only: on a phone narrower than 384 dp each square is an eighth of the
- * width, below 48 dp, which the product owner approved for the board (#6, decision 1a).
+ * running board, with accessibility checks on every action
+ * (BoardHarness.enableAccessibilityChecks).
  */
 @RunWith(AndroidJUnit4::class)
 class LocalGameBoardTest {
@@ -32,13 +27,7 @@ class LocalGameBoardTest {
     private val board = BoardHarness(rule)
 
     @Before
-    fun checkAccessibility() {
-        rule.enableAccessibilityChecks(
-            AccessibilityValidator()
-                .setRunChecksFromRootView(true)
-                .setSuppressingResultMatcher(matchesCheck(TouchTargetSizeCheck::class.java))
-        )
-    }
+    fun checkAccessibility() = board.enableAccessibilityChecks()
 
     @After
     fun cleanUp() = board.cleanUp()
@@ -88,12 +77,42 @@ class LocalGameBoardTest {
 
         board.tap("g3")
         status().assertTextEquals("White to move")
-        board.assertSquare("g1", "g1, White knight", "Selected")
+        board.assertSquare("g1", "g1, White knight")
+        board.assertSquare("f3", "f3, Empty")
+        board.assertSquare("h3", "h3, Empty")
         board.assertSquare("g3", "g3, Empty")
 
-        board.tap("f3")
+        board.tap("g1", "f3")
         board.awaitText("Black to move")
         board.assertSquare("f3", "f3, White knight")
+    }
+
+    @Test
+    fun c2_tappingAnEmptySquareClearsTheSelection() {
+        board.launch()
+        board.awaitText("White to move")
+
+        board.tap("e2", "d4")
+
+        status().assertTextEquals("White to move")
+        board.assertSquare("e2", "e2, White pawn")
+        board.assertSquare("e3", "e3, Empty")
+        board.assertSquare("e4", "e4, Empty")
+        board.assertSquare("d4", "d4, Empty")
+    }
+
+    @Test
+    fun c2_tappingAnOpponentsPieceClearsTheSelection() {
+        board.launch()
+        board.awaitText("White to move")
+
+        board.tap("g1", "e7")
+
+        status().assertTextEquals("White to move")
+        board.assertSquare("g1", "g1, White knight")
+        board.assertSquare("f3", "f3, Empty")
+        board.assertSquare("h3", "h3, Empty")
+        board.assertSquare("e7", "e7, Black pawn")
     }
 
     @Test

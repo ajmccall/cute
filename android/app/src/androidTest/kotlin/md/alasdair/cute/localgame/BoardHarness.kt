@@ -13,11 +13,15 @@ import androidx.compose.ui.test.assert
 import androidx.compose.ui.test.assertContentDescriptionEquals
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.junit4.AndroidComposeTestRule
+import androidx.compose.ui.test.junit4.accessibility.enableAccessibilityChecks
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.test.ext.junit.rules.ActivityScenarioRule
 import androidx.test.platform.app.InstrumentationRegistry
+import com.google.android.apps.common.testing.accessibility.framework.AccessibilityCheckResultUtils.matchesCheck
+import com.google.android.apps.common.testing.accessibility.framework.checks.TouchTargetSizeCheck
+import com.google.android.apps.common.testing.accessibility.framework.integrations.espresso.AccessibilityValidator
 import java.io.File
 import java.util.UUID
 import kotlinx.coroutines.Dispatchers
@@ -58,6 +62,19 @@ class BoardHarness(private val rule: BoardRule) {
                 }
             }
         }
+    }
+
+    /**
+     * Runs Google's accessibility checks on every action. Only the touch-target size check is
+     * suppressed: on a phone narrower than 384 dp each board square is an eighth of the width,
+     * below 48 dp, which the product owner approved for the board (#6, decision 1a).
+     */
+    fun enableAccessibilityChecks() {
+        rule.enableAccessibilityChecks(
+            AccessibilityValidator()
+                .setRunChecksFromRootView(true)
+                .setSuppressingResultMatcher(matchesCheck(TouchTargetSizeCheck::class.java))
+        )
     }
 
     fun relaunch() {
