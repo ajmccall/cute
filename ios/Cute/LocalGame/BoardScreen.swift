@@ -7,13 +7,13 @@ struct BoardScreen: View {
     @State private var confirmation: Confirmation?
 
     private enum Confirmation: Identifiable {
-        case resign, agreeDraw, replace, offerDouble
+        case resign, agreeDraw, replace
         var id: Self { self }
-        /// Ending or replacing a game is destructive; agreeing a draw and offering a double aren't.
+        /// Ending or replacing a game is destructive; agreeing a draw isn't.
         var confirmRole: ButtonRole? {
             switch self {
             case .resign, .replace: .destructive
-            case .agreeDraw, .offerDouble: nil
+            case .agreeDraw: nil
             }
         }
     }
@@ -83,6 +83,7 @@ struct BoardScreen: View {
 
     /// New game is offered except while an offer waits for its answer; resigning, agreeing a draw
     /// and offering a double only during play, and offering only for a side to move entitled to it.
+    /// Offer double makes the binding offer on one tap, without confirmation.
     @ViewBuilder
     private var actions: some View {
         if game.canStartNewGame {
@@ -97,7 +98,7 @@ struct BoardScreen: View {
         if game.canResignOrAgreeDraw {
             Button("Resign") { confirmation = .resign }
             Button("Agree draw") { confirmation = .agreeDraw }
-            Button("Offer double") { confirmation = .offerDouble }
+            Button("Offer double", action: game.offerDouble)
                 .disabled(!game.canOfferDouble)
         }
     }
@@ -107,7 +108,6 @@ struct BoardScreen: View {
         case .resign: BoardText.confirmResign(game.position.sideToMove)
         case .agreeDraw: String(localized: "Do both players agree to a draw?")
         case .replace: String(localized: "Replace this game?")
-        case .offerDouble: BoardText.confirmOffer(stake: game.stake ?? 1)
         case nil: ""
         }
     }
@@ -126,7 +126,6 @@ struct BoardScreen: View {
         case .resign: game.resign()
         case .agreeDraw: game.agreeDraw()
         case .replace: game.newGame()
-        case .offerDouble: game.offerDouble()
         }
     }
 }

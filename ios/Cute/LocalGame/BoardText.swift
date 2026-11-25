@@ -70,11 +70,6 @@ enum BoardText {
         return String(localized: "Only \(side) can offer")
     }
 
-    static func confirmOffer(stake: Int) -> String {
-        let doubled = points(stake * 2)
-        return String(localized: "Offer to raise the stake to \(doubled)?")
-    }
-
     static func takeEffect(stake: Int) -> String {
         let doubled = points(stake * 2)
         return String(localized: "Take: play for \(doubled).")

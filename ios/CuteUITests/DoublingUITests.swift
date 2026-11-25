@@ -70,24 +70,22 @@ final class DoublingUITests: XCTestCase {
     // MARK: C7
 
     @MainActor
-    func testAnOfferCanBeCancelledAndOnceConfirmedTheResponderAnswersEvenAfterReopening() throws {
+    func testOfferDoubleMakesTheOfferAtOnceAndTheResponderAnswersEvenAfterReopening() throws {
         let board = BoardRobot()
         board.launch()
         board.tap("e2")
 
+        // One tap makes the offer: no confirmation, and the selection is cleared.
+        let offerFrame = board.offerDouble.frame
         board.offerDouble.tap()
-        let alert = board.app.alerts["Offer to raise the stake to 2 points?"]
-        XCTAssertTrue(alert.waitForExistence(timeout: 5))
-        board.attachScreenshot(named: "local-game-C7-confirm", to: self)
-        alert.buttons["Cancel"].tap()
-        XCTAssertEqual(board.status, "White to move")
-        XCTAssertEqual(board.value(of: "e2"), "Selected")
-        XCTAssertEqual(board.text("stake"), "Stake: 1 point")
-
-        board.offerDouble.tap()
-        XCTAssertTrue(alert.waitForExistence(timeout: 5))
-        alert.buttons["Confirm"].tap()
+        XCTAssertFalse(board.app.alerts.firstMatch.waitForExistence(timeout: 1))
         try expectBlackToAnswerAnOfferFromWhiteAtOnePoint(board)
+        // A second, hurried tap where Offer double was can't answer the offer.
+        for answer in ["Take", "Decline"] {
+            XCTAssertFalse(board.app.buttons[answer].frame.intersects(offerFrame),
+                           "\(answer) \(board.app.buttons[answer].frame) overlaps Offer double \(offerFrame)")
+        }
+        XCTAssertFalse(board.app.alerts.firstMatch.exists)
         try board.auditAccessibility()
         board.attachScreenshot(named: "local-game-C7", to: self)
 
@@ -128,7 +126,6 @@ final class DoublingUITests: XCTestCase {
         let board = BoardRobot()
         board.launch(seed: Self.afterE4)
         board.offerDouble.tap()
-        board.app.alerts.firstMatch.buttons["Confirm"].tap()
         XCTAssertEqual(board.status, "White, answer the double")
         XCTAssertTrue(board.isAtBottom("White"))
 
@@ -148,9 +145,6 @@ final class DoublingUITests: XCTestCase {
         XCTAssertTrue(board.offerDouble.isEnabled)
 
         board.offerDouble.tap()
-        let alert = board.app.alerts["Offer to raise the stake to 4 points?"]
-        XCTAssertTrue(alert.waitForExistence(timeout: 5))
-        alert.buttons["Confirm"].tap()
         XCTAssertEqual(board.status, "Black, answer the double")
         XCTAssertEqual(board.text("takeEffect"), "Take: play for 4 points.")
         XCTAssertEqual(board.text("declineEffect"), "Decline: White wins 2 points.")
@@ -163,7 +157,6 @@ final class DoublingUITests: XCTestCase {
         let board = BoardRobot()
         board.launch()
         board.offerDouble.tap()
-        board.app.alerts.firstMatch.buttons["Confirm"].tap()
         XCTAssertEqual(board.status, "Black, answer the double")
 
         board.app.buttons["Decline"].tap()
@@ -239,7 +232,6 @@ final class DoublingUITests: XCTestCase {
         let board = BoardRobot()
         board.launch(fault: "write")
         board.offerDouble.tap()
-        board.app.alerts.firstMatch.buttons["Confirm"].tap()
         XCTAssertTrue(board.app.staticTexts["Change not saved."].waitForExistence(timeout: 5))
         XCTAssertEqual(board.status, "White to move")
         XCTAssertTrue(board.isAtBottom("White"))
