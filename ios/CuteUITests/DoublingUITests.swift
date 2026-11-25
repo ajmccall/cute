@@ -76,9 +76,15 @@ final class DoublingUITests: XCTestCase {
         board.tap("e2")
 
         // One tap makes the offer: no confirmation, and the selection is cleared.
+        let offerFrame = board.offerDouble.frame
         board.offerDouble.tap()
-        XCTAssertFalse(board.app.alerts.firstMatch.exists)
+        XCTAssertFalse(board.app.alerts.firstMatch.waitForExistence(timeout: 1))
         try expectBlackToAnswerAnOfferFromWhiteAtOnePoint(board)
+        // A second, hurried tap where Offer double was can't answer the offer.
+        for answer in ["Take", "Decline"] {
+            XCTAssertFalse(board.app.buttons[answer].frame.intersects(offerFrame),
+                           "\(answer) \(board.app.buttons[answer].frame) overlaps Offer double \(offerFrame)")
+        }
         XCTAssertFalse(board.app.alerts.firstMatch.exists)
         try board.auditAccessibility()
         board.attachScreenshot(named: "local-game-C7", to: self)

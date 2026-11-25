@@ -147,7 +147,7 @@ final class LocalGame {
     }
 
     /// Saves the side to move's offer to double the stake, leaving position, turn and stake as they were.
-    /// The offer is made on one tap, without confirmation, and can't be withdrawn.
+    /// The offer can't be withdrawn.
     func offerDouble() {
         guard canOfferDouble else { return }
         clearSelection()
