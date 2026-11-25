@@ -43,28 +43,27 @@ class DoublingCubeTest {
     }
 
     @Test
-    fun `an offer is saved and the board faces the responder until it is answered`() =
-        runTest {
-            val game = device.launch()
-            game.move("e2", "e4")
-            game.onSquareTapped(sq("g8"))
+    fun `an offer is saved and the board faces the responder until it is answered`() = runTest {
+        val game = device.launch()
+        game.move("e2", "e4")
+        game.onSquareTapped(sq("g8"))
 
-            game.onOfferDoubleRequested()
+        game.onOfferDoubleRequested()
 
-            assertTrue(game.state.game!!.doublePending)
-            assertEquals(AFTER_E4, game.state.fen)
-            assertEquals(Side.Black, game.state.sideToMove)
-            assertEquals(Side.White, game.state.bottomSide)
-            assertEquals(1, game.state.game?.stake)
-            assertNull(game.state.selection)
-            assertEquals(emptySet<Any>(), game.state.destinations)
+        assertTrue(game.state.game!!.doublePending)
+        assertEquals(AFTER_E4, game.state.fen)
+        assertEquals(Side.Black, game.state.sideToMove)
+        assertEquals(Side.White, game.state.bottomSide)
+        assertEquals(1, game.state.game?.stake)
+        assertNull(game.state.selection)
+        assertEquals(emptySet<Any>(), game.state.destinations)
 
-            val reopened = device.launch()
-            assertTrue(reopened.state.game!!.doublePending)
-            assertEquals(AFTER_E4, reopened.state.fen)
-            assertEquals(Side.White, reopened.state.bottomSide)
-            assertEquals(1, reopened.state.game?.stake)
-        }
+        val reopened = device.launch()
+        assertTrue(reopened.state.game!!.doublePending)
+        assertEquals(AFTER_E4, reopened.state.fen)
+        assertEquals(Side.White, reopened.state.bottomSide)
+        assertEquals(1, reopened.state.game?.stake)
+    }
 
     @Test
     fun `while an offer awaits an answer no other game action is accepted`() = runTest {
