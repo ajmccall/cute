@@ -102,15 +102,12 @@ class LargeTextTest(private val orientation: Int) {
     }
 
     @Test
-    fun c7_theOfferCanBeConfirmed_andTheResponseReadAndAnswered() {
+    fun c7_theOfferIsMadeInOneTap_andTheResponseReadAndAnswered() {
         board.launch()
         board.awaitText("White to move")
 
         rule.onNodeWithText("Offer double").performScrollTo()
         board.tapText("Offer double")
-        rule.onNodeWithText("Confirm").assertIsDisplayed()
-        rule.onNodeWithText("Cancel").assertIsDisplayed()
-        board.tapText("Confirm")
         board.awaitText("Black, answer the double")
 
         for (text in listOf(

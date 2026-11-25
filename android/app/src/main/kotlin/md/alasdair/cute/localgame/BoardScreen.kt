@@ -304,11 +304,6 @@ private fun ConfirmDialog(
         Confirmation.Resign -> stringResource(R.string.confirm_resign, sideName(state.sideToMove))
         Confirmation.Draw -> stringResource(R.string.confirm_draw)
         Confirmation.Replace -> stringResource(R.string.confirm_replace)
-        Confirmation.OfferDouble -> {
-            // Offer double is only asked for while the game has a stake (canOfferDouble).
-            val doubled = state.game?.doubledStake ?: return
-            stringResource(R.string.confirm_offer, points(doubled))
-        }
     }
     AlertDialog(
         onDismissRequest = actions.onCancel,

@@ -52,7 +52,6 @@
     <string name="double_right_only">Only %1$s can offer</string>
     <string name="double_right_max">Maximum stake reached</string>
     <string name="offer_double">Offer double</string>
-    <string name="confirm_offer">Offer to raise the stake to %1$s?</string>
     <string name="answer_double">%1$s, answer the double</string>
     <string name="take">Take</string>
     <string name="decline">Decline</string>

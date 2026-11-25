@@ -28,50 +28,47 @@ class DoublingCubeTest {
     }
 
     @Test
-    fun `offering asks first and cancelling keeps the game and the selection`() = runTest {
+    fun `tapping Offer double makes the offer at once, with nothing to confirm`() = runTest {
         val game = device.launch()
         game.onSquareTapped(sq("g1"))
 
         game.onOfferDoubleRequested()
-        assertEquals(Confirmation.OfferDouble, game.state.confirmation)
-        game.onCancelled()
 
         assertNull(game.state.confirmation)
-        assertEquals(sq("g1"), game.state.selection)
-        assertEquals(squares("f3", "h3"), game.state.destinations)
+        assertTrue(game.state.game!!.doublePending)
+        assertNull(game.state.selection)
         assertEquals(OPENING, game.state.fen)
         assertEquals(1, game.state.game?.stake)
-        assertFalse(game.state.game!!.doublePending)
+        assertTrue(device.launch().state.game!!.doublePending)
     }
 
     @Test
-    fun `a confirmed offer is saved and the board faces the responder until it is answered`() =
-        runTest {
-            val game = device.launch()
-            game.move("e2", "e4")
-            game.onSquareTapped(sq("g8"))
+    fun `an offer is saved and the board faces the responder until it is answered`() = runTest {
+        val game = device.launch()
+        game.move("e2", "e4")
+        game.onSquareTapped(sq("g8"))
 
-            game.offerDouble()
+        game.onOfferDoubleRequested()
 
-            assertTrue(game.state.game!!.doublePending)
-            assertEquals(AFTER_E4, game.state.fen)
-            assertEquals(Side.Black, game.state.sideToMove)
-            assertEquals(Side.White, game.state.bottomSide)
-            assertEquals(1, game.state.game?.stake)
-            assertNull(game.state.selection)
-            assertEquals(emptySet<Any>(), game.state.destinations)
+        assertTrue(game.state.game!!.doublePending)
+        assertEquals(AFTER_E4, game.state.fen)
+        assertEquals(Side.Black, game.state.sideToMove)
+        assertEquals(Side.White, game.state.bottomSide)
+        assertEquals(1, game.state.game?.stake)
+        assertNull(game.state.selection)
+        assertEquals(emptySet<Any>(), game.state.destinations)
 
-            val reopened = device.launch()
-            assertTrue(reopened.state.game!!.doublePending)
-            assertEquals(AFTER_E4, reopened.state.fen)
-            assertEquals(Side.White, reopened.state.bottomSide)
-            assertEquals(1, reopened.state.game?.stake)
-        }
+        val reopened = device.launch()
+        assertTrue(reopened.state.game!!.doublePending)
+        assertEquals(AFTER_E4, reopened.state.fen)
+        assertEquals(Side.White, reopened.state.bottomSide)
+        assertEquals(1, reopened.state.game?.stake)
+    }
 
     @Test
     fun `while an offer awaits an answer no other game action is accepted`() = runTest {
         val game = device.launch()
-        game.offerDouble()
+        game.onOfferDoubleRequested()
 
         game.tap("e2", "g1")
         game.move("e7", "e5")
@@ -92,7 +89,7 @@ class DoublingCubeTest {
     fun `taking doubles the stake, the offerer moves on and only the taker may offer next`() =
         runTest {
             val game = device.launch()
-            game.offerDouble()
+            game.onOfferDoubleRequested()
 
             game.onDoubleTaken()
 
@@ -116,10 +113,10 @@ class DoublingCubeTest {
     @Test
     fun `declining ends the game without a move, won by the offerer at the old stake`() = runTest {
         val game = device.launch()
-        game.offerDouble()
+        game.onOfferDoubleRequested()
         game.onDoubleTaken()
         game.move("e2", "e4")
-        game.offerDouble()
+        game.onOfferDoubleRequested()
 
         game.onDoubleDeclined()
 
@@ -143,7 +140,7 @@ class DoublingCubeTest {
         val game = device.launch()
         assertTrue(game.state.canOfferDouble)
 
-        game.offerDouble()
+        game.onOfferDoubleRequested()
         game.onDoubleTaken()
 
         assertEquals(64, game.state.game?.stake)
@@ -151,7 +148,8 @@ class DoublingCubeTest {
         game.move("e2", "e4")
         assertFalse(game.state.canOfferDouble)
         game.onOfferDoubleRequested()
-        assertNull(game.state.confirmation)
+        assertFalse(game.state.game!!.doublePending)
+        assertFalse(device.launch().state.game!!.doublePending)
     }
 
     @Test
@@ -161,7 +159,8 @@ class DoublingCubeTest {
 
         assertFalse(game.state.canOfferDouble)
         game.onOfferDoubleRequested()
-        assertNull(game.state.confirmation)
+        assertFalse(game.state.game!!.doublePending)
+        assertFalse(device.launch().state.game!!.doublePending)
 
         game.move("e2", "e4")
         assertTrue(game.state.canOfferDouble)
@@ -174,7 +173,7 @@ class DoublingCubeTest {
         game.move("h1", "h8")
         assertTrue(game.state.inCheck)
 
-        game.offerDouble()
+        game.onOfferDoubleRequested()
 
         assertTrue(game.state.game!!.doublePending)
         assertEquals(Side.White, game.state.bottomSide)
@@ -212,7 +211,7 @@ class DoublingCubeTest {
     @Test
     fun `a draw after a take keeps the stake, and a new game starts at one point`() = runTest {
         val game = device.launch()
-        game.offerDouble()
+        game.onOfferDoubleRequested()
         game.onDoubleTaken()
 
         game.onDrawRequested()
@@ -247,12 +246,6 @@ class DoublingCubeTest {
 
             assertEquals(record, device.launch().state.game)
         }
-    }
-
-    /** Offers a double for the side to move and confirms it. */
-    private fun LocalGameViewModel.offerDouble() {
-        onOfferDoubleRequested()
-        onConfirmed()
     }
 
     companion object {
