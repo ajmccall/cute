@@ -12,12 +12,12 @@ Two people play one untimed game of chess by handing a phone back and forth, wit
 | Result | text? | yes | Absent before the game finishes. Otherwise records winner or draw and the reason. |
 | Stake | number? | yes | 1, 2, 4, 8, 16, 32 or 64 points. Absent only for a game already finished in a save from before the cube; show its result without a point award. |
 | Next doubler | colour? | yes | Before the first take this is absent and either colour has the right to offer. After a take, records the taker's colour. At 64 points neither can offer. |
-| Double pending | true or false | yes | True after an offer is confirmed and before it is answered. The offerer is the side to move; the responder is the other colour. |
+| Double pending | true or false | yes | True after an offer is made and before it is answered. The offerer is the side to move; the responder is the other colour. |
 | Selection | square? | no | Absent until a player selects one of their pieces. |
 
 ## States
 
-**Game.** States: playing, choosing promotion, confirming double, awaiting double response, finished. Initial: playing in a fresh game; otherwise restore the saved state as below.
+**Game.** States: playing, choosing promotion, awaiting double response, finished. Initial: playing in a fresh game; otherwise restore the saved state as below.
 
 The side to move is eligible to offer while playing if the stake is below 64 and the next doubler is absent or is that side. This includes the opening turn and turns in check.
 
@@ -28,14 +28,12 @@ The side to move is eligible to offer while playing if the stake is below 64 and
 | playing | Tap legal destination | Promotion required | choosing promotion | Keep position and turn uncommitted. |
 | choosing promotion | Cancel | — | playing | Keep original position and turn, with the pawn still selected and its legal destinations marked. |
 | playing, choosing promotion | Complete move | Legal destination selected, promotion choice supplied if required | playing or finished | Save the new position and any automatic result together. If play continues, hand off to the other colour. |
-| playing | Tap Offer double | Side to move is eligible | confirming double | Ask whether to offer twice the current stake. |
-| confirming double | Cancel | — | playing | Keep position, turn, stake and selection. |
-| confirming double | Confirm | — | awaiting double response | Save the pending offer without changing the position, turn or stake. Clear selection. |
+| playing | Tap Offer double | Side to move is eligible | awaiting double response | Save the pending offer at once, without confirmation and without changing the position, turn or stake. Clear selection. The offer can't be withdrawn. |
 | awaiting double response | Take | — | playing | Save twice the old stake, the responder as next doubler, and no pending offer together. Keep the position and turn. |
 | awaiting double response | Decline | — | finished | Save a win for the offerer by declined double and no pending offer together. Keep the position and old stake. |
 | playing | Confirm resignation or agreed draw | — | finished | Record a loss for the side to move, or a draw, respectively. Cancelling changes nothing. |
 | playing, finished | New game | Confirm replacement if still playing | playing | Replace the current game with the opening position, no result, a stake of one point and neither a named next doubler nor a pending offer. Cancelling keeps the game. |
-| any | Reopen | Saved game exists | playing, awaiting double response or finished | Restore the last committed game. Unconfirmed offers and unfinished promotions are not committed changes. An ongoing save from before the cube opens at one point with either player eligible on their turn, without changing the position or turn. |
+| any | Reopen | Saved game exists | playing, awaiting double response or finished | Restore the last committed game. Unfinished promotions are not committed changes. An ongoing save from before the cube opens at one point with either player eligible on their turn, without changing the position or turn. |
 
 Automatic endings: checkmate wins for the mover; stalemate draws. Draw for insufficient mating material with kings alone, just one bishop or knight besides the kings, or only bishops besides the kings with all bishops on squares of one colour. These are not tests for whether a mate can be *forced*.
 
@@ -45,7 +43,7 @@ Automatic endings: checkmate wins for the mover; stalemate draws. Draw for insuf
 |---|---|---|---|
 | Board | root | Launch | — |
 | Promotion choice | dialog | Board, promotion destination | Board |
-| Confirm action | dialog | Board, resign / agree draw / replace ongoing game / offer double | Board |
+| Confirm action | dialog | Board, resign / agree draw / replace ongoing game | Board |
 
 | Surface | Shown on | Shown while | Notes |
 |---|---|---|---|
@@ -73,7 +71,7 @@ Automatic endings: checkmate wins for the mover; stalemate draws. Draw for insuf
 | draw | Draw · {reason} | Stalemate, Insufficient material or Agreement. |
 | stake | Stake: {stake} | Include point units. |
 | doubleRight | Either player can offer / Only {next doubler} can offer / Maximum stake reached | Right to offer on one's own turn. |
-| offer / confirmOffer | Offer double / Offer to raise the stake to {doubled stake}? | Include point units. Use Confirm and Cancel. |
+| offer | Offer double | Makes the offer at once, without confirmation. |
 | response | {responder}, answer the double | Responder is White or Black. |
 | take / decline | Take / Decline | Actions for the responder. |
 | takeEffect | Take: play for {doubled stake}. | Include point units. |
@@ -108,6 +106,6 @@ None
 - **C4.** When an automatic ending occurs or the players confirm resignation or a draw, the board shall show the final position, result and reason and stop accepting moves. New game shall start fresh, requiring confirmation only when abandoning an ongoing game. While the saved game is loading or a change is saving, on Android the app shall not offer New game and shall ignore taps, without showing progress (simplification, #6).
 - **C5.** If the current game cannot be read or a change cannot be saved, the app shall preserve the last saved game, identify what failed and not present a fresh game or an unsaved change as committed. Each failure is named without its cause. If the app is ended after a failed save, then the unsaved change is lost without notice and the last saved game reopens (simplifications, #5 and #6).
 - **C6.** When starting a game or reopening an ongoing game saved before the cube, the players shall see a stake of one point and that either player can offer. While playing, the board shall show the stake and who has the right to offer, and allow Offer double only for the eligible side to move, including on the opening turn or in check, but never at 64 points.
-- **C7.** When a player taps Offer double, the app shall ask for confirmation and let them cancel without changing the game. While awaiting a response to a confirmed offer, including on reopening, the board shall face the named responder, show the unchanged position and the point consequences of taking or declining, and accept no game action other than Take or Decline.
+- **C7.** When a player taps Offer double, the app shall make the offer at once, without confirmation. While awaiting a response to an offer, including on reopening, the board shall face the named responder, show the unchanged position and the point consequences of taking or declining, and accept no game action other than Take or Decline.
 - **C8.** When the responder takes, the board shall face the offerer again and let them move from the same position, at twice the old stake. Only the taker shall have the right to offer the next double, on a later turn of theirs and below the maximum stake.
 - **C9.** When the responder declines, the app shall end the game without a move and show the offerer winning by declined double at the old stake. For a finished game with a stake, the final board shall show the winner awarded the stake or, on a draw, each player awarded half, including ½ point each at a stake of one. A game saved before the cube that was already finished shall still show its original result without a point award.
