@@ -164,9 +164,6 @@
     "Offer double": {
       "extractionState": "manual"
     },
-    "Offer to raise the stake to %@?": {
-      "extractionState": "manual"
-    },
     "Only %@ can offer": {
       "extractionState": "manual"
     },

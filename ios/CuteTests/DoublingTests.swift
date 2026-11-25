@@ -17,7 +17,7 @@ import Testing
         #expect(game.canOfferDouble)
     }
 
-    @Test func aConfirmedOfferIsSavedWithTheSamePositionTurnAndStakeAndSurvivesReopening() throws {
+    @Test func anOfferIsSavedWithTheSamePositionTurnAndStakeAndSurvivesReopening() throws {
         let storage = try TemporaryStorage()
         let game = try openGame(at: Self.afterE4, in: storage)
         game.tap("e7")

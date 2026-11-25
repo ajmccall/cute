@@ -11,7 +11,7 @@ nonisolated struct SavedGame: Equatable, Sendable {
     var stake: Int? = 1
     /// The side that took the last double and alone may offer the next; nil before the first take.
     var nextDoubler: PieceColor? = nil
-    /// An offer the side to move confirmed, waiting for the other side to take or decline.
+    /// An offer the side to move made, waiting for the other side to take or decline.
     var doublePending = false
 
     static let opening = SavedGame(position: .opening, result: nil)
