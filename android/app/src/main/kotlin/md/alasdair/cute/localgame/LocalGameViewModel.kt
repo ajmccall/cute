@@ -80,9 +80,15 @@ class LocalGameViewModel @Inject constructor(private val repository: GameReposit
 
     fun onDrawRequested() = askDuringPlay(Confirmation.Draw)
 
-    /** Asks the side to move to confirm a double, when they may offer one. */
+    /**
+     * The side to move offers a double, when they may: the offer is saved at once, with nothing
+     * to confirm, and can't be withdrawn. The position, turn and stake stay as they are.
+     */
     fun onOfferDoubleRequested() {
-        if (_uiState.value.canOfferDouble) askDuringPlay(Confirmation.OfferDouble)
+        val state = _uiState.value
+        if (busy || state.promotion != null || state.confirmation != null) return
+        val game = state.game?.takeIf { it.canOfferDouble } ?: return
+        save(game.copy(doublePending = true))
     }
 
     /**
@@ -110,7 +116,6 @@ class LocalGameViewModel @Inject constructor(private val repository: GameReposit
                 result = GameResult(game.position.sideToMove.opponent, EndReason.Resignation)
             )
             Confirmation.Draw -> game?.copy(result = GameResult(null, EndReason.Agreement))
-            Confirmation.OfferDouble -> game?.copy(doublePending = true)
         } ?: return
         save(record)
     }

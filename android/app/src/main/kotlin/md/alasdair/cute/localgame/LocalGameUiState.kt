@@ -40,4 +40,4 @@ data class LocalGameUiState(
 enum class Failure { Read, Write }
 
 /** An action waiting for the players at the board to confirm or cancel it. */
-enum class Confirmation { Resign, Draw, Replace, OfferDouble }
+enum class Confirmation { Resign, Draw, Replace }

@@ -85,23 +85,22 @@ class DoublingCubeBoardTest {
     }
 
     @Test
-    fun c7_offeringAsksFirst_andCancellingChangesNothing() {
+    fun c7_tappingOfferDoubleMakesTheOfferAtOnce_withNothingToConfirm() {
         board.launch()
         board.awaitText("White to move")
         board.tap("g1")
 
-        board.tapText("Offer double")
-        rule.onNodeWithText("Offer to raise the stake to 2 points?").assertIsDisplayed()
-        board.tapText("Cancel")
+        offer()
 
-        status().assertTextEquals("White to move")
-        stake().assertTextEquals("Stake: 1 point", "Either player can offer")
-        board.assertSquare("g1", "g1, White knight", "Selected")
-        board.assertSquare("f3", "f3, Empty", "Legal destination")
+        board.awaitText("Black, answer the double")
+        rule.onNodeWithText("Confirm").assertDoesNotExist()
+        rule.onNodeWithText("Cancel").assertDoesNotExist()
+        board.assertSquare("g1", "g1, White knight")
+        board.assertSquare("f3", "f3, Empty")
     }
 
     @Test
-    fun c7_aConfirmedOfferFacesTheResponderWithOnlyTakeOrDecline_andSurvivesReopening() {
+    fun c7_anOfferFacesTheResponderWithOnlyTakeOrDecline_andSurvivesReopening() {
         board.launch()
         board.awaitText("White to move")
         board.tap("e2", "e4")
@@ -255,7 +254,6 @@ class DoublingCubeBoardTest {
     private fun offer() {
         offerDouble().performScrollTo()
         board.tapText("Offer double")
-        board.tapText("Confirm")
     }
 
     /** Black, to move after 1.e4, has offered: White answers, with White's pieces at the bottom. */

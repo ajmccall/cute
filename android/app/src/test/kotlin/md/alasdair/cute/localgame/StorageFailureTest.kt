@@ -182,7 +182,6 @@ class StorageFailureTest {
         device.folder.setWritable(false)
 
         game.onOfferDoubleRequested()
-        game.onConfirmed()
 
         assertEquals(Failure.Write, game.state.failure)
         assertFalse(game.state.game!!.doublePending)
@@ -201,7 +200,6 @@ class StorageFailureTest {
         device.seed(SAVED)
         val game = device.launch()
         game.onOfferDoubleRequested()
-        game.onConfirmed()
         val saved = device.gameFile.readBytes()
         device.folder.setWritable(false)
 
