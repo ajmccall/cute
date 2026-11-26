@@ -32,8 +32,9 @@
     <string name="black_knight">Black knight</string>
     <string name="black_pawn">Black pawn</string>
 
-    <string name="new_game">New game</string>
-    <string name="confirm_replace">Replace this game?</string>
+    <string name="new_match">New match</string>
+    <string name="confirm_replace">Replace this match?</string>
+    <string name="next_game">Next game</string>
     <string name="resign">Resign</string>
     <string name="confirm_resign">Resign as %1$s?</string>
     <string name="agree_draw">Agree draw</string>
@@ -57,10 +58,24 @@
     <string name="decline">Decline</string>
     <string name="take_effect">Take: play for %1$s.</string>
     <string name="decline_effect">Decline: %1$s wins %2$s.</string>
+    <string name="decline_effect_match">Decline: %1$s wins %2$s and the match.</string>
     <string name="win_award">%1$s earns %2$s.</string>
     <string name="draw_award">Each player earns %1$s.</string>
     <!-- The status with its award, as a screen reader speaks it: the result, then the award. -->
     <string name="status_with_award">%1$s. %2$s</string>
+    <!-- The status with its award and the match result, as a screen reader speaks it. -->
+    <string name="status_with_match">%1$s. %2$s %3$s</string>
+
+    <!-- Match totals: whole points use the points plural; a half is shown as ½. -->
+    <string name="points_and_half">%1$d½ points</string>
+    <string name="points_and_half_spoken">%1$d and a half points</string>
+    <string name="total_and_half">%1$d½</string>
+    <string name="total_and_half_spoken">%1$d and a half</string>
+    <string name="total_half">½</string>
+    <string name="total_half_spoken">a half</string>
+    <string name="match_score">White %1$s · Black %2$s · first to %3$s</string>
+    <string name="match_win">%1$s wins the match, %2$s to %3$s</string>
+    <string name="match_draw">Match drawn, %1$s to %2$s</string>
 
     <string name="read_failure">Couldn’t open the saved game.</string>
     <string name="write_failure">Change not saved.</string>
