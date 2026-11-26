@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// The app's root destination: the board, whose turn or result, and the game actions.
+/// The app's root destination: the match score, the board, whose turn or result, and the game actions.
 struct BoardScreen: View {
     let game: LocalGame
 
@@ -26,7 +26,7 @@ struct BoardScreen: View {
                 }
                 // While the saved game is unread there is no board or turn to show.
                 if game.couldNotReadSavedGame {
-                    ReadFailureView(retry: game.retryRead, newGame: { confirmation = .replace })
+                    ReadFailureView(retry: game.retryRead, newMatch: { confirmation = .replace })
                 } else {
                     playSurface
                 }
@@ -51,6 +51,7 @@ struct BoardScreen: View {
 
     private var playSurface: some View {
         VStack(spacing: 16) {
+            MatchScoreView(score: game.score)
             VStack(spacing: 4) {
                 Text(BoardText.status(of: game))
                     .font(.title2.weight(.semibold))
@@ -61,6 +62,12 @@ struct BoardScreen: View {
                         .font(.body)
                         .accessibilityLabel(BoardText.award(award, spoken: true))
                         .accessibilityIdentifier("award")
+                }
+                if game.isMatchOver {
+                    Text(BoardText.matchResult(game.score, spoken: false))
+                        .font(.headline)
+                        .accessibilityLabel(BoardText.matchResult(game.score, spoken: true))
+                        .accessibilityIdentifier("matchResult")
                 }
             }
             .multilineTextAlignment(.center)
@@ -81,13 +88,17 @@ struct BoardScreen: View {
         }
     }
 
-    /// New game is offered except while an offer waits for its answer; resigning, agreeing a draw
-    /// and offering a double only during play, and offering only for a side to move entitled to it.
-    /// Offer double makes the binding offer on one tap, without confirmation.
+    /// Next game is offered once a game has finished short of the target, at once without confirmation.
+    /// New match is offered except while an offer waits for its answer, and is the only action once the match
+    /// is over; resigning, agreeing a draw and offering a double only during play, and offering only for a
+    /// side to move entitled to it. Offer double makes the binding offer on one tap, without confirmation.
     @ViewBuilder
     private var actions: some View {
+        if game.canStartNextGame {
+            Button("Next game", action: game.nextGame)
+        }
         if game.canStartNewMatch {
-            Button("New game") {
+            Button("New match") {
                 if game.newMatchNeedsConfirmation {
                     confirmation = .replace
                 } else {
@@ -107,7 +118,7 @@ struct BoardScreen: View {
         switch confirmation {
         case .resign: BoardText.confirmResign(game.position.sideToMove)
         case .agreeDraw: String(localized: "Do both players agree to a draw?")
-        case .replace: String(localized: "Replace this game?")
+        case .replace: String(localized: "Replace this match?")
         case nil: ""
         }
     }
@@ -147,6 +158,22 @@ private struct WriteFailureBanner: View {
         }
         .font(.body)
         .panelStyle()
+    }
+}
+
+/// White's and Black's totals and the target, in every state of the board, with halves spoken in words.
+private struct MatchScoreView: View {
+    let score: MatchScore
+
+    var body: some View {
+        Text(BoardText.matchScore(score, spoken: false))
+            .font(.subheadline.weight(.medium))
+            .monospacedDigit()
+            .multilineTextAlignment(.center)
+            .fixedSize(horizontal: false, vertical: true)
+            .padding(.horizontal)
+            .accessibilityLabel(BoardText.matchScore(score, spoken: true))
+            .accessibilityIdentifier("matchScore")
     }
 }
 
@@ -216,10 +243,10 @@ private struct ActionRow<Actions: View>: View {
     }
 }
 
-/// Retry, or replace the saved game that couldn't be read once the players confirm.
+/// Retry, or replace the saved game that couldn't be read with a new match once the players confirm.
 private struct ReadFailureView: View {
     let retry: () -> Void
-    let newGame: () -> Void
+    let newMatch: () -> Void
 
     var body: some View {
         ContentUnavailableView {
@@ -230,7 +257,7 @@ private struct ReadFailureView: View {
                 .gameActionStyle()
                 .accessibilityHint(Text("Opens the saved game again"))
                 .accessibilityIdentifier("retryRead")
-            Button("New game", action: newGame)
+            Button("New match", action: newMatch)
                 .gameActionStyle()
         }
     }

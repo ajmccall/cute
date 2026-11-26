@@ -350,5 +350,40 @@ import Testing
         #expect(try storage.store.load()?.score == game.score)
     }
 
+    // MARK: Interface text
+
+    /// The score line, which XCUITest reads only as spoken: a half is shown as ½.
+    @Test(arguments: [
+        (MatchScore.zero, "White 0 points · Black 0 points · first to 15 points",
+         "White 0 points · Black 0 points · first to 15 points"),
+        (MatchScore(white: 1, black: 0.5), "White 1 point · Black ½ point · first to 15 points",
+         "White 1 point · Black half a point · first to 15 points"),
+        (MatchScore(white: 4.5, black: 16), "White 4½ points · Black 16 points · first to 15 points",
+         "White 4 and a half points · Black 16 points · first to 15 points"),
+        (MatchScore(white: 1.5, black: 0), "White 1½ points · Black 0 points · first to 15 points",
+         "White 1 and a half points · Black 0 points · first to 15 points"),
+    ])
+    func theScoreLineShowsBothTotalsAndTheTargetWithTheirUnits(score: MatchScore, shown: String, spoken: String) {
+        #expect(BoardText.matchScore(score, spoken: false) == shown)
+        #expect(BoardText.matchScore(score, spoken: true) == spoken)
+    }
+
+    /// The match result, with totals in the winner's-first order and without units.
+    @Test(arguments: [
+        (MatchScore(white: 16, black: 9), "White wins the match, 16 to 9", "White wins the match, 16 to 9"),
+        (MatchScore(white: 3, black: 15), "Black wins the match, 15 to 3", "Black wins the match, 15 to 3"),
+        (MatchScore(white: 16.5, black: 15), "White wins the match, 16½ to 15",
+         "White wins the match, 16 and a half to 15"),
+        (MatchScore(white: 15, black: 15), "Match drawn, 15 to 15", "Match drawn, 15 to 15"),
+        (MatchScore(white: 15.5, black: 15.5), "Match drawn, 15½ to 15½",
+         "Match drawn, 15 and a half to 15 and a half"),
+        (MatchScore(white: 0.5, black: 64.5), "Black wins the match, 64½ to ½",
+         "Black wins the match, 64 and a half to a half"),
+    ])
+    func theMatchResultNamesTheWinnerAndBothTotals(score: MatchScore, shown: String, spoken: String) {
+        #expect(BoardText.matchResult(score, spoken: false) == shown)
+        #expect(BoardText.matchResult(score, spoken: true) == spoken)
+    }
+
     nonisolated static let afterE4 = "rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq -"
 }

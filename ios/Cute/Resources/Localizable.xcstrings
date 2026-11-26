@@ -36,6 +36,17 @@
     "%@ to move · Check": {
       "extractionState": "manual"
     },
+    "%@ wins the match, %@ to %@": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%1$@ wins the match, %2$@ to %3$@"
+          }
+        }
+      }
+    },
     "%@ wins · %@": {
       "extractionState": "manual",
       "localizations": {
@@ -61,6 +72,12 @@
     "%@, answer the double": {
       "extractionState": "manual"
     },
+    "%lld and a half": {
+      "extractionState": "manual"
+    },
+    "%lld and a half points": {
+      "extractionState": "manual"
+    },
     "%lld points": {
       "extractionState": "manual",
       "localizations": {
@@ -83,6 +100,12 @@
           }
         }
       }
+    },
+    "%lld½": {
+      "extractionState": "manual"
+    },
+    "%lld½ points": {
+      "extractionState": "manual"
     },
     "Agree draw": {
       "extractionState": "manual"
@@ -116,6 +139,17 @@
     },
     "Decline": {
       "extractionState": "manual"
+    },
+    "Decline: %@ wins %@ and the match.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Decline: %1$@ wins %2$@ and the match."
+          }
+        }
+      }
     },
     "Decline: %@ wins %@.": {
       "extractionState": "manual",
@@ -155,10 +189,24 @@
     "Legal destination": {
       "extractionState": "manual"
     },
+    "Match drawn, %@ to %@": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Match drawn, %1$@ to %2$@"
+          }
+        }
+      }
+    },
     "Maximum stake reached": {
       "extractionState": "manual"
     },
-    "New game": {
+    "New match": {
+      "extractionState": "manual"
+    },
+    "Next game": {
       "extractionState": "manual"
     },
     "Offer double": {
@@ -176,7 +224,7 @@
     "Queen": {
       "extractionState": "manual"
     },
-    "Replace this game?": {
+    "Replace this match?": {
       "extractionState": "manual"
     },
     "Resign": {
@@ -215,7 +263,24 @@
     "White": {
       "extractionState": "manual"
     },
+    "White %@ · Black %@ · first to %@": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "White %1$@ · Black %2$@ · first to %3$@"
+          }
+        }
+      }
+    },
+    "a half": {
+      "extractionState": "manual"
+    },
     "half a point": {
+      "extractionState": "manual"
+    },
+    "½": {
       "extractionState": "manual"
     },
     "½ point": {
