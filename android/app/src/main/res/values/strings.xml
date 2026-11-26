@@ -10,6 +10,7 @@
     <string name="draw">Draw · %1$s</string>
     <string name="reason_checkmate">Checkmate</string>
     <string name="reason_resignation">Resignation</string>
+    <string name="reason_double_declined">Double declined</string>
     <string name="reason_stalemate">Stalemate</string>
     <string name="reason_insufficient_material">Insufficient material</string>
     <string name="reason_agreement">Agreement</string>
@@ -39,6 +40,27 @@
     <string name="confirm_draw">Do both players agree to a draw?</string>
     <string name="confirm">Confirm</string>
     <string name="cancel">Cancel</string>
+
+    <plurals name="points">
+        <item quantity="one">%1$d point</item>
+        <item quantity="other">%1$d points</item>
+    </plurals>
+    <string name="half_point">½ point</string>
+    <string name="half_point_spoken">half a point</string>
+    <string name="stake">Stake: %1$s</string>
+    <string name="double_right_either">Either player can offer</string>
+    <string name="double_right_only">Only %1$s can offer</string>
+    <string name="double_right_max">Maximum stake reached</string>
+    <string name="offer_double">Offer double</string>
+    <string name="answer_double">%1$s, answer the double</string>
+    <string name="take">Take</string>
+    <string name="decline">Decline</string>
+    <string name="take_effect">Take: play for %1$s.</string>
+    <string name="decline_effect">Decline: %1$s wins %2$s.</string>
+    <string name="win_award">%1$s earns %2$s.</string>
+    <string name="draw_award">Each player earns %1$s.</string>
+    <!-- The status with its award, as a screen reader speaks it: the result, then the award. -->
+    <string name="status_with_award">%1$s. %2$s</string>
 
     <string name="read_failure">Couldn’t open the saved game.</string>
     <string name="write_failure">Change not saved.</string>

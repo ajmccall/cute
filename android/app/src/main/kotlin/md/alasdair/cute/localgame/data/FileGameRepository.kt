@@ -9,6 +9,7 @@ import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.withContext
 import md.alasdair.cute.chess.EndReason
 import md.alasdair.cute.chess.GameResult
+import md.alasdair.cute.chess.Position
 import md.alasdair.cute.chess.Side
 import md.alasdair.cute.chess.automaticResult
 import md.alasdair.cute.chess.positionFromFen
@@ -46,26 +47,99 @@ class FileGameRepository @Inject constructor(
 
     companion object {
         const val FILE_NAME = "current-game.txt"
-        private const val HEADER = "cute-game 1"
-        private const val PLAYING = "playing"
 
+        /** Saves from before the doubling cube: position and result only. Read, never written. */
+        private const val HEADER_V1 = "cute-game 1"
+        private const val HEADER_V2 = "cute-game 2"
+        private const val PLAYING = "playing"
+        private const val NO_STAKE = "none"
+        private const val EITHER = "Either"
+        private const val PENDING = "pending"
+        private const val ANSWERED = "answered"
+
+        /**
+         * Version 2: the header, then one line each for the position as FEN, the result or
+         * `playing`, the stake or `none`, the next doubler or `Either`, and whether a double is
+         * `pending` or `answered`.
+         */
         fun encode(record: GameRecord): String {
             val result = record.result?.let { "${it.winner?.name ?: "Draw"} ${it.reason.name}" }
-            return "$HEADER\n${record.position.toFen()}\n${result ?: PLAYING}\n"
+            return listOf(
+                HEADER_V2,
+                record.position.toFen(),
+                result ?: PLAYING,
+                record.stake?.toString() ?: NO_STAKE,
+                record.nextDoubler?.name ?: EITHER,
+                if (record.doublePending) PENDING else ANSWERED,
+                ""
+            ).joinToString("\n")
         }
 
         /** Throws [IllegalArgumentException] for text that isn't a whole saved game. */
         fun decode(text: String): GameRecord {
             val lines = text.split('\n')
-            require(lines.size == 4 && lines[0] == HEADER && lines[3].isEmpty()) {
-                "Not a saved game"
+            require(lines.isNotEmpty() && lines.last().isEmpty()) { "Not a saved game" }
+            return when (lines[0]) {
+                HEADER_V1 -> decodeV1(lines)
+                HEADER_V2 -> decodeV2(lines)
+                else -> throw IllegalArgumentException("Not a saved game")
             }
-            val position = positionFromFen(lines[1])
-            val result = if (lines[2] == PLAYING) null else decodeResult(lines[2])
+        }
+
+        /**
+         * A save from before the cube. A game still in play takes up the cube at one point,
+         * with either side free to offer; a finished one keeps its result and has no stake.
+         */
+        private fun decodeV1(lines: List<String>): GameRecord {
+            require(lines.size == 4) { "Not a saved game" }
+            val (position, result) = decodeGame(lines[1], lines[2])
+            require(result?.reason != EndReason.DoubleDeclined) { "No double before the cube" }
+            return GameRecord(position, result, stake = if (result == null) 1 else null)
+        }
+
+        /**
+         * A save with the cube. The stake is one of 1 to 64 points, doubling each time, or
+         * none only for a finished game from before the cube; a side holds the right to offer
+         * exactly when a double has been taken; and a double can only be pending in play,
+         * offered by a side to move that may offer it.
+         */
+        private fun decodeV2(lines: List<String>): GameRecord {
+            require(lines.size == 7) { "Not a saved game" }
+            val (position, result) = decodeGame(lines[1], lines[2])
+            val stake = if (lines[3] == NO_STAKE && result != null) {
+                null
+            } else {
+                requireNotNull(lines[3].toIntOrNull()?.takeIf { it in STAKES }) {
+                    "Bad stake: ${lines[3]}"
+                }
+            }
+            val nextDoubler = if (lines[4] == EITHER) null else Side.valueOf(lines[4])
+            require((stake ?: 1) > 1 == (nextDoubler != null)) {
+                "Bad right to offer: ${lines[4]}"
+            }
+            val pending = when (lines[5]) {
+                PENDING -> true
+                ANSWERED -> false
+                else -> throw IllegalArgumentException("Bad offer: ${lines[5]}")
+            }
+            val record = GameRecord(position, result, stake, nextDoubler, pending)
+            require(!pending || record.copy(doublePending = false).canOfferDouble) {
+                "A pending double the side to move couldn't offer"
+            }
+            return record
+        }
+
+        /** 1, 2, 4, … 64. */
+        private val STAKES = generateSequence(1) { it * 2 }
+            .takeWhile { it <= GameRecord.MAX_STAKE }.toSet()
+
+        private fun decodeGame(fen: String, resultText: String): Pair<Position, GameResult?> {
+            val position = positionFromFen(fen)
+            val result = if (resultText == PLAYING) null else decodeResult(resultText)
             require(result != null || position.automaticResult() == null) {
                 "A game in play can't already have ended"
             }
-            return GameRecord(position, result)
+            return position to result
         }
 
         private fun decodeResult(text: String): GameResult {
@@ -73,8 +147,7 @@ class FileGameRepository @Inject constructor(
             require(parts.size == 2) { "Bad result: $text" }
             val winner = if (parts[0] == "Draw") null else Side.valueOf(parts[0])
             val reason = EndReason.valueOf(parts[1])
-            val decisive = reason == EndReason.Checkmate || reason == EndReason.Resignation
-            require(decisive == (winner != null)) { "Bad result: $text" }
+            require(reason.decisive == (winner != null)) { "Bad result: $text" }
             return GameResult(winner, reason)
         }
     }

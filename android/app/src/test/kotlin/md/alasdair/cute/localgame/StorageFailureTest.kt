@@ -4,6 +4,8 @@ import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
+import md.alasdair.cute.chess.EndReason
+import md.alasdair.cute.chess.GameResult
 import md.alasdair.cute.chess.Side
 import md.alasdair.cute.localgame.data.GameRecord
 import md.alasdair.cute.localgame.data.GameRepository
@@ -12,6 +14,7 @@ import org.junit.Assert.assertArrayEquals
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
 
@@ -171,6 +174,54 @@ class StorageFailureTest {
         assertNull(game.state.game?.result)
     }
 
+    @Test
+    fun `an offer that can't be saved is reported and the game stays in play`() = runTest {
+        device.seed(SAVED)
+        val saved = device.gameFile.readBytes()
+        val game = device.launch()
+        device.folder.setWritable(false)
+
+        game.onOfferDoubleRequested()
+
+        assertEquals(Failure.Write, game.state.failure)
+        assertFalse(game.state.game!!.doublePending)
+        assertEquals(Side.White, game.state.bottomSide)
+        assertArrayEquals(saved, device.gameFile.readBytes())
+
+        device.folder.setWritable(true)
+        game.onRetry()
+        assertNull(game.state.failure)
+        assertTrue(game.state.game!!.doublePending)
+        assertTrue(device.launch().state.game!!.doublePending)
+    }
+
+    @Test
+    fun `an answer that can't be saved is reported and the offer still awaits it`() = runTest {
+        device.seed(SAVED)
+        val game = device.launch()
+        game.onOfferDoubleRequested()
+        val saved = device.gameFile.readBytes()
+        device.folder.setWritable(false)
+
+        game.onDoubleTaken()
+        assertEquals(Failure.Write, game.state.failure)
+        assertTrue(game.state.game!!.doublePending)
+        assertEquals(1, game.state.game?.stake)
+        assertEquals(Side.Black, game.state.bottomSide)
+
+        game.onDoubleDeclined()
+        assertEquals(Failure.Write, game.state.failure)
+        assertTrue(game.state.game!!.doublePending)
+        assertNull(game.state.game?.result)
+        assertArrayEquals(saved, device.gameFile.readBytes())
+
+        device.folder.setWritable(true)
+        game.onRetry()
+        assertNull(game.state.failure)
+        assertEquals(GameResult(Side.White, EndReason.DoubleDeclined), game.state.game?.result)
+        assertEquals(1, device.launch().state.game?.stake)
+    }
+
     companion object {
         const val OPENING = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1"
         const val SAVED = "rnbqkbnr/pppp1ppp/8/4p3/4P3/8/PPPP1PPP/RNBQKBNR w KQkq e6 0 2"
@@ -209,7 +260,27 @@ class StorageFailureTest {
             "cute-game 1\n$GOOD_FEN\nWhite Timeout\n",
             "\u0000\u0001binary",
             "cute-game 1\n4k3/8/8/8/8/8/8/4K3 w - - 0 1\nplaying\n",
-            "cute-game 1\n$FOOLS_MATE\nplaying\n"
+            "cute-game 1\n$FOOLS_MATE\nplaying\n",
+            "cute-game 1\n$GOOD_FEN\nWhite DoubleDeclined\n",
+            "cute-game 2\n$GOOD_FEN\nplaying\n1\nEither\n",
+            "cute-game 2\n$GOOD_FEN\nplaying\n1\nEither\nanswered",
+            "cute-game 2\n$GOOD_FEN\nplaying\n1\nEither\nanswered\nextra\n",
+            "cute-game 2\n$GOOD_FEN\nplaying\n0\nEither\nanswered\n",
+            "cute-game 2\n$GOOD_FEN\nplaying\n3\nWhite\nanswered\n",
+            "cute-game 2\n$GOOD_FEN\nplaying\n-2\nWhite\nanswered\n",
+            "cute-game 2\n$GOOD_FEN\nplaying\n128\nWhite\nanswered\n",
+            "cute-game 2\n$GOOD_FEN\nplaying\n2.0\nWhite\nanswered\n",
+            "cute-game 2\n$GOOD_FEN\nplaying\n99999999999\nWhite\nanswered\n",
+            "cute-game 2\n$GOOD_FEN\nplaying\n\nEither\nanswered\n",
+            "cute-game 2\n$GOOD_FEN\nplaying\nnone\nEither\nanswered\n",
+            "cute-game 2\n$GOOD_FEN\nWhite Resignation\nnone\nWhite\nanswered\n",
+            "cute-game 2\n$GOOD_FEN\nplaying\n1\nWhite\nanswered\n",
+            "cute-game 2\n$GOOD_FEN\nplaying\n2\nEither\nanswered\n",
+            "cute-game 2\n$GOOD_FEN\nplaying\n2\nGreen\nanswered\n",
+            "cute-game 2\n$GOOD_FEN\nplaying\n1\nEither\nmaybe\n",
+            "cute-game 2\n$GOOD_FEN\nWhite Resignation\n1\nEither\npending\n",
+            "cute-game 2\n$GOOD_FEN\nplaying\n2\nBlack\npending\n",
+            "cute-game 2\n$GOOD_FEN\nplaying\n64\nWhite\npending\n"
         )
     }
 }
