@@ -22,3 +22,11 @@ _Avoid_: Score (alone), tally
 
 **Pass-and-play**:
 Two people taking turns on the same device in the same game.
+
+**Captures**:
+The opponent's pieces one colour has taken in the current game, each as the piece that stood on the captured square.
+_Avoid_: Graveyard, taken pieces
+
+**Material**:
+The total value of one colour's pieces on the board: pawn 1, knight 3, bishop 3, rook 5, queen 9, kings not counted. The colour with more is ahead by the difference.
+_Avoid_: Score, points (both belong to the match)
