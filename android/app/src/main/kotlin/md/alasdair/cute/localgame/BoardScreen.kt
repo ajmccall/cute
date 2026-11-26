@@ -29,6 +29,7 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
@@ -250,6 +251,7 @@ private fun MatchScoreLine(score: MatchScore) {
     Text(
         stringResource(R.string.match_score, white.shown, black.shown, target),
         style = MaterialTheme.typography.bodyLarge,
+        textAlign = TextAlign.Center,
         modifier = Modifier
             .padding(horizontal = 16.dp)
             .testTag("score")
@@ -272,7 +274,7 @@ private fun pointsTotal(halves: Int): Spoken {
         )
         else -> Spoken(
             stringResource(R.string.points_and_half, whole),
-            stringResource(R.string.points_and_half_spoken, whole)
+            pluralStringResource(R.plurals.points_and_half_spoken, whole, whole)
         )
     }
 }
@@ -289,7 +291,7 @@ private fun total(halves: Int): Spoken {
         )
         else -> Spoken(
             stringResource(R.string.total_and_half, whole),
-            stringResource(R.string.total_and_half_spoken, whole)
+            pluralStringResource(R.plurals.total_and_half_spoken, whole, whole)
         )
     }
 }

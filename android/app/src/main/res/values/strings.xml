@@ -68,9 +68,15 @@
 
     <!-- Match totals: whole points use the points plural; a half is shown as ½. -->
     <string name="points_and_half">%1$d½ points</string>
-    <string name="points_and_half_spoken">%1$d and a half points</string>
+    <plurals name="points_and_half_spoken">
+        <item quantity="one">%1$d and a half points</item>
+        <item quantity="other">%1$d and a half points</item>
+    </plurals>
     <string name="total_and_half">%1$d½</string>
-    <string name="total_and_half_spoken">%1$d and a half</string>
+    <plurals name="total_and_half_spoken">
+        <item quantity="one">%1$d and a half</item>
+        <item quantity="other">%1$d and a half</item>
+    </plurals>
     <string name="total_half">½</string>
     <string name="total_half_spoken">a half</string>
     <string name="match_score">White %1$s · Black %2$s · first to %3$s</string>
