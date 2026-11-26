@@ -165,7 +165,10 @@ import Testing
 
 /// Opens a game from a saved position in its own temporary storage.
 func openGame(at fen: String, result: GameResult? = nil, in storage: TemporaryStorage) throws -> LocalGame {
-    try storage.store.save(SavedGame(position: try #require(Position(fen: fen)), result: result))
+    var saved = SavedGame(position: try #require(Position(fen: fen)), result: nil)
+    // A finished game's totals include its award.
+    if let result { saved = saved.ending(with: result) }
+    try storage.store.save(saved)
     let game = LocalGame(store: storage.store)
     game.open()
     try #require(game.hasNoFailure)

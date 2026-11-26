@@ -6,6 +6,7 @@ import md.alasdair.cute.chess.GameResult
 import md.alasdair.cute.chess.Side
 import md.alasdair.cute.chess.positionFromFen
 import md.alasdair.cute.localgame.data.GameRecord
+import md.alasdair.cute.localgame.data.MatchScore
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
@@ -74,7 +75,7 @@ class DoublingCubeTest {
         game.move("e7", "e5")
         game.onResignRequested()
         game.onDrawRequested()
-        game.onNewGameRequested()
+        game.onNewMatchRequested()
         game.onOfferDoubleRequested()
 
         assertNull(game.state.confirmation)
@@ -204,12 +205,12 @@ class DoublingCubeTest {
         assertNull(game.state.game?.stake)
         assertFalse(game.state.canOfferDouble)
 
-        game.onNewGameRequested()
+        game.onNextGameRequested()
         assertEquals(1, game.state.game?.stake)
     }
 
     @Test
-    fun `a draw after a take keeps the stake, and a new game starts at one point`() = runTest {
+    fun `a draw after a take keeps the stake, and the next game starts at one point`() = runTest {
         val game = device.launch()
         game.onOfferDoubleRequested()
         game.onDoubleTaken()
@@ -219,7 +220,7 @@ class DoublingCubeTest {
         assertEquals(GameResult(null, EndReason.Agreement), game.state.game?.result)
         assertEquals(2, game.state.game?.stake)
 
-        game.onNewGameRequested()
+        game.onNextGameRequested()
         assertEquals(OPENING, game.state.fen)
         assertEquals(1, game.state.game?.stake)
         assertNull(game.state.game?.nextDoubler)
@@ -237,7 +238,8 @@ class DoublingCubeTest {
                 opening,
                 GameResult(Side.White, EndReason.DoubleDeclined),
                 stake = 64,
-                nextDoubler = Side.White
+                nextDoubler = Side.White,
+                score = MatchScore(whiteHalves = 128)
             ),
             GameRecord(opening, GameResult(null, EndReason.Agreement), stake = null)
         )
