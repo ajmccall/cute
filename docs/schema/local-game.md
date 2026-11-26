@@ -104,7 +104,7 @@ Automatic endings: checkmate wins for the mover; stalemate draws. Draw for insuf
 ## Deliberate platform differences
 
 - Android: departs from Android rule 5.2 for the board's squares only. Each square is one eighth of the board's width, so it falls below 48 dp on screens narrower than 384 dp (45 dp at 360 dp); every other control keeps 48 dp (the squares touch with no gaps, so every tap lands on exactly one square, and a scrolling board would hide part of it; product owner decision 1a on [#6](https://github.com/ajmccall/cute/issues/6), 2026-11-23).
-- Differs, not decided: iOS and Android: when the saved game can't be read and the confirmed New game then can't be saved, iOS shows "Couldn’t open the saved game." and "Change not saved.", each with its own Retry, while Android shows only "Change not saved.", whose Retry saves the new game again. Neither shows a board or turn, and the saved file is untouched (behind a failed read and a failed save together; #2).
+- Differs, not decided: iOS and Android: when the saved game can’t be read and the confirmed New match then can’t be saved, iOS shows "Couldn’t open the saved game." and "Change not saved.", each with its own Retry, while Android shows only "Change not saved.", whose Retry saves the new match again. Neither shows a board or turn, and the saved file is untouched (behind a failed read and a failed save together; #2).
 
 ## Non-goals
 
