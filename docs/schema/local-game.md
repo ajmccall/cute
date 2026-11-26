@@ -13,6 +13,7 @@ Two people play one untimed game of chess by handing a phone back and forth, wit
 | Stake | number? | yes | 1, 2, 4, 8, 16, 32 or 64 points. Absent only for a game already finished in a save from before the cube; show its result without a point award. |
 | Next doubler | colour? | yes | Before the first take this is absent and either colour has the right to offer. After a take, records the taker's colour. At 64 points neither can offer. |
 | Double pending | true or false | yes | True after an offer is made and before it is answered. The offerer is the side to move; the responder is the other colour. |
+| Captures | captured pieces by colour | yes | Starts empty. Record each actual captured piece, including en passant and promoted pieces, with the move. |
 | Selection | square? | no | Absent until a player selects one of their pieces. |
 
 ## States
@@ -55,6 +56,7 @@ Automatic endings: checkmate wins for the mover; stalemate draws. Draw for insuf
 |---|---|---|---|
 | Board.position | chessboard | Play surface | 64 squares; each labelled by coordinate and occupant, with selection and legal destination conveyed without relying on colour alone. During a double response, put the responder's pieces at the bottom instead of the side to move's and accept no board moves. |
 | Board.status | game-status | Turn, responder or final result | Announce turn and check when applicable, who must answer a pending offer, or the outcome including reason and any point award. Keep final board visible and no longer playable. |
+| Board.material | material-summary | Actual captures and material advantage | Show each player's captured opposing pieces by that player's side of the board, following its orientation. Compare the values of pieces remaining on the board: pawn 1, knight 3, bishop 3, rook 5, queen 9; exclude kings. Show +N only for the player ahead, with no number on a tie. This is distinct from the stake. Make captured pieces and the advantage accessible to screen readers. |
 | Board.stake | game-stake | Points in play and right to offer | Show the stake and who holds the right to offer during play, even when it is not that player's turn. During a response, show the old stake alongside the offer's consequences. |
 | Board.actions | game-actions | Manage current game | New game is available outside dialogs except during a double response. Resign and agree draw only while playing. Confirm an agreed draw on behalf of both people at the board. Offer double is actionable only for an eligible side to move. |
 | Double response.actions | double-choice | Resolve the offer | Name the responder and explain the point consequences of Take and Decline alongside the two actions. |
@@ -84,6 +86,8 @@ Automatic endings: checkmate wins for the mover; stalemate draws. Draw for insuf
 | readFailure / writeFailure | Couldn’t open the saved game. / Change not saved. | Leave the last committed data untouched; allow retry. |
 | retry | Retry | Try the failed operation again. |
 | promotion / choices | Promote pawn / Queen, Rook, Bishop, Knight | Four separate choices. |
+| captures | {side} captured: {pieces} / {side} captured: none | Name each captured piece and its quantity for screen readers. |
+| materialAdvantage | {side} material advantage: {number} | Screen-reader label for the player ahead. |
 
 ## Deliberate platform differences
 
@@ -108,4 +112,6 @@ None
 - **C6.** When starting a game or reopening an ongoing game saved before the cube, the players shall see a stake of one point and that either player can offer. While playing, the board shall show the stake and who has the right to offer, and allow Offer double only for the eligible side to move, including on the opening turn or in check, but never at 64 points.
 - **C7.** When a player taps Offer double, the app shall make the offer at once, without confirmation. While awaiting a response to an offer, including on reopening, the board shall face the named responder, show the unchanged position and the point consequences of taking or declining, and accept no game action other than Take or Decline.
 - **C8.** When the responder takes, the board shall face the offerer again and let them move from the same position, at twice the old stake. Only the taker shall have the right to offer the next double, on a later turn of theirs and below the maximum stake.
+- **C16.** While playing, awaiting a double response, or finished, the board shall show every piece actually captured by each player beside that player's side, following the board's orientation. When a move is committed, including en passant or a capture of a promoted piece, the collection shall update with the captured piece and be restored on reopening. A fresh game shall start with empty collections.
+- **C17.** While playing, awaiting a double response, or finished, the board shall show +N for the player with greater material remaining, calculated as the difference in the values of pieces on the board: pawn 1, knight and bishop 3, rook 5, queen 9, excluding kings. It shall show no advantage number for equal material. Promotion shall change the balance on commitment. Captures and advantage shall be accessible without relying on visual icons, and distinct from the stake.
 - **C9.** When the responder declines, the app shall end the game without a move and show the offerer winning by declined double at the old stake. For a finished game with a stake, the final board shall show the winner awarded the stake or, on a draw, each player awarded half, including ½ point each at a stake of one. A game saved before the cube that was already finished shall still show its original result without a point award.
