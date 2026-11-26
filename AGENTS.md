@@ -13,6 +13,8 @@ Alasdair McCall (`@ajmccall`) is the product owner: he decides product and UX qu
 
 ## A ticket, start to finish
 
+**On trial.** Until the product owner ends the trial, `slim-agents` stands in for `main` everywhere below: cut ticket branches from `origin/slim-agents`, aim the ticket's pull request at it, and start spec and orchestrating sessions in its checkout, `cute-slim-agents`. `main` itself is left alone.
+
 A ticket is a GitHub issue on `ajmccall/cute`, worked with `gh`. Each step ends where its last sentence says; the next step starts in a fresh session or sub-agent.
 
 1. **Spec.** Change the feature's file in `docs/schema/` on a ticket branch, `<issue number>-<short-name>` from `origin/main`, and open a draft pull request into `main`. A new feature file takes the nine sections of `docs/schema/local-game.md`, and each criterion a stable ID, `C<n>`. Done when the product owner approves the spec commit on the issue.
