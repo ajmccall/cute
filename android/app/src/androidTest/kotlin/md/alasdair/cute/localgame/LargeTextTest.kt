@@ -92,7 +92,7 @@ class LargeTextTest(private val orientation: Int) {
         board.launch()
         board.awaitText("White to move")
 
-        for (action in listOf("Resign", "Agree draw", "New game")) {
+        for (action in listOf("Resign", "Agree draw", "New match")) {
             rule.onNodeWithText(action).performScrollTo()
             board.tapText(action)
             rule.onNodeWithText("Confirm").assertIsDisplayed()
@@ -124,7 +124,37 @@ class LargeTextTest(private val orientation: Int) {
         rule.onNodeWithText("Stake: 2 points").performScrollTo().assertIsDisplayed()
     }
 
+    @Test
+    fun c10_c11_c12_theScoreNextGameAndMatchResultCanBeReachedAndUsed() {
+        board.gameFile.writeText(
+            "cute-game 3\n$OPENING\nplaying\n2\nWhite\nanswered\n9\n26\n"
+        )
+        board.launch()
+        board.awaitText("White to move")
+        rule.onNodeWithText("White 4½ points · Black 13 points · first to 15 points")
+            .performScrollTo().assertIsDisplayed()
+
+        rule.onNodeWithText("Agree draw").performScrollTo()
+        board.tapText("Agree draw")
+        board.tapText("Confirm")
+        board.awaitText("Draw · Agreement")
+        rule.onNodeWithText("Next game").performScrollTo().assertIsDisplayed()
+        board.tapText("Next game")
+        board.awaitText("White to move")
+
+        rule.onNodeWithText("Resign").performScrollTo()
+        board.tapText("Resign")
+        board.tapText("Confirm")
+        board.awaitText("Black wins the match, 15 to 5½")
+        rule.onNodeWithText("Black wins the match, 15 to 5½").performScrollTo()
+            .assertIsDisplayed()
+        rule.onNodeWithText("New match").performScrollTo().assertIsDisplayed()
+        board.tapText("New match")
+        board.awaitText("White 0 points · Black 0 points · first to 15 points")
+    }
+
     companion object {
+        const val OPENING = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1"
         const val FONT_SCALE = 2.0f
         const val DISPLAY_TIMEOUT_MS = 30_000L
         const val POLL_MS = 250L

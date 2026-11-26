@@ -92,13 +92,25 @@ class LocalGameViewModel @Inject constructor(private val repository: GameReposit
     }
 
     /**
-     * After the end, starts afresh at once. During play, or when the saved game couldn't be
-     * read and so might still be in play, asks first.
+     * Once a game has finished with the match still under way, starts the match's next game at
+     * once, without confirmation, keeping the score.
      */
-    fun onNewGameRequested() {
+    fun onNextGameRequested() {
+        val state = _uiState.value
+        if (busy || state.confirmation != null) return
+        val game = state.game?.takeIf { it.finished } ?: return
+        save(game.nextGame())
+    }
+
+    /**
+     * Once the match is over, starts a new match at once. While the match is under way, or
+     * when the saved game couldn't be read and so might still be under way, asks first. Not
+     * while a double awaits its answer.
+     */
+    fun onNewMatchRequested() {
         val state = _uiState.value
         if (busy || state.loading || state.game?.doublePending == true) return
-        if (state.game?.result != null) {
+        if (state.game?.matchOver == true) {
             save(GameRecord.New)
         } else {
             _uiState.update { it.copy(confirmation = Confirmation.Replace) }
@@ -112,10 +124,10 @@ class LocalGameViewModel @Inject constructor(private val repository: GameReposit
         val game = state.game
         val record = when (confirmation) {
             Confirmation.Replace -> GameRecord.New
-            Confirmation.Resign -> game?.copy(
-                result = GameResult(game.position.sideToMove.opponent, EndReason.Resignation)
+            Confirmation.Resign -> game?.ended(
+                GameResult(game.position.sideToMove.opponent, EndReason.Resignation)
             )
-            Confirmation.Draw -> game?.copy(result = GameResult(null, EndReason.Agreement))
+            Confirmation.Draw -> game?.ended(GameResult(null, EndReason.Agreement))
         } ?: return
         save(record)
     }
@@ -146,12 +158,7 @@ class LocalGameViewModel @Inject constructor(private val repository: GameReposit
      */
     fun onDoubleDeclined() {
         val game = pendingDouble() ?: return
-        save(
-            game.copy(
-                result = GameResult(game.position.sideToMove, EndReason.DoubleDeclined),
-                doublePending = false
-            )
-        )
+        save(game.ended(GameResult(game.position.sideToMove, EndReason.DoubleDeclined)))
     }
 
     /** Tries the failed read or save again. */
@@ -177,8 +184,8 @@ class LocalGameViewModel @Inject constructor(private val repository: GameReposit
     }
 
     private fun commit(game: GameRecord, move: Move) {
-        val next = game.position.play(move)
-        save(game.copy(position = next, result = next.automaticResult()))
+        val next = game.copy(position = game.position.play(move))
+        save(next.position.automaticResult()?.let(next::ended) ?: next)
     }
 
     /**

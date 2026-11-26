@@ -65,11 +65,11 @@ class GameActionsTest {
     }
 
     @Test
-    fun `a new game during play asks first and cancelling keeps the game`() = runTest {
+    fun `a new match during play asks first and cancelling keeps the game`() = runTest {
         val game = device.launch()
         game.move("e2", "e4")
 
-        game.onNewGameRequested()
+        game.onNewMatchRequested()
         assertEquals(Confirmation.Replace, game.state.confirmation)
         game.onCancelled()
 
@@ -77,11 +77,11 @@ class GameActionsTest {
     }
 
     @Test
-    fun `confirming a new game during play starts afresh`() = runTest {
+    fun `confirming a new match during play starts afresh`() = runTest {
         val game = device.launch()
         game.move("e2", "e4")
 
-        game.onNewGameRequested()
+        game.onNewMatchRequested()
         game.onConfirmed()
 
         assertEquals(OPENING, game.state.fen)
@@ -90,12 +90,12 @@ class GameActionsTest {
     }
 
     @Test
-    fun `a new game after the end starts at once`() = runTest {
+    fun `the next game after the end starts at once`() = runTest {
         val game = device.launch()
         game.onResignRequested()
         game.onConfirmed()
 
-        game.onNewGameRequested()
+        game.onNextGameRequested()
 
         assertNull(game.state.confirmation)
         assertEquals(OPENING, game.state.fen)

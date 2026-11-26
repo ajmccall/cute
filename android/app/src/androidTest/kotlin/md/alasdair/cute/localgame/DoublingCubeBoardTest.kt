@@ -128,7 +128,7 @@ class DoublingCubeBoardTest {
         rule.onNodeWithText("Stake: 1 point").assertIsDisplayed()
         rule.onNodeWithText("Take: play for 2 points.").assertIsDisplayed()
         rule.onNodeWithText("Decline: White wins 1 point.").assertIsDisplayed()
-        listOf("New game", "Resign", "Agree draw", "Offer double").forEach {
+        listOf("New match", "Next game", "Resign", "Agree draw", "Offer double").forEach {
             rule.onNodeWithText(it).assertDoesNotExist()
         }
         board.relaunch()

@@ -29,6 +29,7 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
@@ -41,6 +42,7 @@ import md.alasdair.cute.chess.Position
 import md.alasdair.cute.chess.Side
 import md.alasdair.cute.chess.Square
 import md.alasdair.cute.localgame.data.GameRecord
+import md.alasdair.cute.localgame.data.MatchScore
 import md.alasdair.cute.ui.theme.CuteTheme
 
 /** The Board destination: the app's root, which launch opens. */
@@ -53,7 +55,8 @@ fun BoardRoute(viewModel: LocalGameViewModel = hiltViewModel()) {
             onSquareTapped = viewModel::onSquareTapped,
             onPromotionChosen = viewModel::onPromotionChosen,
             onPromotionCancelled = viewModel::onPromotionCancelled,
-            onNewGame = viewModel::onNewGameRequested,
+            onNewMatch = viewModel::onNewMatchRequested,
+            onNextGame = viewModel::onNextGameRequested,
             onResign = viewModel::onResignRequested,
             onAgreeDraw = viewModel::onDrawRequested,
             onOfferDouble = viewModel::onOfferDoubleRequested,
@@ -70,7 +73,8 @@ class BoardActions(
     val onSquareTapped: (Square) -> Unit = {},
     val onPromotionChosen: (PieceType) -> Unit = {},
     val onPromotionCancelled: () -> Unit = {},
-    val onNewGame: () -> Unit = {},
+    val onNewMatch: () -> Unit = {},
+    val onNextGame: () -> Unit = {},
     val onResign: () -> Unit = {},
     val onAgreeDraw: () -> Unit = {},
     val onOfferDouble: () -> Unit = {},
@@ -99,6 +103,7 @@ fun BoardScreen(state: LocalGameUiState, actions: BoardActions, modifier: Modifi
                 FailureNotice(state.failure, actions.onRetry)
             }
             if (game != null) {
+                MatchScoreLine(game.score)
                 GameStatus(game, state.inCheck)
                 if (game.result == null && !game.doublePending) StakeSummary(game)
                 ChessBoard(
@@ -123,8 +128,14 @@ fun BoardScreen(state: LocalGameUiState, actions: BoardActions, modifier: Modifi
                     ),
                     verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    OutlinedButton(onClick = actions.onNewGame) {
-                        Text(stringResource(R.string.new_game))
+                    // Next game leads once a game has finished with the match under way.
+                    if (game?.finished == true) {
+                        Button(onClick = actions.onNextGame) {
+                            Text(stringResource(R.string.next_game))
+                        }
+                    }
+                    OutlinedButton(onClick = actions.onNewMatch) {
+                        Text(stringResource(R.string.new_match))
                     }
                     if (game != null && game.result == null) {
                         OutlinedButton(onClick = actions.onResign) {
@@ -173,13 +184,21 @@ private fun FailureNotice(failure: Failure, onRetry: () -> Unit) {
 
 /**
  * The game's result, or whose turn or check it is, announced as it changes. A finished game
- * with a stake also shows each player's award, spoken with "half a point" for ½ point.
+ * with a stake also shows each player's award, spoken with "half a point" for ½ point, and in
+ * match over the match result.
  */
 @Composable
 private fun GameStatus(game: GameRecord, inCheck: Boolean) {
     val headline = statusText(game, inCheck)
     val award = game.result?.let { result -> game.stake?.let { award(result, it) } }
-    val spoken = award?.let { stringResource(R.string.status_with_award, headline, it.spoken) }
+    val match = if (game.matchOver) matchResult(game.score) else null
+    val spoken = when {
+        award != null && match != null ->
+            stringResource(R.string.status_with_match, headline, award.spoken, match.spoken)
+        award != null -> stringResource(R.string.status_with_award, headline, award.spoken)
+        match != null -> stringResource(R.string.status_with_award, headline, match.spoken)
+        else -> null
+    }
     Column(
         Modifier
             .padding(horizontal = 16.dp)
@@ -194,21 +213,99 @@ private fun GameStatus(game: GameRecord, inCheck: Boolean) {
     ) {
         Text(headline, style = MaterialTheme.typography.headlineSmall)
         if (award != null) Text(award.shown, style = MaterialTheme.typography.titleMedium)
+        if (match != null) Text(match.shown, style = MaterialTheme.typography.titleMedium)
+    }
+}
+
+/** The match result, once a game has taken either total to 15: the higher total wins. */
+@Composable
+private fun matchResult(score: MatchScore): Spoken {
+    val white = total(score.whiteHalves)
+    val black = total(score.blackHalves)
+    return when (score.leader) {
+        null -> Spoken(
+            stringResource(R.string.match_draw, white.shown, black.shown),
+            stringResource(R.string.match_draw, white.spoken, black.spoken)
+        )
+        Side.White -> Spoken(
+            stringResource(R.string.match_win, sideName(Side.White), white.shown, black.shown),
+            stringResource(R.string.match_win, sideName(Side.White), white.spoken, black.spoken)
+        )
+        Side.Black -> Spoken(
+            stringResource(R.string.match_win, sideName(Side.Black), black.shown, white.shown),
+            stringResource(R.string.match_win, sideName(Side.Black), black.spoken, white.spoken)
+        )
+    }
+}
+
+/**
+ * White's and Black's totals and the target, in every state while there is a game, spoken
+ * with "and a half" or "half a point" for a half.
+ */
+@Composable
+private fun MatchScoreLine(score: MatchScore) {
+    val white = pointsTotal(score.whiteHalves)
+    val black = pointsTotal(score.blackHalves)
+    val target = points(MatchScore.TARGET)
+    val spoken = stringResource(R.string.match_score, white.spoken, black.spoken, target)
+    Text(
+        stringResource(R.string.match_score, white.shown, black.shown, target),
+        style = MaterialTheme.typography.bodyLarge,
+        textAlign = TextAlign.Center,
+        modifier = Modifier
+            .padding(horizontal = 16.dp)
+            .testTag("score")
+            .semantics { contentDescription = spoken }
+    )
+}
+
+/** Text as shown, and as a screen reader speaks it. */
+private class Spoken(val shown: String, val spoken: String)
+
+/** A total of [halves] half points with its unit: 3 points, ½ point, 4½ points. */
+@Composable
+private fun pointsTotal(halves: Int): Spoken {
+    val whole = halves / 2
+    return when {
+        halves % 2 == 0 -> points(whole).let { Spoken(it, it) }
+        whole == 0 -> Spoken(
+            stringResource(R.string.half_point),
+            stringResource(R.string.half_point_spoken)
+        )
+        else -> Spoken(
+            stringResource(R.string.points_and_half, whole),
+            pluralStringResource(R.plurals.points_and_half_spoken, whole, whole)
+        )
+    }
+}
+
+/** A total of [halves] half points without its unit, as in a match result: 16, ½, 14½. */
+@Composable
+private fun total(halves: Int): Spoken {
+    val whole = halves / 2
+    return when {
+        halves % 2 == 0 -> whole.toString().let { Spoken(it, it) }
+        whole == 0 -> Spoken(
+            stringResource(R.string.total_half),
+            stringResource(R.string.total_half_spoken)
+        )
+        else -> Spoken(
+            stringResource(R.string.total_and_half, whole),
+            pluralStringResource(R.plurals.total_and_half_spoken, whole, whole)
+        )
     }
 }
 
 /** What a finished game awards: as shown, and as a screen reader speaks it. */
-private class Award(val shown: String, val spoken: String)
-
 @Composable
-private fun award(result: GameResult, stake: Int): Award {
+private fun award(result: GameResult, stake: Int): Spoken {
     val winner = result.winner
     if (winner != null) {
         val text = stringResource(R.string.win_award, sideName(winner), points(stake))
-        return Award(text, text)
+        return Spoken(text, text)
     }
     return if (stake == 1) {
-        Award(
+        Spoken(
             shown = stringResource(R.string.draw_award, stringResource(R.string.half_point)),
             spoken = stringResource(
                 R.string.draw_award,
@@ -217,7 +314,7 @@ private fun award(result: GameResult, stake: Int): Award {
         )
     } else {
         val text = stringResource(R.string.draw_award, points(stake / 2))
-        Award(text, text)
+        Spoken(text, text)
     }
 }
 
@@ -273,8 +370,14 @@ private fun DoubleResponse(game: GameRecord, actions: BoardActions) {
                 stringResource(R.string.take_effect, points(doubled)),
                 style = MaterialTheme.typography.bodyLarge
             )
+            // Declining ends the match when the old stake takes the offerer to the target.
+            val endsMatch = game.score.halvesOf(offerer) + stake * 2 >= MatchScore.TARGET_HALVES
             Text(
-                stringResource(R.string.decline_effect, sideName(offerer), points(stake)),
+                stringResource(
+                    if (endsMatch) R.string.decline_effect_match else R.string.decline_effect,
+                    sideName(offerer),
+                    points(stake)
+                ),
                 style = MaterialTheme.typography.bodyLarge
             )
             FlowRow(
@@ -416,6 +519,26 @@ private fun DoubleResponseBoardScreenPreview() {
                     stake = 2,
                     nextDoubler = Side.White,
                     doublePending = true
+                )
+            ),
+            actions = BoardActions()
+        )
+    }
+}
+
+@Preview(widthDp = 360, heightDp = 800)
+@Composable
+private fun MatchOverBoardScreenPreview() {
+    CuteTheme {
+        BoardScreen(
+            state = LocalGameUiState(
+                loading = false,
+                game = GameRecord(
+                    Position.Opening,
+                    GameResult(null, EndReason.Agreement),
+                    stake = 2,
+                    nextDoubler = Side.Black,
+                    score = MatchScore(whiteHalves = 30, blackHalves = 29)
                 )
             ),
             actions = BoardActions()
