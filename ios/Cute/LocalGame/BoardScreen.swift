@@ -72,7 +72,7 @@ struct BoardScreen: View {
             BoardView(game: game)
             if game.isAwaitingDoubleResponse, let stake = game.stake {
                 DoubleResponseView(
-                    stake: stake, offerer: game.position.sideToMove,
+                    stake: stake, offerer: game.position.sideToMove, endsMatch: game.declineEndsMatch,
                     take: game.takeDouble, decline: game.declineDouble)
             } else {
                 ActionRow { actions }
@@ -86,12 +86,12 @@ struct BoardScreen: View {
     /// Offer double makes the binding offer on one tap, without confirmation.
     @ViewBuilder
     private var actions: some View {
-        if game.canStartNewGame {
+        if game.canStartNewMatch {
             Button("New game") {
-                if game.newGameNeedsConfirmation {
+                if game.newMatchNeedsConfirmation {
                     confirmation = .replace
                 } else {
-                    game.newGame()
+                    game.newMatch()
                 }
             }
         }
@@ -125,7 +125,7 @@ struct BoardScreen: View {
         switch confirmation {
         case .resign: game.resign()
         case .agreeDraw: game.agreeDraw()
-        case .replace: game.newGame()
+        case .replace: game.newMatch()
         }
     }
 }
@@ -176,6 +176,7 @@ private struct StakeView: View {
 private struct DoubleResponseView: View {
     let stake: Int
     let offerer: PieceColor
+    let endsMatch: Bool
     let take: () -> Void
     let decline: () -> Void
 
@@ -187,7 +188,7 @@ private struct DoubleResponseView: View {
                     .accessibilityIdentifier("stake")
                 Text(BoardText.takeEffect(stake: stake))
                     .accessibilityIdentifier("takeEffect")
-                Text(BoardText.declineEffect(offerer: offerer, stake: stake))
+                Text(BoardText.declineEffect(offerer: offerer, stake: stake, endsMatch: endsMatch))
                     .accessibilityIdentifier("declineEffect")
             }
             .font(.body)

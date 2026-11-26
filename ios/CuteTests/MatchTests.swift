@@ -1,0 +1,354 @@
+import Foundation
+import Testing
+@testable import Cute
+
+/// The match to 15 points through the local-game boundary, on the real file store in its own temporary folder:
+/// local-game C10 to C15, and C5 for a match change that can't be saved.
+@Suite struct MatchTests {
+    // MARK: C10
+
+    @Test func aNewMatchStartsAtNoPointsEachAndAWinAddsTheStakeToTheWinnerSavedWithTheResult() throws {
+        let storage = try TemporaryStorage()
+        let game = LocalGame(store: storage.store)
+        game.open()
+        #expect(game.score == MatchScore(white: 0, black: 0))
+
+        game.tap("e2"); game.tap("e4")
+        game.resign()
+
+        #expect(game.result == .win(.white, .resignation))
+        #expect(game.score == MatchScore(white: 1, black: 0))
+        let saved = try #require(try storage.store.load())
+        #expect(saved.result == .win(.white, .resignation))
+        #expect(saved.score == MatchScore(white: 1, black: 0))
+
+        let reopened = LocalGame(store: storage.store)
+        reopened.open()
+        #expect(reopened.score == MatchScore(white: 1, black: 0))
+    }
+
+    @Test func aDrawAddsHalfTheStakeToEachTotal() throws {
+        let storage = try TemporaryStorage()
+        let game = LocalGame(store: storage.store)
+        game.open()
+
+        game.agreeDraw()
+
+        #expect(game.score == MatchScore(white: 0.5, black: 0.5))
+        #expect(try storage.store.load()?.score == MatchScore(white: 0.5, black: 0.5))
+    }
+
+    @Test func aDeclinedDoubleAndACheckmateEachAddTheirAwardToTheTotalsSoFar() throws {
+        let storage = try TemporaryStorage()
+        try storage.store.save(SavedGame(position: .opening, result: nil, stake: 4, nextDoubler: .white,
+                                         score: MatchScore(white: 3.5, black: 2)))
+        let game = LocalGame(store: storage.store)
+        game.open()
+
+        game.offerDouble()
+        game.declineDouble()
+        #expect(game.score == MatchScore(white: 7.5, black: 2))
+
+        game.nextGame()
+        game.tap("f2"); game.tap("f3")
+        game.tap("e7"); game.tap("e5")
+        game.tap("g2"); game.tap("g4")
+        game.tap("d8"); game.tap("h4")
+        #expect(game.result == .win(.black, .checkmate))
+        #expect(game.score == MatchScore(white: 7.5, black: 3))
+        #expect(try storage.store.load()?.score == MatchScore(white: 7.5, black: 3))
+    }
+
+    // MARK: C11
+
+    @Test func aGameEndingBelowTheTargetOffersNextGameWhichStartsAFreshGameAtOnceAndKeepsTheTotals() throws {
+        let storage = try TemporaryStorage()
+        try storage.store.save(SavedGame(position: try #require(Position(fen: Self.afterE4)), result: nil,
+                                         stake: 2, nextDoubler: .black, score: MatchScore(white: 4, black: 6.5)))
+        let game = LocalGame(store: storage.store)
+        game.open()
+        #expect(!game.canStartNextGame)
+
+        game.resign()
+
+        #expect(game.result == .win(.white, .resignation))
+        #expect(game.score == MatchScore(white: 6, black: 6.5))
+        #expect(!game.isMatchOver)
+        #expect(game.canStartNextGame)
+
+        game.nextGame()
+
+        #expect(game.position == .opening)
+        #expect(game.result == nil)
+        #expect(game.stake == 1)
+        #expect(game.nextDoubler == nil)
+        #expect(game.canOfferDouble)
+        #expect(game.score == MatchScore(white: 6, black: 6.5))
+        #expect(try storage.store.load() == SavedGame(position: .opening, result: nil,
+                                                      score: MatchScore(white: 6, black: 6.5)))
+        #expect(!game.canStartNextGame)
+    }
+
+    // MARK: C12
+
+    /// Each ending takes a total to 15 or more: by a win, by a decline, and by a split draw past 15 on both sides.
+    /// Each game is Black to move after 1. e4, entitled to offer.
+    @Test(arguments: [
+        (MatchScore(white: 13, black: 9), 2, "resign", MatchScore(white: 15, black: 9), PieceColor?.some(.white)),
+        (MatchScore(white: 9, black: 12), 4, "decline", MatchScore(white: 9, black: 16), .black),
+        (MatchScore(white: 14.5, black: 13), 4, "draw", MatchScore(white: 16.5, black: 15), .white),
+        (MatchScore(white: 13, black: 13), 4, "draw", MatchScore(white: 15, black: 15), nil),
+        (MatchScore(white: 14.5, black: 14.5), 1, "draw", MatchScore(white: 15, black: 15), nil),
+    ])
+    func aGameThatTakesATotalToTheTargetEndsTheMatchWithTheHigherTotalWinning(
+        before: MatchScore, stake: Int, ending: String, after: MatchScore, winner: PieceColor?
+    ) throws {
+        let storage = try TemporaryStorage()
+        try storage.store.save(SavedGame(position: try #require(Position(fen: Self.afterE4)), result: nil,
+                                         stake: stake, nextDoubler: stake == 1 ? nil : .black, score: before))
+        let game = LocalGame(store: storage.store)
+        game.open()
+        try #require(!game.isMatchOver)
+
+        switch ending {
+        case "resign": game.resign()
+        case "draw": game.agreeDraw()
+        default: game.offerDouble(); game.declineDouble()
+        }
+
+        #expect(game.score == after)
+        #expect(game.isMatchOver)
+        #expect(game.matchWinner == winner)
+        #expect(!game.canStartNextGame)
+        #expect(!game.canResignOrAgreeDraw)
+        #expect(!game.canOfferDouble)
+        #expect(game.canStartNewMatch)
+        #expect(!game.newMatchNeedsConfirmation)
+
+        let reopened = LocalGame(store: storage.store)
+        reopened.open()
+        #expect(reopened.isMatchOver)
+        #expect(reopened.score == after)
+        #expect(reopened.matchWinner == winner)
+    }
+
+    @Test func onceTheMatchIsOverNewMatchStartsANewMatchAtNoPointsEachWithoutConfirmation() throws {
+        let storage = try TemporaryStorage()
+        try storage.store.save(SavedGame(position: .opening, result: .win(.white, .resignation), stake: 1,
+                                         score: MatchScore(white: 15, black: 3)))
+        let game = LocalGame(store: storage.store)
+        game.open()
+        #expect(game.isMatchOver)
+        #expect(!game.newMatchNeedsConfirmation)
+
+        game.newMatch()
+
+        #expect(!game.isMatchOver)
+        #expect(game.position == .opening)
+        #expect(game.result == nil)
+        #expect(game.stake == 1)
+        #expect(game.score == .zero)
+        #expect(try storage.store.load() == .opening)
+    }
+
+    // MARK: C13
+
+    @Test func whileTheMatchIsUnderWayNewMatchNeedsConfirmationAndReplacesTheGameAndTotals() throws {
+        let storage = try TemporaryStorage()
+        try storage.store.save(SavedGame(position: try #require(Position(fen: Self.afterE4)), result: nil,
+                                         stake: 2, nextDoubler: .black, score: MatchScore(white: 4, black: 6.5)))
+        let game = LocalGame(store: storage.store)
+        game.open()
+        #expect(game.canStartNewMatch)
+        #expect(game.newMatchNeedsConfirmation)
+
+        game.resign()
+        // Finished but below the target: the match is still under way.
+        #expect(game.canStartNewMatch)
+        #expect(game.newMatchNeedsConfirmation)
+
+        game.newMatch()
+
+        #expect(game.position == .opening)
+        #expect(game.result == nil)
+        #expect(game.score == .zero)
+        #expect(game.nextDoubler == nil)
+        #expect(try storage.store.load() == .opening)
+        #expect(game.newMatchNeedsConfirmation)
+    }
+
+    @Test func newMatchIsNotAvailableDuringADoubleResponse() throws {
+        let storage = try TemporaryStorage()
+        try storage.store.save(SavedGame(position: .opening, result: nil, score: MatchScore(white: 2, black: 1)))
+        let game = LocalGame(store: storage.store)
+        game.open()
+        game.offerDouble()
+
+        #expect(!game.canStartNewMatch)
+        game.newMatch()
+
+        #expect(game.isAwaitingDoubleResponse)
+        #expect(game.score == MatchScore(white: 2, black: 1))
+        #expect(try storage.store.load()?.doublePending == true)
+    }
+
+    // MARK: C14
+
+    @Test(arguments: [
+        (Points(10.5), 4, false),
+        (Points(11), 4, true),
+        (Points(14.5), 1, true),
+        (Points(0), 16, true),
+        (Points(0), 8, false),
+    ])
+    func declineEndsTheMatchWhenTheOfferersTotalWithTheOldStakeReachesTheTarget(
+        offerersTotal: Points, stake: Int, endsMatch: Bool
+    ) throws {
+        let storage = try TemporaryStorage()
+        // Black to move and entitled to offer.
+        try storage.store.save(SavedGame(position: try #require(Position(fen: Self.afterE4)), result: nil,
+                                         stake: stake, nextDoubler: stake == 1 ? nil : .black,
+                                         score: MatchScore(white: 3, black: offerersTotal)))
+        let game = LocalGame(store: storage.store)
+        game.open()
+        game.offerDouble()
+
+        #expect(game.declineEndsMatch == endsMatch)
+    }
+
+    @Test(arguments: [
+        (PieceColor.white, 4, false, "Decline: White wins 4 points."),
+        (PieceColor.white, 4, true, "Decline: White wins 4 points and the match."),
+        (PieceColor.black, 1, true, "Decline: Black wins 1 point and the match."),
+    ])
+    func theDeclineTextNamesTheMatchWhenDecliningEndsIt(
+        offerer: PieceColor, stake: Int, endsMatch: Bool, text: String
+    ) {
+        #expect(BoardText.declineEffect(offerer: offerer, stake: stake, endsMatch: endsMatch) == text)
+    }
+
+    // MARK: C15
+
+    /// Games saved before matches, each opening as the first game of a match.
+    @Test(arguments: [
+        // Ongoing, before the cube and after it.
+        (#"{"version": 1, "position": "\#(MatchTests.afterE4)", "result": null}"#,
+         MatchScore.zero, false, false),
+        (#"{"version": 2, "position": "\#(MatchTests.afterE4)", "result": null, "stake": 2, "nextDoubler": "black", "doublePending": false}"#,
+         MatchScore.zero, false, false),
+        (#"{"version": 2, "position": "\#(MatchTests.afterE4)", "result": null, "stake": 1, "nextDoubler": null, "doublePending": true}"#,
+         MatchScore.zero, false, false),
+        // Finished with a stake: its award is the score.
+        (#"{"version": 2, "position": "\#(MatchTests.afterE4)", "result": {"winner": "white", "reason": "resignation"}, "stake": 4, "nextDoubler": "white", "doublePending": false}"#,
+         MatchScore(white: 4, black: 0), true, false),
+        (#"{"version": 2, "position": "\#(MatchTests.afterE4)", "result": {"draw": "agreement"}, "stake": 1, "nextDoubler": null, "doublePending": false}"#,
+         MatchScore(white: 0.5, black: 0.5), true, false),
+        (#"{"version": 2, "position": "\#(MatchTests.afterE4)", "result": {"winner": "black", "reason": "doubleDeclined"}, "stake": 16, "nextDoubler": "black", "doublePending": false}"#,
+         MatchScore(white: 0, black: 16), false, true),
+        // Fool's mate, saved without its result, at two points.
+        (#"{"version": 2, "position": "rnb1kbnr/pppp1ppp/8/4p3/6Pq/5P2/PPPPP2P/RNBQKBNR w KQkq -", "result": null, "stake": 2, "nextDoubler": "black", "doublePending": false}"#,
+         MatchScore(white: 0, black: 2), true, false),
+        // Finished before the cube: no award, so no points.
+        (#"{"version": 1, "position": "4k3/8/8/8/8/8/8/R3K3 w - -", "result": {"winner": "black", "reason": "resignation"}}"#,
+         MatchScore.zero, true, false),
+    ])
+    func aGameSavedBeforeMatchesOpensAsTheFirstGameOfAMatch(
+        contents: String, score: MatchScore, offersNextGame: Bool, isMatchOver: Bool
+    ) throws {
+        let storage = try TemporaryStorage()
+        let saved = Data(contents.utf8)
+        try saved.write(to: storage.fileURL)
+
+        let game = LocalGame(store: storage.store)
+        game.open()
+
+        #expect(game.hasNoFailure)
+        #expect(game.score == score)
+        #expect(game.canStartNextGame == offersNextGame)
+        #expect(game.isMatchOver == isMatchOver)
+        #expect(try Data(contentsOf: storage.fileURL) == saved)
+    }
+
+    @Test func anOngoingGameSavedBeforeMatchesOffersNextGameOnceItHasFinished() throws {
+        let storage = try TemporaryStorage()
+        try Data(#"{"version": 1, "position": "\#(Self.afterE4)", "result": null}"#.utf8).write(to: storage.fileURL)
+        let game = LocalGame(store: storage.store)
+        game.open()
+
+        game.resign()
+
+        #expect(game.score == MatchScore(white: 1, black: 0))
+        #expect(game.canStartNextGame)
+        game.nextGame()
+        #expect(game.score == MatchScore(white: 1, black: 0))
+        #expect(try storage.store.load()?.score == MatchScore(white: 1, black: 0))
+    }
+
+    // MARK: C5
+
+    /// An ending that can't be saved adds nothing to the totals, and Retry saves the result and its award together.
+    @Test(arguments: ["resign", "agreeDraw", "decline", "checkmate"])
+    func anEndingThatCannotBeSavedLeavesTheLastSavedGameAndTotals(ending: String) throws {
+        let storage = try TemporaryStorage()
+        // White to move with mate in one (Qh5xf7#), at 13 to 12.
+        let mateInOne = "r1bqkbnr/pppp1ppp/2n5/4p2Q/2B1P3/8/PPPP1PPP/RNB1K1NR w KQkq -"
+        let before = MatchScore(white: 13, black: 12)
+        try storage.store.save(SavedGame(position: try #require(Position(fen: mateInOne)), result: nil, score: before))
+        let game = LocalGame(store: storage.store)
+        game.open()
+        if ending == "decline" { game.offerDouble() }
+        let savedBytes = try Data(contentsOf: storage.fileURL)
+
+        try storage.makeReadOnly()
+        switch ending {
+        case "resign": game.resign()
+        case "agreeDraw": game.agreeDraw()
+        case "decline": game.declineDouble()
+        default: game.tap("h5"); game.tap("f7")
+        }
+
+        #expect(game.hasUnsavedChange)
+        #expect(game.result == nil)
+        #expect(game.score == before)
+        #expect(game.position.fen == mateInOne)
+        #expect(!game.canStartNextGame)
+        #expect(try Data(contentsOf: storage.fileURL) == savedBytes)
+
+        try storage.makeWritable()
+        game.retrySave()
+        #expect(game.hasNoFailure)
+        #expect(game.result != nil)
+        #expect(game.score != before)
+        let saved = try #require(try storage.store.load())
+        #expect(saved.result == game.result)
+        #expect(saved.score == game.score)
+    }
+
+    @Test(arguments: ["nextGame", "newMatch"])
+    func nextGameOrNewMatchThatCannotBeSavedKeepsTheFinishedGameAndTotals(action: String) throws {
+        let storage = try TemporaryStorage()
+        try storage.store.save(SavedGame(position: try #require(Position(fen: Self.afterE4)),
+                                         result: .win(.white, .resignation), score: MatchScore(white: 5, black: 2)))
+        let game = LocalGame(store: storage.store)
+        game.open()
+        let savedBytes = try Data(contentsOf: storage.fileURL)
+
+        try storage.makeReadOnly()
+        if action == "nextGame" { game.nextGame() } else { game.newMatch() }
+
+        #expect(game.hasUnsavedChange)
+        #expect(game.result == .win(.white, .resignation))
+        #expect(game.position.fen == Self.afterE4)
+        #expect(game.score == MatchScore(white: 5, black: 2))
+        #expect(try Data(contentsOf: storage.fileURL) == savedBytes)
+
+        try storage.makeWritable()
+        game.retrySave()
+        #expect(game.hasNoFailure)
+        #expect(game.position == .opening)
+        #expect(game.score == (action == "nextGame" ? MatchScore(white: 5, black: 2) : .zero))
+        #expect(try storage.store.load()?.score == game.score)
+    }
+
+    nonisolated static let afterE4 = "rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq -"
+}

@@ -75,10 +75,13 @@ enum BoardText {
         return String(localized: "Take: play for \(doubled).")
     }
 
-    static func declineEffect(offerer: PieceColor, stake: Int) -> String {
+    /// What declining means, naming the match when the decline would end it.
+    static func declineEffect(offerer: PieceColor, stake: Int, endsMatch: Bool) -> String {
         let side = side(offerer)
         let points = points(stake)
-        return String(localized: "Decline: \(side) wins \(points).")
+        return endsMatch
+            ? String(localized: "Decline: \(side) wins \(points) and the match.")
+            : String(localized: "Decline: \(side) wins \(points).")
     }
 
     /// "{winner} earns {stake}." or "Each player earns {half stake}.", with half a point in words when spoken.

@@ -14,6 +14,8 @@ final class LocalGame {
     private(set) var nextDoubler: PieceColor?
     /// The side to move offered a double, and the other side hasn't yet taken or declined it.
     private var doublePending = false
+    /// White's and Black's totals in this match, including this game's award once it has finished.
+    private(set) var score: MatchScore = .zero
     /// The saved game couldn't be read, and no game has been read or saved since.
     /// Nothing is playable and no board is shown until it is read or replaced.
     private(set) var couldNotReadSavedGame = false
@@ -42,13 +44,19 @@ final class LocalGame {
 
     /// What a finished game awards: nothing while it is played, or for a game finished before the cube.
     var award: PointAward? {
-        guard !couldNotReadSavedGame, let stake else { return nil }
-        return switch result {
-        case let .win(winner, _): .win(winner, stake)
-        case .draw: .split(stake)
-        case nil: nil
-        }
+        guard !couldNotReadSavedGame else { return nil }
+        return committed.award
     }
+
+    /// The game has finished with either total at the target or past it: the match is over, and New match
+    /// is the only action.
+    var isMatchOver: Bool { !couldNotReadSavedGame && result != nil && score.reachesTarget }
+
+    /// The colour with the higher total once the match is over, or nil when the totals are equal and it is drawn.
+    var matchWinner: PieceColor? { score.leader }
+
+    /// Next game is offered once a game has finished with both totals below the target.
+    var canStartNextGame: Bool { !couldNotReadSavedGame && result != nil && !isMatchOver }
 
     /// A game is in play and no offer is waiting, so the side to move can move, resign, agree a draw or offer.
     private var isAwaitingMove: Bool { isInPlay && !doublePending }
@@ -64,28 +72,39 @@ final class LocalGame {
 
     var canResignOrAgreeDraw: Bool { isAwaitingMove }
 
-    /// New game is offered at any time except while an offer waits for its answer.
-    var canStartNewGame: Bool { !isAwaitingDoubleResponse }
+    /// New match is offered at any time except while an offer waits for its answer.
+    var canStartNewMatch: Bool { !isAwaitingDoubleResponse }
 
-    /// Whether starting over abandons a game still in play, or a saved game that couldn't be read.
-    var newGameNeedsConfirmation: Bool { result == nil || couldNotReadSavedGame }
+    /// Whether starting over abandons a match still under way, or a saved game that couldn't be read.
+    var newMatchNeedsConfirmation: Bool { !isMatchOver }
+
+    /// Declining the pending offer would take the offerer's total, with the stake added, to the target or past it.
+    var declineEndsMatch: Bool {
+        guard isAwaitingDoubleResponse, let stake else { return false }
+        return score[position.sideToMove] + Points(stake) >= MatchScore.target
+    }
 
     var isChoosingPromotion: Bool { promotionMove != nil }
 
     /// Whether the side to move may offer to double the stake now (`SavedGame.sideToMoveMayOffer`).
     var canOfferDouble: Bool { isAwaitingMove && committed.sideToMoveMayOffer }
 
-    /// Reads the current game, or starts the opening position when none is saved.
-    /// A saved position the rules have already ended opens with that result. Nothing is saved until a change.
+    /// Reads the current game, or starts the first game of a match when none is saved.
+    /// A saved position the rules have already ended opens with that result, and its award added to the totals.
+    /// Nothing is saved until a change.
     func open() {
         do {
-            let saved = try store.load() ?? .opening
+            var saved = try store.load() ?? .opening
+            if saved.result == nil, let automaticResult = saved.position.automaticResult {
+                saved = saved.ending(with: automaticResult)
+            }
             position = saved.position
-            result = saved.result ?? saved.position.automaticResult
+            result = saved.result
             // An ongoing game saved before the cube is played on at one point; a finished one awards nothing.
             stake = saved.stake ?? (result == nil ? 1 : nil)
             nextDoubler = saved.nextDoubler
             doublePending = saved.doublePending
+            score = saved.score
             couldNotReadSavedGame = false
             unsavedChange = nil
         } catch {
@@ -132,18 +151,14 @@ final class LocalGame {
     func resign() {
         guard canResignOrAgreeDraw else { return }
         clearSelection()
-        var change = committed
-        change.result = .win(position.sideToMove.opponent, .resignation)
-        commit(change)
+        commit(committed.ending(with: .win(position.sideToMove.opponent, .resignation)))
     }
 
     /// Records a draw both players agreed at the board. The board asks for confirmation first.
     func agreeDraw() {
         guard canResignOrAgreeDraw else { return }
         clearSelection()
-        var change = committed
-        change.result = .draw(.agreement)
-        commit(change)
+        commit(committed.ending(with: .draw(.agreement)))
     }
 
     /// Saves the side to move's offer to double the stake, leaving position, turn and stake as they were.
@@ -171,18 +186,25 @@ final class LocalGame {
     /// the stake as it was before the offer.
     func declineDouble() {
         guard isAwaitingDoubleResponse else { return }
-        var change = committed
-        change.result = .win(position.sideToMove, .doubleDeclined)
-        change.doublePending = false
-        commit(change)
+        commit(committed.ending(with: .win(position.sideToMove, .doubleDeclined)))
     }
 
-    /// Replaces the current game with the opening position, at one point. The board confirms first while
-    /// still playing, and after a failed read, when this replaces the saved game that couldn't be read.
-    func newGame() {
-        guard canStartNewGame else { return }
+    /// Replaces the current game and the totals with the opening position, at one point and no points each.
+    /// The board confirms first while the match is under way, and after a failed read, when this replaces the
+    /// saved game that couldn't be read.
+    func newMatch() {
+        guard canStartNewMatch else { return }
         clearSelection()
         commit(.opening)
+    }
+
+    /// Starts the match's next game at once, in the opening position at one point, keeping the totals.
+    func nextGame() {
+        guard canStartNextGame else { return }
+        clearSelection()
+        var next = SavedGame.opening
+        next.score = score
+        commit(next)
     }
 
     /// Tries saving the change that failed to save again.
@@ -199,13 +221,15 @@ final class LocalGame {
     /// The game as last committed, the base for the next change.
     private var committed: SavedGame {
         SavedGame(position: position, result: result, stake: stake, nextDoubler: nextDoubler,
-                  doublePending: doublePending)
+                  doublePending: doublePending, score: score)
     }
 
     private func play(_ move: Move) {
         var change = committed
         change.position = position.applying(move)
-        change.result = change.position.automaticResult
+        if let result = change.position.automaticResult {
+            change = change.ending(with: result)
+        }
         commit(change)
     }
 
@@ -230,5 +254,6 @@ final class LocalGame {
         stake = game.stake
         nextDoubler = game.nextDoubler
         doublePending = game.doublePending
+        score = game.score
     }
 }
