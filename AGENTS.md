@@ -9,6 +9,7 @@ Alasdair McCall (`@ajmccall`) is the product owner: he decides product and UX qu
 - **Parity is at the spec's level.** Both apps satisfy every acceptance criterion a ticket names. Below that, each platform does what is simplest and most native for it.
 - **Each platform is written fresh from the spec**, in its own folder: SwiftUI in `ios/`, Jetpack Compose in `android/`. A builder reads the spec, never the other platform's code.
 - **A difference a player would notice in ordinary use** goes to the product owner as a question. Once decided, it is written in that feature's spec file under **Deliberate platform differences**.
+- **A difference only an unusual condition reaches**, such as storage failing or the system ending the app partway through, needs no question: record it there in one line, "Differs, not decided". Either way the app fails safely: it keeps the player's saved data and never shows something as done that wasn't.
 
 ## A ticket, start to finish
 
