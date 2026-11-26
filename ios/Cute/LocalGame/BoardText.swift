@@ -38,10 +38,13 @@ enum BoardText {
         }
     }
 
-    /// What VoiceOver announces when the status changes: the status, and any point award after it.
+    /// What VoiceOver announces when the status changes: the status, any point award after it, and the match
+    /// result once the match is over.
     static func announcement(of game: LocalGame) -> String {
-        guard let award = game.award else { return status(of: game) }
-        return status(of: game) + "\n" + self.award(award, spoken: true)
+        var lines = [status(of: game)]
+        if let award = game.award { lines.append(self.award(award, spoken: true)) }
+        if game.isMatchOver { lines.append(matchResult(game.score, spoken: true)) }
+        return lines.joined(separator: "\n")
     }
 
     /// A number of whole points, with its unit: "1 point", "2 points".
@@ -53,6 +56,44 @@ enum BoardText {
     static func halfOf(_ stake: Int, spoken: Bool) -> String {
         guard stake == 1 else { return points(stake / 2) }
         return spoken ? String(localized: "half a point") : String(localized: "½ point")
+    }
+
+    /// A match total with its unit: "0 points", "1 point", "½ point", "4½ points".
+    /// Spoken, a half is in words: "half a point", "4 and a half points".
+    static func total(_ total: Points, spoken: Bool) -> String {
+        guard total.hasHalf else { return points(total.whole) }
+        let whole = total.whole
+        if whole == 0 { return halfOf(1, spoken: spoken) }
+        return spoken ? String(localized: "\(whole) and a half points") : String(localized: "\(whole)½ points")
+    }
+
+    /// A match total without its unit, for the match result: "16", "16½", or "½" alone.
+    /// Spoken, a half is in words: "16 and a half", or "a half" alone.
+    static func bareTotal(_ total: Points, spoken: Bool) -> String {
+        let whole = total.whole
+        guard total.hasHalf else { return whole.formatted() }
+        if whole == 0 { return spoken ? String(localized: "a half") : String(localized: "½") }
+        return spoken ? String(localized: "\(whole) and a half") : String(localized: "\(whole)½")
+    }
+
+    /// "White {White total} · Black {Black total} · first to 15", each with its unit.
+    static func matchScore(_ score: MatchScore, spoken: Bool) -> String {
+        let white = total(score.white, spoken: spoken)
+        let black = total(score.black, spoken: spoken)
+        let target = points(MatchScore.target.whole)
+        return String(localized: "White \(white) · Black \(black) · first to \(target)")
+    }
+
+    /// "{winner} wins the match, {winner's total} to {loser's total}", or "Match drawn, {total} to {total}".
+    static func matchResult(_ score: MatchScore, spoken: Bool) -> String {
+        guard let winner = score.leader else {
+            let total = bareTotal(score.white, spoken: spoken)
+            return String(localized: "Match drawn, \(total) to \(total)")
+        }
+        let side = side(winner)
+        let winnersTotal = bareTotal(score[winner], spoken: spoken)
+        let losersTotal = bareTotal(score[winner.opponent], spoken: spoken)
+        return String(localized: "\(side) wins the match, \(winnersTotal) to \(losersTotal)")
     }
 
     static func stake(_ stake: Int) -> String {
@@ -75,10 +116,13 @@ enum BoardText {
         return String(localized: "Take: play for \(doubled).")
     }
 
-    static func declineEffect(offerer: PieceColor, stake: Int) -> String {
+    /// What declining means, naming the match when the decline would end it.
+    static func declineEffect(offerer: PieceColor, stake: Int, endsMatch: Bool) -> String {
         let side = side(offerer)
         let points = points(stake)
-        return String(localized: "Decline: \(side) wins \(points).")
+        return endsMatch
+            ? String(localized: "Decline: \(side) wins \(points) and the match.")
+            : String(localized: "Decline: \(side) wins \(points).")
     }
 
     /// "{winner} earns {stake}." or "Each player earns {half stake}.", with half a point in words when spoken.

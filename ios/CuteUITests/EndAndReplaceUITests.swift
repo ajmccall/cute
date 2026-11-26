@@ -1,13 +1,13 @@
 import XCTest
 
-/// docs/testing.md, End and replace: local-game C4 on the running board.
+/// docs/testing.md, End and replace: local-game C4 and C13 on the running board.
 final class EndAndReplaceUITests: XCTestCase {
     override func setUp() {
         continueAfterFailure = false
     }
 
     @MainActor
-    func testFoolsMateFreezesTheBoardThroughRelaunchAndNewGameNeedsNoConfirmation() throws {
+    func testFoolsMateFreezesTheBoardThroughRelaunchAndNextGameNeedsNoConfirmation() throws {
         let board = BoardRobot()
         board.launch()
 
@@ -26,7 +26,7 @@ final class EndAndReplaceUITests: XCTestCase {
         XCTAssertEqual(board.status, "Black wins · Checkmate")
         XCTAssertEqual(board.square("h4").label, "h4, Black queen")
 
-        board.app.buttons["New game"].tap()
+        board.app.buttons["Next game"].tap()
         XCTAssertFalse(board.app.alerts.firstMatch.waitForExistence(timeout: 1))
         XCTAssertEqual(board.status, "White to move")
         XCTAssertEqual(board.square("h4").label, "h4, Empty")
@@ -94,22 +94,22 @@ final class EndAndReplaceUITests: XCTestCase {
     }
 
     @MainActor
-    func testReplacingAnOngoingGameNeedsConfirmation() throws {
+    func testReplacingAMatchUnderWayNeedsConfirmation() throws {
         let board = BoardRobot()
         board.launch()
         board.tap("e2", "e4")
         // Audited before the stock alert opens: the system draws the alert itself.
         try board.auditAccessibility()
 
-        board.app.buttons["New game"].tap()
-        let alert = board.app.alerts["Replace this game?"]
+        board.app.buttons["New match"].tap()
+        let alert = board.app.alerts["Replace this match?"]
         XCTAssertTrue(alert.waitForExistence(timeout: 5))
         board.attachScreenshot(named: "local-game-C4-replace", to: self)
         alert.buttons["Cancel"].tap()
         XCTAssertEqual(board.status, "Black to move")
         XCTAssertEqual(board.square("e4").label, "e4, White pawn")
 
-        board.app.buttons["New game"].tap()
+        board.app.buttons["New match"].tap()
         XCTAssertTrue(alert.waitForExistence(timeout: 5))
         alert.buttons["Confirm"].tap()
         XCTAssertEqual(board.status, "White to move")

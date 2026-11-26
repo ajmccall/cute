@@ -73,14 +73,14 @@ struct BoardRobot {
             // accessibility-extra-extra-extra-large).
             // A game action dimmed because it can't be used now, such as Offer double for a side not entitled
             // to it, keeps the stock disabled look; WCAG 1.4.3 sets no contrast for inactive controls.
-            // A draw at one point shows "½ point" and is spoken "half a point" (local-game Interface text); the
-            // audit measures the longer spoken label against the shown text and reports it clipped.
+            // A half is shown as ½ and spoken in words, "half a point" or "and a half" (local-game Interface text);
+            // the audit measures the longer spoken label against the shown text and reports it clipped.
             // Every other issue fails the test.
             let isGameAction = issue.element?.elementType == .button
                 && Self.gameActions.contains(issue.element?.label ?? "")
             let isSpokenHalfPoint = issue.auditType == .textClipped
-                && issue.element?.identifier == "award"
-                && issue.element?.label.contains("half a point") == true
+                && Self.textsWithHalves.contains(issue.element?.identifier ?? "")
+                && issue.element?.label.contains("half") == true
             let ignored = isSpokenHalfPoint || isGameAction && (
                 (issue.auditType == .dynamicType && issue.compactDescription.contains("partially"))
                 || (issue.auditType == .contrast && issue.element?.isEnabled == false))
@@ -91,5 +91,9 @@ struct BoardRobot {
         }
     }
 
-    static let gameActions: Set<String> = ["New game", "Resign", "Agree draw", "Offer double", "Take", "Decline"]
+    static let gameActions: Set<String> = [
+        "New match", "Next game", "Resign", "Agree draw", "Offer double", "Take", "Decline",
+    ]
+    /// Texts that can show half a point.
+    static let textsWithHalves: Set<String> = ["award", "matchScore", "matchResult"]
 }

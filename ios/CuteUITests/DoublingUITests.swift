@@ -114,7 +114,7 @@ final class DoublingUITests: XCTestCase {
         XCTAssertEqual(board.text("declineEffect"), "Decline: White wins 1 point.")
         XCTAssertTrue(board.app.buttons["Take"].exists)
         XCTAssertTrue(board.app.buttons["Decline"].exists)
-        for action in ["New game", "Resign", "Agree draw", "Offer double"] {
+        for action in ["New match", "Next game", "Resign", "Agree draw", "Offer double"] {
             XCTAssertFalse(board.app.buttons[action].exists, action)
         }
     }
@@ -175,8 +175,8 @@ final class DoublingUITests: XCTestCase {
         XCTAssertEqual(board.status, "White wins · Double declined")
         XCTAssertEqual(board.text("award"), "White earns 1 point.")
 
-        // A fresh game starts at one point.
-        board.app.buttons["New game"].tap()
+        // The next game starts at one point.
+        board.app.buttons["Next game"].tap()
         XCTAssertEqual(board.status, "White to move")
         XCTAssertEqual(board.text("stake"), "Stake: 1 point")
         XCTAssertEqual(board.text("doubleRight"), "Either player can offer")

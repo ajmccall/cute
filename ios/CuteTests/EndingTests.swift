@@ -2,7 +2,7 @@ import Foundation
 import Testing
 @testable import Cute
 
-/// Automatic endings, resignation, agreed draws and new games, through the local-game boundary.
+/// Automatic endings, resignation and agreed draws, through the local-game boundary.
 @Suite struct EndingTests {
     @Test func foolsMateEndsTheGameWithBlackWinningAndTheBoardStopsAcceptingMoves() throws {
         let storage = try TemporaryStorage()
@@ -94,23 +94,5 @@ import Testing
 
         #expect(game.result == .draw(.insufficientMaterial))
         #expect(!game.canResignOrAgreeDraw)
-    }
-
-    @Test func newGameStartsFreshAndAsksForConfirmationOnlyWhileStillPlaying() throws {
-        let storage = try TemporaryStorage()
-        let game = LocalGame(store: storage.store)
-        game.open()
-        game.tap("e2"); game.tap("e4")
-        #expect(game.newGameNeedsConfirmation)
-        #expect(game.canResignOrAgreeDraw)
-
-        game.resign()
-        #expect(!game.newGameNeedsConfirmation)
-
-        game.newGame()
-        #expect(game.position == .opening)
-        #expect(game.result == nil)
-        #expect(try storage.store.load() == .opening)
-        #expect(game.newGameNeedsConfirmation)
     }
 }
