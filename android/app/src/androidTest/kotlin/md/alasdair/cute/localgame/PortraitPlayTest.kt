@@ -9,6 +9,9 @@ import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
+import androidx.test.uiautomator.By
+import androidx.test.uiautomator.UiDevice
+import androidx.test.uiautomator.Until
 import com.google.android.apps.common.testing.accessibility.framework.AccessibilityCheckResultUtils.matchesCheck
 import com.google.android.apps.common.testing.accessibility.framework.checks.TouchTargetSizeCheck
 import com.google.android.apps.common.testing.accessibility.framework.integrations.espresso.AccessibilityValidator
@@ -57,19 +60,24 @@ class PortraitPlayTest {
                 androidx.compose.ui.test.hasText("White to move")
             ).fetchSemanticsNodes().isNotEmpty()
         }
-        // Settings permits rotation: verify the display really reached landscape before
-        // returning to the app with the same rotation request still in force.
-        shell("am start -a android.settings.SETTINGS")
-        shell("cmd window user-rotation lock 0")
+        // Exercise the rotation while the app itself is in front. Android honors the
+        // portrait lock by keeping the display in rotation 0, so verify the requested
+        // user rotation separately rather than claiming the display became landscape.
+        val device = UiDevice.getInstance(InstrumentationRegistry.getInstrumentation())
+        assertTrue(
+            "App is in front",
+            device.wait(Until.hasObject(By.pkg(PACKAGE).depth(0)), 10_000)
+        )
+        device.setOrientationNatural()
+        awaitSetting("user_rotation", "0")
+        device.setOrientationLeft()
+        awaitSetting("user_rotation", "1")
+        awaitSetting("accelerometer_rotation", "0")
+        assertTrue(
+            "App stayed in front",
+            device.wait(Until.hasObject(By.pkg(PACKAGE).depth(0)), 10_000)
+        )
         awaitDisplayRotation(0)
-        shell("cmd window user-rotation lock 1")
-        awaitDisplayRotation(1)
-        shell("input keyevent 4")
-        rule.waitUntil(10_000) {
-            rule.onAllNodes(
-                androidx.compose.ui.test.hasText("White to move")
-            ).fetchSemanticsNodes().isNotEmpty()
-        }
         rule.waitForIdle()
         val root = rule.onNodeWithTag("board").fetchSemanticsNode().boundsInRoot
         val activity = rule.activity.window.decorView
@@ -102,6 +110,14 @@ class PortraitPlayTest {
         assertTrue("Offerer at bottom", y("e8") > y("e1"))
     }
 
+    private fun awaitSetting(key: String, value: String) {
+        val deadline = SystemClock.uptimeMillis() + 10_000
+        while (shell("settings get system $key").trim() != value) {
+            check(SystemClock.uptimeMillis() < deadline) { "$key did not become $value" }
+            SystemClock.sleep(100)
+        }
+    }
+
     private fun awaitDisplayRotation(rotation: Int) {
         val deadline = SystemClock.uptimeMillis() + 10_000
         while (!shell("dumpsys display").contains("mCurrentOrientation=$rotation")) {
@@ -110,6 +126,10 @@ class PortraitPlayTest {
             }
             SystemClock.sleep(100)
         }
+    }
+
+    private companion object {
+        const val PACKAGE = "md.alasdair.cute"
     }
 
     private fun shell(command: String) = ParcelFileDescriptor.AutoCloseInputStream(
