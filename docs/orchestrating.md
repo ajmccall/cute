@@ -1,6 +1,6 @@
 # Orchestrating a feature
 
-How one session, the **orchestrator**, runs steps 3 and 4 of `AGENTS.md` for every ticket of a feature. It is started in the main checkout with `Orchestrate feature <n>`. A person can do the same by hand: start one session per brief below and paste the brief in.
+How one session, the **orchestrator**, runs steps 3 and 4 of `AGENTS.md` for every ticket of a feature, and then its part of step 5. It is started in the main checkout with `Orchestrate feature <n>`. A person can do the same by hand: start one session per brief below and paste the brief in.
 
 ## The loop
 
@@ -8,9 +8,10 @@ The orchestrator starts one sub-agent per build and a fresh one per review, and 
 
 - **It works the frontier**: every open ticket whose blockers are closed builds at once, so iOS and Android run side by side. Reviews run one at a time, since each merges into the feature branch.
 - **Tickets and pull requests hold the state**, so the same prompt resumes it: an open ticket with no pull request means build, with an open one means review, and a closed ticket is done.
-- **A review that sends a ticket back** gives its findings to the builder that built it, where that builder can still be reached, and otherwise to a new one. The next review is a fresh reviewer again.
+- **A review that sends a ticket back** gives its required findings to the builder that built it, where that builder can still be reached, and otherwise to a new one. The next review is a fresh reviewer again.
 - **A question for the product owner** stops that ticket, is asked at once with options and a recommendation, and its answer goes back to the same builder.
-- **It stops** when every ticket is closed and step 5 is ready.
+- **When every ticket is closed, it runs step 5**: the nits round, with a builder and then a fresh reviewer per platform, each given the brief below with the nits in place of a ticket's criteria. It then marks the feature's pull request ready for review and tells the product owner what to try and what only a person can check.
+- **It stops** there. Accepting and merging into `main` are the product owner's.
 
 ## Briefs
 
@@ -75,15 +76,15 @@ own, as "Working in parallel" in AGENTS.md says. Rerun the whole suite
 yourself and report your own counts, not the builder's.
 
 Finish as step 4 of AGENTS.md says. Post your findings on the pull request,
-with what must change apart from the optional nits. If nothing must change,
+the required findings apart from the nits. If there is no required finding,
 confirm the base is <feature branch>, squash-merge and close the ticket.
 Otherwise merge nothing.
 
 Report back:
 - merged or sent back;
 - your suite's result: counts, device and OS version;
-- the findings that must change;
-- the optional nits;
+- the required findings;
+- the nits;
 - anything you couldn't check.
 ```
 
