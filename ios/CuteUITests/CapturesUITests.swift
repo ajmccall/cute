@@ -135,7 +135,11 @@ final class CapturesUITests: XCTestCase {
         XCTAssertEqual(board.square("e4").label, "e4, Empty")
         XCTAssertEqual(board.captures("Black"), "Captured by Black: 1 pawn")
         XCTAssertEqual(board.advantage.label, "Black ahead by 1 in material")
+        // +1 follows Black's one captured pawn in the same row, not at the far edge (product owner, on #39).
+        XCTAssertTrue(board.isDirectlyAfterCaptures(board.advantage, "Black"),
+                      "\(board.advantage.frame) after \(board.capturesElement("Black").frame)")
         try board.auditAccessibility()
+        board.attachScreenshot(named: "local-game-C16-C17-one-capture", to: self)
     }
 
     // MARK: C5, C16
@@ -182,6 +186,17 @@ extension BoardRobot {
 
     func capturesAreBelowTheBoard(_ side: String) -> Bool {
         capturesElement(side).frame.minY >= boardFrame.maxY
+    }
+
+    /// Whether an element follows a colour's captures in the same row, close after them rather than at the far edge:
+    /// for captures that fit on one line, such as a single piece.
+    func isDirectlyAfterCaptures(_ element: XCUIElement, _ side: String) -> Bool {
+        let captures = capturesElement(side).frame
+        let frame = element.frame
+        let window = app.windows.firstMatch.frame
+        return frame.midY > captures.minY && frame.midY < captures.maxY
+            && frame.minX > captures.minX
+            && frame.maxX < window.minX + window.width * 0.75
     }
 
     /// Whether an element sits on the same side of the board as a colour's captures.

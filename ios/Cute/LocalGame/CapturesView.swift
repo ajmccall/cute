@@ -1,23 +1,29 @@
 import SwiftUI
 
 /// One colour's captures, at that colour's edge of the board: the opponent's pieces it has taken, grouped by kind
-/// with a count, and beside them the material lead when this colour is ahead. Pieces are shown as icons and read
-/// by VoiceOver as text; the lead is never in points.
+/// with a count from 2 up, and directly after them the material lead when this colour is ahead (product owner, on
+/// #39). Pieces are shown as icons and read by VoiceOver as text; the lead is never in points.
 struct CapturesView: View {
     let side: PieceColor
     let captures: Captures
     let lead: MaterialLead?
 
-    @ScaledMetric(relativeTo: .subheadline) private var tileSize = 22
+    @ScaledMetric(relativeTo: .subheadline) private var tileSize = 26
 
+    /// "Captured by {side}:", a tile for each kind, and any lead, wrapping onto more lines as text grows. VoiceOver
+    /// reads the whole collection on the heading, and the lead on its own.
     var body: some View {
-        HStack(spacing: 12) {
-            collection
-                .frame(maxWidth: .infinity, alignment: .leading)
+        let groups = captures.groups(by: side)
+        FlowLayout(spacing: 8) {
+            Text(groups.isEmpty ? BoardText.captures(captures, by: side) : BoardText.capturesHeading(side))
                 .accessibilityElement(children: .ignore)
                 .accessibilityAddTraits(.isStaticText)
                 .accessibilityLabel(BoardText.captures(captures, by: side))
                 .accessibilityIdentifier("captures-\(side.rawValue)")
+            ForEach(groups, id: \.kind) { group in
+                CaptureTile(piece: Piece(color: side.opponent, kind: group.kind), count: group.count, size: tileSize)
+                    .accessibilityHidden(true)
+            }
             if let lead, lead.side == side {
                 Text(BoardText.advantage(lead, spoken: false))
                     .font(.headline)
@@ -26,25 +32,32 @@ struct CapturesView: View {
                     .accessibilityIdentifier("advantage")
             }
         }
+        .font(.subheadline)
+        .frame(maxWidth: .infinity, alignment: .leading)
         .padding(.horizontal)
     }
+}
 
-    /// "Captured by {side}:" and a tile for each kind with its count, wrapping onto more lines as text grows.
-    private var collection: some View {
-        let groups = captures.groups(by: side)
-        return FlowLayout(spacing: 8) {
-            Text(groups.isEmpty ? BoardText.captures(captures, by: side) : BoardText.capturesHeading(side))
-            ForEach(groups, id: \.kind) { group in
-                HStack(spacing: 2) {
-                    PieceGlyph(piece: Piece(color: side.opponent, kind: group.kind), size: tileSize * 0.9)
-                        .frame(width: tileSize, height: tileSize)
-                        .background(Color("LightSquare"), in: .rect(cornerRadius: 4))
-                    Text(BoardText.shownCount(group.count))
-                        .monospacedDigit()
-                }
+/// One kind of captured piece on a board-coloured tile, with ×N beside it from 2 up; a single piece is its icon
+/// alone. A white piece sits on a dark-square tile and a black piece on a light one, so each stands out from its
+/// tile in light and dark appearance.
+private struct CaptureTile: View {
+    let piece: Piece
+    let count: Int
+    let size: CGFloat
+
+    var body: some View {
+        HStack(spacing: 2) {
+            // A chess glyph fills about three quarters of its font size, so draw it larger than the tile's side
+            // for the piece to fill the tile.
+            PieceGlyph(piece: piece, size: size * 1.15)
+                .frame(width: size, height: size)
+                .background(Color(piece.color == .white ? "DarkSquare" : "LightSquare"), in: .rect(cornerRadius: 4))
+            if count > 1 {
+                Text(BoardText.shownCount(count))
+                    .monospacedDigit()
             }
         }
-        .font(.subheadline)
     }
 }
 
