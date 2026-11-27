@@ -1,0 +1,241 @@
+#!/usr/bin/python3
+"""Commit checks, each finishing in seconds.
+
+1. Whitespace: git's own `diff --cached --check`.
+2. Schema: each staged feature file in `docs/schema/` has the nine sections
+   in order, a well-formed States section, and well-formed, unique criterion
+   IDs; and each `<feature>#C<n>` citation in it names a criterion that exists.
+
+Everything is read from the index, never from the working tree.
+
+`pre-commit --range <base>` runs the same checks on a finished change
+instead: the paths that `<base>...HEAD` changes, read from `HEAD`.
+"""
+
+import os
+import re
+import subprocess
+import sys
+
+SCHEMA_DIR = "docs/schema"
+SCHEMA_HEADINGS = [
+    "Data",
+    "States",
+    "Screens and surfaces",
+    "Component roles",
+    "Interface text",
+    "Deliberate platform differences",
+    "Non-goals",
+    "Links to other features",
+    "Acceptance criteria",
+]
+
+STATE_MACHINE_HEADER = re.compile(r"^\*\*[^*]+\.\*\* States:")
+STATE_TABLE_HEADER = re.compile(
+    r"^\|\s*From\s*\|\s*Event\s*\|\s*Guard\s*\|\s*To\s*\|\s*Effect\s*\|"
+)
+NO_LIFECYCLE = re.compile(r"^No lifecycle:")
+CRITERION = re.compile(r"^- \*\*C(\d+)\.\*\* \S")
+CITATION = re.compile(r"\b([a-z0-9]+(?:-[a-z0-9]+)*)#C(\d+)\b")
+HEADING2 = re.compile(r"^## (.*)$")
+
+problems = []
+
+# None: check the index. A commit: check `<base>...HEAD`, read from HEAD.
+range_base = None
+
+
+def problem(check, where, message):
+    problems.append("pre-commit: %s: %s: %s" % (check, where, message))
+
+
+def git(*args):
+    return subprocess.run(["git", *args], capture_output=True, text=True)
+
+
+def diff_against():
+    return ["--cached"] if range_base is None else [range_base + "...HEAD"]
+
+
+def staged_paths():
+    out = git("diff", *diff_against(), "--name-only", "--diff-filter=ACMR", "-z")
+    return [p for p in out.stdout.split("\0") if p]
+
+
+def index_text(path):
+    """The staged content of `path` (in range mode, its content at HEAD), or
+    None when it isn't there or isn't text."""
+    rev = "" if range_base is None else "HEAD"
+    out = subprocess.run(["git", "show", rev + ":" + path], capture_output=True)
+    if out.returncode != 0:
+        return None
+    try:
+        return out.stdout.decode("utf-8")
+    except UnicodeDecodeError:
+        return None
+
+
+def strip_fences(lines):
+    """Lines with fenced code blocks blanked, so headings inside them don't
+    count. Keeps line numbers."""
+    result = []
+    fenced = False
+    for line in lines:
+        if line.strip().startswith("```"):
+            fenced = not fenced
+            result.append("")
+            continue
+        result.append("" if fenced else line)
+    return result
+
+
+def check_whitespace():
+    out = git("diff", *diff_against(), "--check")
+    if out.returncode != 0:
+        for line in out.stdout.splitlines():
+            if line.strip():
+                problem("whitespace", line.split(":", 1)[0] if ":" in line else "-", line)
+
+
+def sections_of(lines):
+    """The `##` headings in order, and each one's body lines."""
+    order = []
+    bodies = {}
+    current = None
+    for n, line in enumerate(lines, 1):
+        m = HEADING2.match(line)
+        if m:
+            current = m.group(1).strip()
+            order.append(current)
+            bodies[current] = []
+            continue
+        if current is not None:
+            bodies[current].append((n, line))
+    return order, bodies
+
+
+def criterion_ids(lines):
+    """IDs under Acceptance criteria, as (number, line number); and the
+    bullets there that aren't well-formed."""
+    _, bodies = sections_of(lines)
+    ids, bad = [], []
+    for n, line in bodies.get("Acceptance criteria", []):
+        if not line.startswith("- "):
+            continue
+        m = CRITERION.match(line)
+        if m:
+            ids.append((int(m.group(1)), n))
+        else:
+            bad.append(n)
+    return ids, bad
+
+
+def check_feature_file(path, text, cache):
+    lines = strip_fences(text.splitlines())
+    names, bodies = sections_of(lines)
+    if names != SCHEMA_HEADINGS:
+        if sorted(names) == sorted(SCHEMA_HEADINGS):
+            problem("schema", path, "the ## sections are out of order; expected: %s" % ", ".join(SCHEMA_HEADINGS))
+        else:
+            missing = [h for h in SCHEMA_HEADINGS if h not in names]
+            extra = [h for h in names if h not in SCHEMA_HEADINGS]
+            parts = []
+            if missing:
+                parts.append("missing: " + ", ".join(missing))
+            if extra:
+                parts.append("unexpected: " + ", ".join(extra))
+            problem("schema", path, "## sections %s (local-game.md has the nine)" % "; ".join(parts))
+
+    if "States" in bodies:
+        states = [(n, l) for n, l in bodies["States"] if l.strip()]
+        has_no_lifecycle = any(NO_LIFECYCLE.match(l.strip()) for _, l in states)
+        headers = [n for n, l in states if STATE_MACHINE_HEADER.match(l.strip())]
+        tables = [n for n, l in states if STATE_TABLE_HEADER.match(l.strip())]
+        if not has_no_lifecycle and not headers:
+            where = "%s:%d" % (path, states[0][0]) if states else path
+            problem(
+                "schema", where,
+                'States must hold a "No lifecycle: <reason>" line or a state machine '
+                '("**<Name>.** States: ..." then a From/Event/Guard/To/Effect table)',
+            )
+        elif headers and len(tables) < len(headers):
+            problem(
+                "schema", "%s:%d" % (path, headers[0]),
+                "each state machine needs a | From | Event | Guard | To | Effect | table",
+            )
+
+    ids, bad = criterion_ids(lines)
+    for n in bad:
+        problem("schema", "%s:%d" % (path, n), 'each criterion starts "- **C<n>.** "')
+    seen = {}
+    for number, n in ids:
+        if number in seen:
+            problem("schema", "%s:%d" % (path, n), "criterion ID C%d is also on line %d" % (number, seen[number]))
+        else:
+            seen[number] = n
+
+    own = os.path.splitext(os.path.basename(path))[0]
+    for n, line in enumerate(lines, 1):
+        for feature, number in CITATION.findall(line):
+            if feature == own:
+                target_ids = set(seen)
+            else:
+                target = "%s/%s.md" % (SCHEMA_DIR, feature)
+                if target not in cache:
+                    target_text = index_text(target)
+                    cache[target] = None if target_text is None else {
+                        num for num, _ in criterion_ids(strip_fences(target_text.splitlines()))[0]
+                    }
+                target_ids = cache[target]
+                if target_ids is None:
+                    problem("schema", "%s:%d" % (path, n), "%s#C%s cites a feature file that isn't there: %s" % (feature, number, target))
+                    continue
+            if int(number) not in target_ids:
+                problem("schema", "%s:%d" % (path, n), "%s#C%s cites a criterion that doesn't exist" % (feature, number))
+
+
+def check_schema(staged):
+    cache = {}
+    for path in staged:
+        if not path.startswith(SCHEMA_DIR + "/") or not path.endswith(".md"):
+            continue
+        if os.path.basename(path) == "README.md":
+            continue
+        text = index_text(path)
+        if text is not None:
+            check_feature_file(path, text, cache)
+
+
+def main(args):
+    global range_base
+    if args[:1] == ["--range"] and len(args) == 2:
+        range_base = args[1]
+    elif args:
+        sys.stderr.write("usage: pre-commit [--range <base>]\n")
+        return 2
+    top = git("rev-parse", "--show-toplevel")
+    if top.returncode != 0:
+        sys.stderr.write("pre-commit: not inside a git repository\n")
+        return 1
+    if range_base is not None and git("rev-parse", "--verify", "-q", range_base + "^{commit}").returncode != 0:
+        sys.stderr.write("pre-commit: --range: %s isn't a commit\n" % range_base)
+        return 2
+    os.chdir(top.stdout.strip())
+
+    check_whitespace()
+    check_schema(staged_paths())
+
+    if problems:
+        for line in problems:
+            sys.stderr.write(line + "\n")
+        sys.stderr.write(
+            "pre-commit: %d problem%s. Fix them and commit again. Only the product "
+            "owner allows `git commit --no-verify`.\n"
+            % (len(problems), "" if len(problems) == 1 else "s")
+        )
+        return 1
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main(sys.argv[1:]))

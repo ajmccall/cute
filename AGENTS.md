@@ -44,6 +44,7 @@ Both platforms of a feature build at once, and several features may be in flight
 
 - `docs/conventions/ios.md`, `docs/conventions/android.md`: read your platform's before building or reviewing it. Rule numbers below cite them.
 - `docs/testing.md`: the interaction checks every build runs on a device.
+- `scripts/hooks/`: the commit checks on whitespace and each schema file's shape. A new clone turns them on with `scripts/hooks/install`.
 - `GLOSSARY.md`: use its terms in the schema, the code and the tests. Game and match are different things.
 
 ## Agent skills
