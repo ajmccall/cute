@@ -1,6 +1,6 @@
 # Local game
 
-Two people play a match of untimed chess games to 15 points by handing a phone back and forth, with a doubling cube to raise each game's point stake.
+Two people play a match of untimed chess games to 15 points by handing a phone back and forth, with a doubling cube to raise each game's point stake. The app stays in portrait when the phone is rotated; this is separate from the board turning to face a player.
 
 ## Data
 
@@ -115,7 +115,7 @@ Automatic endings: checkmate wins for the mover; stalemate draws. Draw for insuf
 
 ## Non-goals
 
-No clock, computer opponent, undo, saved-game list, remote play, separate plain-chess mode, single game outside a match, or currency. No choice of target, tiebreaker, Crawford rule or other limit on doubling by the match score, swapping colours between games, game number or list of earlier games. No way to end a game except by its own endings; New match replaces the whole match. No tournament claim controls or automatic repetition/move-count adjudication; players may agree a draw. No move list, captures carried across games, evaluation beyond counting material, or option to hide captures or material.
+Tablet support is outside the playtest scope; this does not block Android installations on tablets. No clock, computer opponent, undo, saved-game list, remote play, separate plain-chess mode, single game outside a match, or currency. No choice of target, tiebreaker, Crawford rule or other limit on doubling by the match score, swapping colours between games, game number or list of earlier games. No way to end a game except by its own endings; New match replaces the whole match. No tournament claim controls or automatic repetition/move-count adjudication; players may agree a draw. No move list, captures carried across games, evaluation beyond counting material, or option to hide captures or material.
 
 ## Links to other features
 
@@ -140,3 +140,4 @@ None
 - **C15.** When reopening a game saved before matches, the app shall show it as the first game of a match: an ongoing game at 0 to 0, a finished game with a stake with its award as the totals, and a finished game from before the cube at 0 to 0. Once that game has finished, the board shall offer Next game, or the match result if a total has reached 15.
 - **C16.** In every state, including during a double response, a finished game and match over, the board shall show the pieces each player has captured in this game at that player's edge of the board, moving with them when the board turns. When a capturing move is committed, including en passant or a capture of a promoted piece, the piece that stood on the captured square shall join the mover's captures, saved with the move, and reopening shall show the same captures. A fresh game, by Next game or New match, shall start with no captures, and a game saved before captures shall open with none.
 - **C17.** In every state, the board shall show +N beside the player with more material on the board, N being the difference between the players' totals of pawn 1, knight 3, bishop 3, rook 5 and queen 9, kings excluded, and no number when material is equal. A promotion shall change the balance when it is committed, whether or not it captures. VoiceOver and TalkBack shall announce each player's captures by colour, kind and count, and the advantage by colour and amount, without point units and apart from the stake and match score.
+- **C18.** On a phone, the app shall stay in portrait when the phone is rotated, and the players shall still be able to play. The board shall still turn to face the appropriate player as play proceeds.
