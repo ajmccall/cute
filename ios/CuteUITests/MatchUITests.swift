@@ -19,7 +19,7 @@ final class MatchUITests: XCTestCase {
     // MARK: C10
 
     @MainActor
-    func testTheScoreLineShowsBothTotalsAndTheTargetInPlayDuringAResponseAndAfterTheEnd() throws {
+    func testTheMatchScoreLineShowsBothTotalsAndTheTargetInPlayDuringAResponseAndAfterTheEnd() throws {
         let board = BoardRobot()
         board.launch()
         XCTAssertEqual(board.text("matchScore"), "White 0 points · Black 0 points · first to 15 points")
@@ -191,6 +191,7 @@ final class MatchUITests: XCTestCase {
         board.launch(seedFile: Self.savedGame(stake: 4, nextDoubler: "black", white: 9, black: 10.5))
         board.offerDouble.tap()
         XCTAssertEqual(board.text("declineEffect"), "Decline: Black wins 4 points.")
+        try board.auditAccessibility()
     }
 
     // MARK: C13
@@ -254,7 +255,7 @@ final class MatchUITests: XCTestCase {
         XCTAssertEqual(board.text("matchScore"), "White 1 point · Black 0 points · first to 15 points")
         XCTAssertTrue(board.app.buttons["Next game"].exists)
 
-        // Finished with a stake: its award is the score.
+        // Finished with a stake: its award is the match score.
         board.launch(seedFile: #"{"version": 2, "position": "\#(Self.afterE4)", "result": {"winner": "white", "reason": "resignation"}, "stake": 4, "nextDoubler": "white", "doublePending": false}"#)
         XCTAssertEqual(board.status, "White wins · Resignation")
         XCTAssertEqual(board.text("matchScore"), "White 4 points · Black 0 points · first to 15 points")

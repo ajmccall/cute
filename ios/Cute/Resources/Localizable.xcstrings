@@ -83,6 +83,9 @@
     "%@, answer the double": {
       "extractionState": "manual"
     },
+    "%lld": {
+      "extractionState": "manual"
+    },
     "%lld and a half": {
       "extractionState": "manual"
     },

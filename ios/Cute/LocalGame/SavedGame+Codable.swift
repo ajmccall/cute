@@ -61,7 +61,7 @@ nonisolated extension SavedGame: Codable {
             }
         }
 
-        score = .zero
+        matchScore = .zero
         captures = .empty
         guard version != Self.beforeTheCubeVersion else {
             // No game was declined before the cube.
@@ -95,19 +95,19 @@ nonisolated extension SavedGame: Codable {
 
         guard version >= Self.beforeCapturesVersion else {
             // A game saved before matches is the first game of one.
-            if let award { score = score.adding(award) }
+            if let award { matchScore = matchScore.adding(award) }
             return
         }
-        let score = MatchScore(white: try Self.decodeTotal(.whiteTotal, in: container),
-                               black: try Self.decodeTotal(.blackTotal, in: container))
+        let totals = MatchScore(white: try Self.decodeTotal(.whiteTotal, in: container),
+                                black: try Self.decodeTotal(.blackTotal, in: container))
         // Only a finished game can take a total to the target, and only by its own award: before it, both
         // totals were below the target.
-        let before = award.map { score.subtracting($0) } ?? score
+        let before = award.map { totals.subtracting($0) } ?? totals
         guard before.white >= 0, before.black >= 0, !before.reachesTarget else {
             throw DecodingError.dataCorruptedError(
-                forKey: .whiteTotal, in: container, debugDescription: "Totals \(score) no match can reach")
+                forKey: .whiteTotal, in: container, debugDescription: "Totals \(totals) no match can reach")
         }
-        self.score = score
+        matchScore = totals
 
         guard version == Self.formatVersion else {
             // A game saved before captures has nothing captured.
@@ -130,13 +130,12 @@ nonisolated extension SavedGame: Codable {
         _ key: CodingKeys, in container: KeyedDecodingContainer<CodingKeys>
     ) throws -> Points {
         let total = try container.decode(Double.self, forKey: key)
-        let halves = total * 2
-        // Above any total a match can reach, so that no number is too large to count.
-        let ceiling = Double((MatchScore.target.whole + maximumStake) * 2)
-        guard halves >= 0, halves <= ceiling, halves.rounded() == halves else {
+        // No higher than any total a match can reach.
+        let ceiling = MatchScore.target + Points(maximumStake)
+        guard let points = Points(exactly: total), points >= 0, points <= ceiling else {
             throw DecodingError.dataCorruptedError(forKey: key, in: container, debugDescription: "Total \(total)")
         }
-        return Points(halves: Int(halves))
+        return points
     }
 
     func encode(to encoder: any Encoder) throws {
@@ -157,8 +156,8 @@ nonisolated extension SavedGame: Codable {
         try container.encode(stake, forKey: .stake)
         try container.encode(nextDoubler, forKey: .nextDoubler)
         try container.encode(doublePending, forKey: .doublePending)
-        try container.encode(Double(score.white.halves) / 2, forKey: .whiteTotal)
-        try container.encode(Double(score.black.halves) / 2, forKey: .blackTotal)
+        try container.encode(Double(matchScore.white.halves) / 2, forKey: .whiteTotal)
+        try container.encode(Double(matchScore.black.halves) / 2, forKey: .blackTotal)
         var capturesContainer = container.nestedContainer(keyedBy: CapturesKeys.self, forKey: .captures)
         try capturesContainer.encode(captures.white, forKey: .white)
         try capturesContainer.encode(captures.black, forKey: .black)

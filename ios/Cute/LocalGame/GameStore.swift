@@ -15,7 +15,7 @@ nonisolated struct SavedGame: Equatable, Sendable {
     /// An offer the side to move made, waiting for the other side to take or decline.
     var doublePending = false
     /// White's and Black's totals in this match, including this game's award once it has finished.
-    var score: MatchScore = .zero
+    var matchScore: MatchScore = .zero
     /// The opponent's pieces each colour has captured in this game, saved with the move that captured each.
     var captures: Captures = .empty
 
@@ -37,7 +37,7 @@ nonisolated struct SavedGame: Equatable, Sendable {
         var ended = self
         ended.result = result
         ended.doublePending = false
-        if let award = ended.award { ended.score = score.adding(award) }
+        if let award = ended.award { ended.matchScore = matchScore.adding(award) }
         return ended
     }
 

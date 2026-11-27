@@ -43,7 +43,7 @@ enum BoardText {
     static func announcement(of game: LocalGame) -> String {
         var lines = [status(of: game)]
         if let award = game.award { lines.append(self.award(award, spoken: true)) }
-        if game.isMatchOver { lines.append(matchResult(game.score, spoken: true)) }
+        if game.isMatchOver { lines.append(matchResult(game.matchScore, spoken: true)) }
         return lines.joined(separator: "\n")
     }
 
@@ -71,28 +71,28 @@ enum BoardText {
     /// Spoken, a half is in words: "16 and a half", or "a half" alone.
     static func bareTotal(_ total: Points, spoken: Bool) -> String {
         let whole = total.whole
-        guard total.hasHalf else { return whole.formatted() }
+        guard total.hasHalf else { return String(localized: "\(whole)") }
         if whole == 0 { return spoken ? String(localized: "a half") : String(localized: "½") }
         return spoken ? String(localized: "\(whole) and a half") : String(localized: "\(whole)½")
     }
 
     /// "White {White total} · Black {Black total} · first to 15", each with its unit.
-    static func matchScore(_ score: MatchScore, spoken: Bool) -> String {
-        let white = total(score.white, spoken: spoken)
-        let black = total(score.black, spoken: spoken)
+    static func matchScore(_ matchScore: MatchScore, spoken: Bool) -> String {
+        let white = total(matchScore.white, spoken: spoken)
+        let black = total(matchScore.black, spoken: spoken)
         let target = points(MatchScore.target.whole)
         return String(localized: "White \(white) · Black \(black) · first to \(target)")
     }
 
     /// "{winner} wins the match, {winner's total} to {loser's total}", or "Match drawn, {total} to {total}".
-    static func matchResult(_ score: MatchScore, spoken: Bool) -> String {
-        guard let winner = score.leader else {
-            let total = bareTotal(score.white, spoken: spoken)
+    static func matchResult(_ matchScore: MatchScore, spoken: Bool) -> String {
+        guard let winner = matchScore.leader else {
+            let total = bareTotal(matchScore.white, spoken: spoken)
             return String(localized: "Match drawn, \(total) to \(total)")
         }
         let side = side(winner)
-        let winnersTotal = bareTotal(score[winner], spoken: spoken)
-        let losersTotal = bareTotal(score[winner.opponent], spoken: spoken)
+        let winnersTotal = bareTotal(matchScore[winner], spoken: spoken)
+        let losersTotal = bareTotal(matchScore[winner.opponent], spoken: spoken)
         return String(localized: "\(side) wins the match, \(winnersTotal) to \(losersTotal)")
     }
 

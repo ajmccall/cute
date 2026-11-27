@@ -75,7 +75,9 @@ struct BoardRobot {
             // A game action dimmed because it can't be used now, such as Offer double for a side not entitled
             // to it, keeps the stock disabled look; WCAG 1.4.3 sets no contrast for inactive controls.
             // A half is shown as ½ and spoken in words, "half a point" or "and a half" (local-game Interface text);
-            // the audit measures the longer spoken label against the shown text and reports it clipped.
+            // the audit measures the longer spoken label against the shown text and reports it clipped. Only a
+            // label that is, from start to end, one of the spoken forms with a half in it is ignored
+            // (`spokenHalves`): any other text on these lines reported clipped still fails the test.
             // The material lead is shown as +N and spoken in words, "{side} ahead by {N} in material", and is
             // reported clipped in the same way.
             // A game action cut off by the bottom of the screen, which the player scrolls to (as when "Change not
@@ -86,8 +88,7 @@ struct BoardRobot {
             let isGameAction = issue.element?.elementType == .button
                 && Self.gameActions.contains(issue.element?.label ?? "")
             let isSpokenHalfPoint = issue.auditType == .textClipped
-                && Self.textsWithHalves.contains(issue.element?.identifier ?? "")
-                && issue.element?.label.contains("half") == true
+                && Self.isSpokenHalf(issue.element?.label ?? "", in: issue.element?.identifier ?? "")
             let isSpokenLead = issue.auditType == .textClipped
                 && issue.element?.identifier == "advantage"
                 && issue.element?.label.hasSuffix(" in material") == true
@@ -106,6 +107,17 @@ struct BoardRobot {
     static let gameActions: Set<String> = [
         "New match", "Next game", "Resign", "Agree draw", "Offer double", "Take", "Decline",
     ]
-    /// Texts that can show half a point.
-    static let textsWithHalves: Set<String> = ["award", "matchScore", "matchResult"]
+    /// Whether the label is, from start to end, a spoken form of the text with this identifier that says a half.
+    static func isSpokenHalf(_ label: String, in identifier: String) -> Bool {
+        guard label.contains("half"), let pattern = spokenHalves[identifier] else { return false }
+        return label.range(of: "^(?:\(pattern))$", options: .regularExpression) != nil
+    }
+
+    /// The spoken forms of each text that can say a half, as regular expressions (local-game Interface text).
+    static let spokenHalves: [String: String] = [
+        "award": #"Each player earns half a point\."#,
+        "matchResult": #"(?:White|Black) wins the match, \#(bareTotal) to \#(bareTotal)|Match drawn, \#(bareTotal) to \#(bareTotal)"#,
+    ]
+    /// A spoken total without its unit: "16", "16 and a half", "a half".
+    static let bareTotal = #"(?:\d+|\d+ and a half|a half)"#
 }
