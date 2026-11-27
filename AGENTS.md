@@ -35,15 +35,14 @@ Both platforms of a feature build at once, and several features may be in flight
 - **It removes its worktree and simulator, and stops its emulator instance, when its step is done.** A worktree someone else left is reused if `git status` is clean, and otherwise raised with the product owner.
 - **It stops only what it started.** Gradle daemons, the `adb` server and the Simulator service are shared by every session on the machine: leave them running, and leave Gradle daemons to expire. `./gradlew --stop` stops every session's daemons and ends their builds.
 
-**Orchestrating.** `Orchestrate feature <n>` runs steps 3 and 4 from the main checkout, one sub-agent per build and a fresh one per review. It works the **frontier**: every open ticket whose blockers are closed builds at once, so iOS and Android run side by side; reviews run one at a time, since each merges into the feature branch. The orchestrator edits nothing itself. Tickets and pull requests hold the state, so the same prompt resumes it: an open ticket with no pull request means build, with an open one means review, and a closed ticket is done. A question for the product owner stops that ticket, is asked at once with options and a recommendation, and its answer goes back to the same sub-agent. It stops when every ticket is closed and step 5 is ready.
-
-**A sub-agent can't start `implement`**, which only a person can. The orchestrator finds the installed skill's file, `implement/SKILL.md` in the folder beside `tdd`'s, and gives each builder its path to read and follow, with the ticket as its argument. A person building one ticket by hand starts `implement` on it directly.
+**Orchestrating.** `Orchestrate feature <n>` runs steps 3 and 4 for every ticket from the main checkout, a sub-agent per build and a fresh one per review. `docs/orchestrating.md` has the loop and the brief each one gets.
 
 **Two features on one schema file.** Before adding a criterion, check open pull requests for other features changing the same file, and take criterion IDs none of them uses. The feature that merges second takes in `main` and resolves the schema before its builds are accepted.
 
 ## Where to look
 
 - `docs/conventions/ios.md`, `docs/conventions/android.md`: read your platform's before building or reviewing it. Rule numbers below cite them.
+- `docs/orchestrating.md`: read it before running a feature's tickets from one session.
 - `docs/testing.md`: the interaction checks every build runs on a device.
 - `scripts/hooks/`: the commit checks on whitespace and each schema file's shape. A new clone turns them on with `scripts/hooks/install`.
 - `GLOSSARY.md`: use its terms in the schema, the code and the tests. Game and match are different things.
