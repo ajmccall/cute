@@ -1,25 +1,54 @@
 package md.alasdair.cute.localgame
 
 import android.os.ParcelFileDescriptor
+import android.os.SystemClock
+import androidx.compose.ui.test.junit4.accessibility.enableAccessibilityChecks
 import androidx.compose.ui.test.junit4.v2.createAndroidComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
+import com.google.android.apps.common.testing.accessibility.framework.AccessibilityCheckResultUtils.matchesCheck
+import com.google.android.apps.common.testing.accessibility.framework.checks.TouchTargetSizeCheck
+import com.google.android.apps.common.testing.accessibility.framework.integrations.espresso.AccessibilityValidator
+import java.io.File
 import md.alasdair.cute.MainActivity
+import md.alasdair.cute.localgame.data.FileGameRepository
 import org.junit.After
 import org.junit.Assert.assertTrue
+import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
+import org.junit.rules.ExternalResource
+import org.junit.rules.RuleChain
 import org.junit.runner.RunWith
 
 @RunWith(AndroidJUnit4::class)
 class PortraitPlayTest {
-    @get:Rule val rule = createAndroidComposeRule<MainActivity>()
+    private val rule = createAndroidComposeRule<MainActivity>()
+    private val game = IsolatedGame()
+
+    @get:Rule val chain: RuleChain = RuleChain.outerRule(game).around(rule)
+
+    private var previousRotation = "0"
+    private var previousAutoRotate = "1"
+
+    @Before fun setup() {
+        previousRotation = shell("settings get system user_rotation").trim()
+        previousAutoRotate = shell("settings get system accelerometer_rotation").trim()
+        rule.enableAccessibilityChecks(
+            AccessibilityValidator().setRunChecksFromRootView(true)
+                .setSuppressingResultMatcher(matchesCheck(TouchTargetSizeCheck::class.java))
+        )
+    }
 
     @After fun restoreRotation() {
-        shell("cmd window user-rotation free")
+        if (previousAutoRotate == "0" && previousRotation in listOf("0", "1", "2", "3")) {
+            shell("cmd window user-rotation lock $previousRotation")
+        } else {
+            shell("cmd window user-rotation free")
+        }
     }
 
     @Test fun rotatedPhoneStaysPortraitAndBoardStillFacesEachPlayer() {
@@ -28,9 +57,19 @@ class PortraitPlayTest {
                 androidx.compose.ui.test.hasText("White to move")
             ).fetchSemanticsNodes().isNotEmpty()
         }
+        // Settings permits rotation: verify the display really reached landscape before
+        // returning to the app with the same rotation request still in force.
+        shell("am start -a android.settings.SETTINGS")
+        shell("cmd window user-rotation lock 0")
+        awaitDisplayRotation(0)
         shell("cmd window user-rotation lock 1")
-        // Give the system time to apply the requested device rotation.
-        android.os.SystemClock.sleep(2_000)
+        awaitDisplayRotation(1)
+        shell("input keyevent 4")
+        rule.waitUntil(10_000) {
+            rule.onAllNodes(
+                androidx.compose.ui.test.hasText("White to move")
+            ).fetchSemanticsNodes().isNotEmpty()
+        }
         rule.waitForIdle()
         val root = rule.onNodeWithTag("board").fetchSemanticsNode().boundsInRoot
         val activity = rule.activity.window.decorView
@@ -63,7 +102,45 @@ class PortraitPlayTest {
         assertTrue("Offerer at bottom", y("e8") > y("e1"))
     }
 
+    private fun awaitDisplayRotation(rotation: Int) {
+        val deadline = SystemClock.uptimeMillis() + 10_000
+        while (!shell("dumpsys display").contains("mCurrentOrientation=$rotation")) {
+            check(SystemClock.uptimeMillis() < deadline) {
+                "Display did not reach rotation $rotation"
+            }
+            SystemClock.sleep(100)
+        }
+    }
+
     private fun shell(command: String) = ParcelFileDescriptor.AutoCloseInputStream(
         InstrumentationRegistry.getInstrumentation().uiAutomation.executeShellCommand(command)
     ).bufferedReader().use { it.readText() }
+}
+
+/** Refuse to touch any existing game; seed and remove only this scenario's own file. */
+private class IsolatedGame : ExternalResource() {
+    private val file = File(
+        InstrumentationRegistry.getInstrumentation().targetContext.filesDir,
+        FileGameRepository.FILE_NAME
+    )
+    private var created = false
+
+    override fun before() {
+        check(file.createNewFile()) { "Refusing to replace an existing current game" }
+        created = true
+        try {
+            file.writeText(
+                "cute-game 4\nrnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1\n" +
+                    "playing\n1\nEither\nanswered\n0\n0\nnone\nnone\n"
+            )
+        } catch (failure: Throwable) {
+            file.delete()
+            created = false
+            throw failure
+        }
+    }
+
+    override fun after() {
+        if (created) check(file.delete()) { "Could not remove the test game" }
+    }
 }
