@@ -78,9 +78,10 @@ struct BoardRobot {
             // the audit measures the longer spoken label against the shown text and reports it clipped.
             // The material lead is shown as +N and spoken in words, "{side} ahead by {N} in material", and is
             // reported clipped in the same way.
-            // A game action below the bottom of the screen, which the player scrolls to (as when "Change not saved."
-            // and both colours' captures push the actions down), is measured against what the screen's edge cuts
-            // off and reported as nearly passing contrast; on screen it is a stock bordered button.
+            // A game action cut off by the bottom of the screen, which the player scrolls to (as when "Change not
+            // saved." and both colours' captures push the actions down), is measured against what the edge cuts off
+            // and reported as nearly passing contrast; scrolled into view, the audit reports nothing on it. Only that
+            // near miss is ignored: a contrast failure on a cut-off action still fails the test.
             // Every other issue fails the test.
             let isGameAction = issue.element?.elementType == .button
                 && Self.gameActions.contains(issue.element?.label ?? "")
@@ -93,7 +94,8 @@ struct BoardRobot {
             let ignored = isSpokenHalfPoint || isSpokenLead || isGameAction && (
                 (issue.auditType == .dynamicType && issue.compactDescription.contains("partially"))
                 || (issue.auditType == .contrast && issue.element?.isEnabled == false)
-                || (issue.auditType == .contrast && (issue.element?.frame.maxY ?? 0) > window.maxY))
+                || (issue.auditType == .contrast && issue.compactDescription.contains("nearly passed")
+                    && (issue.element?.frame.maxY ?? 0) > window.maxY))
             if !ignored {
                 print("Accessibility audit issue: \(issue.compactDescription) on \(issue.element?.debugDescription ?? "no element")")
             }

@@ -28,7 +28,7 @@ final class CapturesUITests: XCTestCase {
         XCTAssertTrue(board.isAtBottom("Black"))
         XCTAssertTrue(board.capturesAreAboveTheBoard("White"))
         XCTAssertTrue(board.capturesAreBelowTheBoard("Black"))
-        XCTAssertTrue(board.isBeside(board.advantage, "White"))
+        XCTAssertTrue(board.followsCaptures(board.advantage, "White"))
         try board.auditAccessibility()
         board.attachScreenshot(named: "local-game-C16-C17", to: self)
 
@@ -38,7 +38,7 @@ final class CapturesUITests: XCTestCase {
         XCTAssertTrue(board.isAtBottom("White"))
         XCTAssertTrue(board.capturesAreBelowTheBoard("White"))
         XCTAssertTrue(board.capturesAreAboveTheBoard("Black"))
-        XCTAssertTrue(board.isBeside(board.advantage, "White"))
+        XCTAssertTrue(board.followsCaptures(board.advantage, "White"))
         XCTAssertEqual(board.captures("White"), "Captured by White: 1 pawn")
         XCTAssertEqual(board.advantage.label, "White ahead by 1 in material")
         try board.auditAccessibility()
@@ -66,7 +66,7 @@ final class CapturesUITests: XCTestCase {
         XCTAssertEqual(board.captures("White"), "Captured by White: 1 pawn")
         XCTAssertEqual(board.captures("Black"), "Captured by Black: 2 pawns")
         XCTAssertEqual(board.advantage.label, "Black ahead by 1 in material")
-        XCTAssertTrue(board.isBeside(board.advantage, "Black"))
+        XCTAssertTrue(board.followsCaptures(board.advantage, "Black"))
         try board.auditAccessibility()
         board.attachScreenshot(named: "local-game-C16-C17-finished", to: self)
 
@@ -94,7 +94,7 @@ final class CapturesUITests: XCTestCase {
         XCTAssertEqual(board.captures("White"), "Captured by White: 2 pawns, 2 knights, 1 bishop, 1 rook, 1 queen")
         XCTAssertEqual(board.captures("Black"), "Captured by Black: none")
         XCTAssertEqual(board.advantage.label, "White ahead by 25 in material")
-        XCTAssertTrue(board.isBeside(board.advantage, "White"))
+        XCTAssertTrue(board.followsCaptures(board.advantage, "White"))
         // Apart from the stake and the match score, and never in points.
         XCTAssertEqual(board.text("matchScore"), "White 15 points · Black 9 points · first to 15 points")
         try board.auditAccessibility()
@@ -110,15 +110,21 @@ final class CapturesUITests: XCTestCase {
         let board = BoardRobot()
         board.launch(seed: "3r3k/4P3/8/8/8/8/8/K7 w - -")
         XCTAssertEqual(board.advantage.label, "Black ahead by 4 in material")
-        XCTAssertTrue(board.isBeside(board.advantage, "Black"))
+        XCTAssertTrue(board.followsCaptures(board.advantage, "Black"))
 
+        // While the promotion is being chosen, the board behind the choice keeps the position before the move.
         board.tap("e7", "e8")
-        board.app.alerts.firstMatch.buttons["Queen"].tap()
+        let choice = board.app.alerts.firstMatch
+        XCTAssertTrue(choice.waitForExistence(timeout: 5))
+        XCTAssertEqual(board.captures("White"), "Captured by White: none")
+        XCTAssertEqual(board.captures("Black"), "Captured by Black: none")
+        XCTAssertEqual(board.advantage.label, "Black ahead by 4 in material")
+        choice.buttons["Queen"].tap()
         XCTAssertEqual(board.status, "Black to move · Check")
         XCTAssertEqual(board.captures("White"), "Captured by White: none")
         XCTAssertEqual(board.captures("Black"), "Captured by Black: none")
         XCTAssertEqual(board.advantage.label, "White ahead by 4 in material")
-        XCTAssertTrue(board.isBeside(board.advantage, "White"))
+        XCTAssertTrue(board.followsCaptures(board.advantage, "White"))
 
         board.tap("d8", "e8")
         XCTAssertEqual(board.captures("Black"), "Captured by Black: 1 queen")
@@ -136,7 +142,8 @@ final class CapturesUITests: XCTestCase {
         XCTAssertEqual(board.captures("Black"), "Captured by Black: 1 pawn")
         XCTAssertEqual(board.advantage.label, "Black ahead by 1 in material")
         // +1 follows Black's one captured pawn in the same row, not at the far edge (product owner, on #39).
-        XCTAssertTrue(board.isDirectlyAfterCaptures(board.advantage, "Black"),
+        XCTAssertTrue(board.followsCaptures(board.advantage, "Black"))
+        XCTAssertTrue(board.isCloseAfterTheHeading(board.advantage, "Black"),
                       "\(board.advantage.frame) after \(board.capturesElement("Black").frame)")
         try board.auditAccessibility()
         board.attachScreenshot(named: "local-game-C16-C17-one-capture", to: self)
@@ -188,21 +195,26 @@ extension BoardRobot {
         capturesElement(side).frame.minY >= boardFrame.maxY
     }
 
-    /// Whether an element follows a colour's captures in the same row, close after them rather than at the far edge:
-    /// for captures that fit on one line, such as a single piece.
-    func isDirectlyAfterCaptures(_ element: XCUIElement, _ side: String) -> Bool {
+    /// Whether an element follows a colour's captures: inside their row, which may wrap onto more lines, and never at
+    /// the start of a line, where it would be on a line of its own rather than after the last captured piece.
+    func followsCaptures(_ element: XCUIElement, _ side: String) -> Bool {
+        let row = app.descendants(matching: .any)["captures-row-\(side.lowercased())"].frame
+        let frame = element.frame
+        // Frames are reported in fractions of a point that don't always add up exactly.
+        let isInRow = row.insetBy(dx: -1, dy: -1).contains(frame)
+        let startsALine = frame.minX < row.minX + 8
+        if !isInRow || startsALine { print("\(element.identifier) \(frame) in captures row \(row)") }
+        return isInRow && !startsALine
+    }
+
+    /// Whether an element sits on the heading's line, close after it rather than at the far edge: for captures that
+    /// fit on one line, such as a single piece.
+    func isCloseAfterTheHeading(_ element: XCUIElement, _ side: String) -> Bool {
         let captures = capturesElement(side).frame
         let frame = element.frame
         let window = app.windows.firstMatch.frame
         return frame.midY > captures.minY && frame.midY < captures.maxY
-            && frame.minX > captures.minX
+            && frame.minX > captures.maxX
             && frame.maxX < window.minX + window.width * 0.75
-    }
-
-    /// Whether an element sits in the row of a colour's captures, which may wrap onto more lines.
-    func isBeside(_ element: XCUIElement, _ side: String) -> Bool {
-        let row = app.descendants(matching: .any)["captures-row-\(side.lowercased())"].frame
-        // Frames are reported in fractions of a point that don't always add up exactly.
-        return row.insetBy(dx: -1, dy: -1).contains(element.frame)
     }
 }

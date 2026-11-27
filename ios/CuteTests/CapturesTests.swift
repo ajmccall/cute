@@ -38,7 +38,7 @@ import Testing
     }
 
     /// Black to move after 1. e4 d5 2. exd5, and White has resigned: White captured a pawn and leads by 1.
-    static let afterExd5 = "rnbqkbnr/ppp1pppp/8/3P4/8/8/PPPP1PPP/RNBQKBNR b KQkq -"
+    nonisolated static let afterExd5 = "rnbqkbnr/ppp1pppp/8/3P4/8/8/PPPP1PPP/RNBQKBNR b KQkq -"
 
     @Test(arguments: ["nextGame", "newMatch"])
     func aFreshGameStartsWithNothingCapturedSavedWithTheFreshGame(action: String) throws {
@@ -79,6 +79,24 @@ import Testing
         game.tap("d8"); game.tap("d5")
         #expect(game.captures == Captures(white: [], black: [.pawn]))
         #expect(try storage.store.load()?.captures == Captures(white: [], black: [.pawn]))
+    }
+
+    /// Games saved before the cube (version 1) and before matches (version 2) were also saved before captures.
+    @Test(arguments: [
+        #"{"version": 1, "position": "\#(afterExd5)", "result": null}"#,
+        #"{"version": 2, "position": "\#(afterExd5)", "result": null, "stake": 2, "nextDoubler": "white", "doublePending": false}"#,
+    ])
+    func gamesSavedBeforeTheCubeOrMatchesAlsoOpenWithNothingCaptured(contents: String) throws {
+        let storage = try TemporaryStorage()
+        try Data(contents.utf8).write(to: storage.fileURL)
+
+        let game = LocalGame(store: storage.store)
+        game.open()
+
+        #expect(game.hasNoFailure)
+        #expect(game.captures == .empty)
+        #expect(game.position.fen == Self.afterExd5)
+        #expect(game.materialLead == MaterialLead(side: .white, amount: 1))
     }
 
     // MARK: C5, C16

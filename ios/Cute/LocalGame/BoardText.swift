@@ -178,7 +178,8 @@ enum BoardText {
         let side = side(color)
         let groups = captures.groups(by: color)
         guard !groups.isEmpty else { return String(localized: "Captured by \(side): none") }
-        let pieces = groups.map { pieceCount($0.kind, $0.count) }.joined(separator: ", ")
+        // A list of units, such as "2 pawns, 1 knight", joined as the locale joins one.
+        let pieces = groups.map { pieceCount($0.kind, $0.count) }.formatted(.list(type: .and, width: .narrow))
         return String(localized: "Captured by \(side): \(pieces)")
     }
 

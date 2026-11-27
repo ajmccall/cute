@@ -6,6 +6,8 @@ struct BoardScreen: View {
     let game: LocalGame
 
     @State private var confirmation: Confirmation?
+    /// The gap between the board and each colour's captures, growing with text size as the captures do.
+    @ScaledMetric(relativeTo: .subheadline) private var capturesSpacing = 8
 
     private enum Confirmation: Identifiable {
         case resign, agreeDraw, replace
@@ -78,7 +80,7 @@ struct BoardScreen: View {
                 StakeView(stake: stake, doubleRight: BoardText.doubleRight(of: game))
             }
             // Each colour's captures at its own edge of the board, so they turn with it.
-            VStack(spacing: 8) {
+            VStack(spacing: capturesSpacing) {
                 CapturesView(side: game.sideAtBottom.opponent, captures: game.captures, lead: game.materialLead)
                 BoardView(game: game)
                 CapturesView(side: game.sideAtBottom, captures: game.captures, lead: game.materialLead)

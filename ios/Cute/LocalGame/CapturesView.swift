@@ -9,27 +9,28 @@ struct CapturesView: View {
     let lead: MaterialLead?
 
     @ScaledMetric(relativeTo: .subheadline) private var tileSize = 26
+    @ScaledMetric(relativeTo: .subheadline) private var spacing = 8
 
-    /// "Captured by {side}:", a tile for each kind, and any lead, wrapping onto more lines as text grows. VoiceOver
-    /// reads the whole collection on the heading, and the lead on its own.
+    /// "Captured by {side}:", a tile for each kind, and any lead, wrapping onto more lines as text grows. The lead is
+    /// laid out as one with the last tile, or with "none", so they wrap together and the lead never starts a line.
+    /// VoiceOver reads the whole collection on the heading, and the lead on its own.
     var body: some View {
         let groups = captures.groups(by: side)
-        FlowLayout(spacing: 8) {
-            Text(groups.isEmpty ? BoardText.captures(captures, by: side) : BoardText.capturesHeading(side))
-                .accessibilityElement(children: .ignore)
-                .accessibilityAddTraits(.isStaticText)
-                .accessibilityLabel(BoardText.captures(captures, by: side))
-                .accessibilityIdentifier("captures-\(side.rawValue)")
-            ForEach(groups, id: \.kind) { group in
-                CaptureTile(piece: Piece(color: side.opponent, kind: group.kind), count: group.count, size: tileSize)
-                    .accessibilityHidden(true)
-            }
-            if let lead, lead.side == side {
-                Text(BoardText.advantage(lead, spoken: false))
-                    .font(.headline)
-                    .monospacedDigit()
-                    .accessibilityLabel(BoardText.advantage(lead, spoken: true))
-                    .accessibilityIdentifier("advantage")
+        FlowLayout(spacing: spacing) {
+            if let last = groups.last {
+                heading(groups)
+                ForEach(Array(groups.dropLast()), id: \.kind) { group in
+                    tile(group)
+                }
+                HStack(spacing: spacing) {
+                    tile(last)
+                    leadText
+                }
+            } else {
+                HStack(spacing: spacing) {
+                    heading(groups)
+                    leadText
+                }
             }
         }
         .font(.subheadline)
@@ -37,6 +38,31 @@ struct CapturesView: View {
         .accessibilityIdentifier("captures-row-\(side.rawValue)")
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(.horizontal)
+    }
+
+    private func heading(_ groups: [(kind: PieceKind, count: Int)]) -> some View {
+        Text(groups.isEmpty ? BoardText.captures(captures, by: side) : BoardText.capturesHeading(side))
+            .accessibilityElement(children: .ignore)
+            .accessibilityAddTraits(.isStaticText)
+            .accessibilityLabel(BoardText.captures(captures, by: side))
+            .accessibilityIdentifier("captures-\(side.rawValue)")
+    }
+
+    private func tile(_ group: (kind: PieceKind, count: Int)) -> some View {
+        CaptureTile(piece: Piece(color: side.opponent, kind: group.kind), count: group.count, size: tileSize)
+            .accessibilityHidden(true)
+    }
+
+    /// "+N" when this colour is ahead in material, spoken by colour and amount.
+    @ViewBuilder
+    private var leadText: some View {
+        if let lead, lead.side == side {
+            Text(BoardText.advantage(lead, spoken: false))
+                .font(.headline)
+                .monospacedDigit()
+                .accessibilityLabel(BoardText.advantage(lead, spoken: true))
+                .accessibilityIdentifier("advantage")
+        }
     }
 }
 
