@@ -83,6 +83,39 @@
     <string name="match_win">%1$s wins the match, %2$s to %3$s</string>
     <string name="match_draw">Match drawn, %1$s to %2$s</string>
 
+    <!-- Each side's captures, as a screen reader speaks them: counts and kinds, such as
+         "2 pawns, 1 knight", in the order pawn, knight, bishop, rook, queen. -->
+    <string name="captures">Captured by %1$s: %2$s</string>
+    <string name="no_captures">Captured by %1$s: none</string>
+    <!-- Shown before the captured pieces' icons. -->
+    <string name="captures_label">Captured by %1$s:</string>
+    <string name="captures_separator">", "</string>
+    <!-- How many of one kind of captured piece, shown after its icon when more than one. -->
+    <string name="captures_count">×%1$d</string>
+    <plurals name="captured_pawns">
+        <item quantity="one">%1$d pawn</item>
+        <item quantity="other">%1$d pawns</item>
+    </plurals>
+    <plurals name="captured_knights">
+        <item quantity="one">%1$d knight</item>
+        <item quantity="other">%1$d knights</item>
+    </plurals>
+    <plurals name="captured_bishops">
+        <item quantity="one">%1$d bishop</item>
+        <item quantity="other">%1$d bishops</item>
+    </plurals>
+    <plurals name="captured_rooks">
+        <item quantity="one">%1$d rook</item>
+        <item quantity="other">%1$d rooks</item>
+    </plurals>
+    <plurals name="captured_queens">
+        <item quantity="one">%1$d queen</item>
+        <item quantity="other">%1$d queens</item>
+    </plurals>
+    <!-- The material advantage, beside the leading side's captures: never in point units. -->
+    <string name="advantage">+%1$d</string>
+    <string name="advantage_spoken">%1$s ahead by %2$d in material</string>
+
     <string name="read_failure">Couldn’t open the saved game.</string>
     <string name="write_failure">Change not saved.</string>
     <string name="retry">Retry</string>

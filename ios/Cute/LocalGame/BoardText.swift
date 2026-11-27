@@ -171,4 +171,46 @@ enum BoardText {
         let side = side(color)
         return String(localized: "Resign as \(side)?")
     }
+
+    /// "Captured by {side}: {pieces}", such as "Captured by White: 2 pawns, 1 knight", or
+    /// "Captured by {side}: none".
+    static func captures(_ captures: Captures, by color: PieceColor) -> String {
+        let side = side(color)
+        let groups = captures.groups(by: color)
+        guard !groups.isEmpty else { return String(localized: "Captured by \(side): none") }
+        // A list of units, such as "2 pawns, 1 knight", joined as the locale joins one.
+        let pieces = groups.map { pieceCount($0.kind, $0.count) }.formatted(.list(type: .and, width: .narrow))
+        return String(localized: "Captured by \(side): \(pieces)")
+    }
+
+    /// "Captured by {side}:", shown before the captured pieces' icons, which stand in for their names.
+    static func capturesHeading(_ color: PieceColor) -> String {
+        let side = side(color)
+        return String(localized: "Captured by \(side):")
+    }
+
+    /// The count shown beside a captured piece's icon: "×2".
+    static func shownCount(_ count: Int) -> String {
+        String(localized: "×\(count)")
+    }
+
+    /// A number of captured pieces of one kind: "1 pawn", "2 knights".
+    static func pieceCount(_ kind: PieceKind, _ count: Int) -> String {
+        switch kind {
+        case .pawn: String(localized: "\(count) pawns")
+        case .knight: String(localized: "\(count) knights")
+        case .bishop: String(localized: "\(count) bishops")
+        case .rook: String(localized: "\(count) rooks")
+        case .queen: String(localized: "\(count) queens")
+        case .king: String(localized: "\(count) kings")
+        }
+    }
+
+    /// The material lead: shown as "+{N}", spoken as "{side} ahead by {N} in material". Never in points.
+    static func advantage(_ lead: MaterialLead, spoken: Bool) -> String {
+        let amount = lead.amount
+        guard spoken else { return String(localized: "+\(amount)") }
+        let side = side(lead.side)
+        return String(localized: "\(side) ahead by \(amount) in material")
+    }
 }
