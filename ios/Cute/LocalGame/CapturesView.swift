@@ -33,6 +33,8 @@ struct CapturesView: View {
             }
         }
         .font(.subheadline)
+        .accessibilityElement(children: .contain)
+        .accessibilityIdentifier("captures-row-\(side.rawValue)")
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(.horizontal)
     }

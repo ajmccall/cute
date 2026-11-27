@@ -199,11 +199,10 @@ extension BoardRobot {
             && frame.maxX < window.minX + window.width * 0.75
     }
 
-    /// Whether an element sits on the same side of the board as a colour's captures.
+    /// Whether an element sits in the row of a colour's captures, which may wrap onto more lines.
     func isBeside(_ element: XCUIElement, _ side: String) -> Bool {
-        let captures = capturesElement(side).frame
-        let frame = element.frame
-        return (frame.midY < boardFrame.minY) == (captures.midY < boardFrame.minY)
-            && frame.minY < captures.maxY && frame.maxY > captures.minY
+        let row = app.descendants(matching: .any)["captures-row-\(side.lowercased())"].frame
+        // Frames are reported in fractions of a point that don't always add up exactly.
+        return row.insetBy(dx: -1, dy: -1).contains(element.frame)
     }
 }
