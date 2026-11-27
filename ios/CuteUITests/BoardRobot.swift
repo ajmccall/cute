@@ -24,31 +24,70 @@ struct BoardRobot {
 
     var offerDouble: XCUIElement { app.buttons["Offer double"] }
 
-    /// The label of the text with this identifier, such as "stake" or "award", once it appears.
-    func text(_ identifier: String) -> String {
-        let element = app.staticTexts[identifier]
-        XCTAssertTrue(element.waitForExistence(timeout: 5), identifier)
-        return element.label
-    }
-
     func tap(_ coordinates: String...) {
         for coordinate in coordinates {
             square(coordinate).tap()
         }
     }
 
-    var status: String {
-        let element = app.staticTexts["status"]
-        XCTAssertTrue(element.waitForExistence(timeout: 5))
-        return element.label
+    // MARK: Expectations
+    //
+    // Each waits, up to `settleTimeout`, for what the player sees or hears to become the expected text, and returns
+    // as soon as it has. An element that already exists keeps its old label until the app has redrawn, and on a
+    // stalled machine a read straight after a tap can come before that; so nothing here reads once and compares.
+
+    /// How long an expectation waits for the app to catch up before it fails.
+    static let settleTimeout: TimeInterval = 10
+
+    func expectStatus(_ expected: String, file: StaticString = #filePath, line: UInt = #line) {
+        expectLabel(of: app.staticTexts["status"], expected, "status", file: file, line: line)
     }
 
-    func value(of coordinate: String) -> String {
-        (square(coordinate).value as? String) ?? ""
+    /// The label of the text with this identifier, such as "stake" or "award".
+    func expectText(_ identifier: String, _ expected: String, file: StaticString = #filePath, line: UInt = #line) {
+        expectLabel(of: app.staticTexts[identifier], expected, identifier, file: file, line: line)
     }
 
-    /// Squares currently marked as legal destinations, in coordinate order.
-    var legalDestinations: [String] {
+    /// The label of a square, "{coordinate}, {occupant}".
+    func expectSquare(_ coordinate: String, _ expected: String, file: StaticString = #filePath, line: UInt = #line) {
+        expectLabel(of: square(coordinate), expected, "square-\(coordinate)", file: file, line: line)
+    }
+
+    /// The value of a square: "Selected", "Legal destination" or nothing.
+    func expectValue(of coordinate: String, _ expected: String, file: StaticString = #filePath, line: UInt = #line) {
+        let square = square(coordinate)
+        expectEventually(expected, "value of square-\(coordinate)", file: file, line: line) {
+            square.exists ? (square.value as? String) ?? "" : Self.missing
+        }
+    }
+
+    /// The squares marked as legal destinations, in coordinate order.
+    func expectLegalDestinations(_ expected: [String], file: StaticString = #filePath, line: UInt = #line) {
+        expectEventually(expected, "legal destinations", file: file, line: line) { legalDestinations }
+    }
+
+    func expectLabel(of element: XCUIElement, _ expected: String, _ name: String,
+                     file: StaticString = #filePath, line: UInt = #line) {
+        expectEventually(expected, name, file: file, line: line) { element.exists ? element.label : Self.missing }
+    }
+
+    /// Reads until the value is the expected one or the timeout passes, then fails with both values if it isn't.
+    private func expectEventually<Value: Equatable>(_ expected: Value, _ name: String, file: StaticString, line: UInt,
+                                                    read: () -> Value) {
+        let deadline = Date(timeIntervalSinceNow: Self.settleTimeout)
+        var actual = read()
+        while actual != expected, Date() < deadline {
+            Thread.sleep(forTimeInterval: 0.1)
+            actual = read()
+        }
+        XCTAssertEqual(actual, expected, name, file: file, line: line)
+    }
+
+    /// Stands in for the label or value of an element that isn't on screen, which can't be read.
+    private static let missing = "(no such element)"
+
+    /// Squares marked as legal destinations at this moment, in coordinate order.
+    private var legalDestinations: [String] {
         app.buttons.matching(NSPredicate(format: "value == %@", "Legal destination")).allElementsBoundByIndex
             .map { $0.identifier.replacingOccurrences(of: "square-", with: "") }
             .sorted()
