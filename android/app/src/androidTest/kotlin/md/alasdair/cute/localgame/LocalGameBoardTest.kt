@@ -318,6 +318,40 @@ class LocalGameBoardTest {
         board.assertSquare("e4", "e4, White pawn")
     }
 
+    @Test
+    fun interaction_pinnedPieceAndCastlingThroughCheck() {
+        board.seed("4r1k1/8/8/8/8/8/4R3/4K3 w - - 0 1")
+        board.launch()
+        board.awaitText("White to move")
+        board.tap("e2")
+        board.assertSquare("d2", "d2, Empty")
+        board.assertSquare("e3", "e3, Empty", "Legal destination")
+
+        board.seed("4kr2/8/8/8/8/8/8/4K2R w K - 0 1")
+        board.relaunch()
+        board.awaitText("White to move")
+        board.tap("e1")
+        board.assertSquare("g1", "g1, Empty")
+        board.assertSquare("d1", "d1, Empty", "Legal destination")
+    }
+
+    @Test
+    fun interaction_enPassantRestoresAndExpires() {
+        board.seed("4k3/8/8/8/3Pp3/8/8/4K3 b - d3 0 1")
+        board.launch()
+        board.awaitText("Black to move")
+        board.relaunch()
+        board.awaitText("Black to move")
+        board.tap("e4")
+        board.assertSquare("d3", "d3, Empty", "Legal destination")
+        board.tap("e8", "f8")
+        board.awaitText("White to move")
+        board.tap("e1", "f1")
+        board.awaitText("Black to move")
+        board.tap("e4")
+        board.assertSquare("d3", "d3, Empty")
+    }
+
     private fun status() = rule.onNodeWithTag("status")
 
     private fun assertBottomLeft(bottomLeft: String, topRight: String) {
