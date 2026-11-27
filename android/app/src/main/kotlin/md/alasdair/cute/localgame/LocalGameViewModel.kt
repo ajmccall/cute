@@ -15,9 +15,7 @@ import md.alasdair.cute.chess.GameResult
 import md.alasdair.cute.chess.Move
 import md.alasdair.cute.chess.PieceType
 import md.alasdair.cute.chess.Square
-import md.alasdair.cute.chess.automaticResult
 import md.alasdair.cute.chess.legalMovesFrom
-import md.alasdair.cute.chess.play
 import md.alasdair.cute.localgame.data.GameRecord
 import md.alasdair.cute.localgame.data.GameRepository
 
@@ -184,8 +182,7 @@ class LocalGameViewModel @Inject constructor(private val repository: GameReposit
     }
 
     private fun commit(game: GameRecord, move: Move) {
-        val next = game.copy(position = game.position.play(move))
-        save(next.position.automaticResult()?.let(next::ended) ?: next)
+        save(game.played(move))
     }
 
     /**

@@ -8,11 +8,13 @@ import android.os.SystemClock
 import androidx.activity.ComponentActivity
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.v2.createAndroidComposeRule
+import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performScrollTo
 import androidx.test.platform.app.InstrumentationRegistry
 import org.junit.After
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
@@ -74,6 +76,9 @@ class LargeTextTest(private val orientation: Int) {
         board.seed("4k3/1P5p/8/8/8/8/8/4K3 w - - 0 1")
         board.launch()
         board.awaitText("White to move")
+        // In landscape the board is taller than the screen: scroll its top ranks into view.
+        board.square("b8").performScrollTo()
+        board.square("b7").performScrollTo()
         board.tap("b7", "b8")
 
         for (choice in listOf("Queen", "Rook", "Bishop", "Knight")) {
@@ -151,6 +156,23 @@ class LargeTextTest(private val orientation: Int) {
         rule.onNodeWithText("New match").performScrollTo().assertIsDisplayed()
         board.tapText("New match")
         board.awaitText("White 0 points · Black 0 points · first to 15 points")
+    }
+
+    @Test
+    fun c16_c17_theCapturesAndAdvantageCanBeReadWithoutCoveringTheBoard() {
+        board.gameFile.writeText(
+            "cute-game 4\n4k3/8/8/8/8/8/4P3/4K3 w - - 0 1\nplaying\n1\nEither\nanswered\n" +
+                "0\n0\nppnbrqpp\nnone\n"
+        )
+        board.launch()
+        board.awaitText("White to move")
+
+        for (tag in listOf("captures-Black", "captures-White", "advantage-White")) {
+            val node = rule.onNodeWithTag(tag).performScrollTo().assertIsDisplayed()
+            val bounds = node.fetchSemanticsNode().boundsInRoot
+            val boardBounds = rule.onNodeWithTag("board").fetchSemanticsNode().boundsInRoot
+            assertTrue("$tag clear of the board", !bounds.overlaps(boardBounds))
+        }
     }
 
     companion object {

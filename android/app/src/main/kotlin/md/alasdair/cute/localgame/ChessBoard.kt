@@ -30,6 +30,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.TextUnit
+import androidx.compose.ui.unit.sp
 import md.alasdair.cute.R
 import md.alasdair.cute.chess.Piece
 import md.alasdair.cute.chess.PieceType
@@ -125,28 +126,38 @@ private fun BoardSquare(
 }
 
 /**
- * A piece drawn from the Unicode chess symbols. White pieces are the filled shape in the white
- * fill under the outlined shape in ink; black pieces are the filled shape in ink. The glyph is
- * sized to its square, not to the font scale, because it is a picture of the piece: the square's
- * description carries its meaning.
+ * A piece on the board, sized to its square, not to the font scale, because it is a picture of
+ * the piece: the square's description carries its meaning.
  */
 @Composable
 private fun PieceGlyph(piece: Piece, squareSize: Dp) {
-    val colors = LocalBoardColors.current
     // Dp.toSp divides out the font scale, so the glyph keeps its size in the square.
-    val fontSize = with(LocalDensity.current) { (squareSize * 0.78f).toSp() }
+    PieceGlyph(piece, with(LocalDensity.current) { (squareSize * 0.78f).toSp() })
+}
+
+/**
+ * A piece drawn from the Unicode chess symbols at [fontSize]. White pieces are the filled shape
+ * in the white fill under the outlined shape in ink; black pieces are the filled shape in ink,
+ * so draw them on the board's light squares' colour. The glyph is hidden from accessibility
+ * services: what contains it describes the piece.
+ */
+@Composable
+fun PieceGlyph(piece: Piece, fontSize: TextUnit, modifier: Modifier = Modifier) {
+    val colors = LocalBoardColors.current
     val style =
         TextStyle(
             fontSize = fontSize,
             lineHeight = TextUnit.Unspecified,
             textAlign = TextAlign.Center
         )
-    val hidden = Modifier.clearAndSetSemantics {}
-    if (piece.side == Side.White) {
-        Text(piece.filled, style = style, color = colors.pieceFillWhite, modifier = hidden)
-        Text(piece.outline, style = style, color = colors.pieceInk, modifier = hidden)
-    } else {
-        Text(piece.filled, style = style, color = colors.pieceFillBlack, modifier = hidden)
+    // The two shapes of a white piece are drawn one over the other.
+    Box(modifier.clearAndSetSemantics {}, contentAlignment = Alignment.Center) {
+        if (piece.side == Side.White) {
+            Text(piece.filled, style = style, color = colors.pieceFillWhite)
+            Text(piece.outline, style = style, color = colors.pieceInk)
+        } else {
+            Text(piece.filled, style = style, color = colors.pieceFillBlack)
+        }
     }
 }
 
@@ -206,5 +217,16 @@ private fun ChessBoardPreview() {
             enabled = true,
             onSquareTapped = {}
         )
+    }
+}
+
+@Preview
+@Composable
+private fun PieceGlyphPreview() {
+    CuteTheme {
+        Row(Modifier.background(LocalBoardColors.current.lightSquare)) {
+            PieceGlyph(Piece(Side.White, PieceType.Queen), 24.sp)
+            PieceGlyph(Piece(Side.Black, PieceType.Knight), 24.sp)
+        }
     }
 }

@@ -1,8 +1,14 @@
 package md.alasdair.cute.localgame.data
 
 import md.alasdair.cute.chess.GameResult
+import md.alasdair.cute.chess.Move
+import md.alasdair.cute.chess.PieceType
 import md.alasdair.cute.chess.Position
 import md.alasdair.cute.chess.Side
+import md.alasdair.cute.chess.automaticResult
+import md.alasdair.cute.chess.captured
+import md.alasdair.cute.chess.material
+import md.alasdair.cute.chess.play
 
 /**
  * White's and Black's points in the match, counted in half points so that a drawn game's split
@@ -33,12 +39,35 @@ data class MatchScore(val whiteHalves: Int = 0, val blackHalves: Int = 0) {
 }
 
 /**
+ * The opponent's pieces each side has captured in this game, in the order taken: [white] holds
+ * the kinds of Black's pieces that White has taken, and [black] those of White's that Black has.
+ */
+data class Captures(
+    val white: List<PieceType> = emptyList(),
+    val black: List<PieceType> = emptyList()
+) {
+    fun of(side: Side): List<PieceType> = if (side == Side.White) white else black
+
+    /** These captures with [type] added to [side]'s. */
+    fun plus(side: Side, type: PieceType): Captures =
+        if (side == Side.White) copy(white = white + type) else copy(black = black + type)
+
+    companion object {
+        val None = Captures()
+    }
+}
+
+/** The side with more material on the board, and by how much. */
+data class MaterialAdvantage(val side: Side, val amount: Int)
+
+/**
  * The current game as last committed, with the match score: its position, its result once it
  * has ended, and its doubling cube. [stake] is the points the game is played for; it is null
  * only for a game that had already finished in a save from before the cube, which has no point
  * award. [nextDoubler] is the only side that may offer the next double, or null while either
  * may. While [doublePending], the side to move has offered a double and the other side must
- * answer it. [score] includes this game's award once it has ended.
+ * answer it. [captures] are the pieces each side has taken in this game. [score] includes this
+ * game's award once it has ended.
  */
 data class GameRecord(
     val position: Position,
@@ -46,10 +75,37 @@ data class GameRecord(
     val stake: Int? = 1,
     val nextDoubler: Side? = null,
     val doublePending: Boolean = false,
+    val captures: Captures = Captures.None,
     val score: MatchScore = MatchScore.Zero
 ) {
     /** This game's award once it has ended: the stake to the winner, or half to each on a draw. */
     val award: MatchScore get() = award(result, stake)
+
+    /**
+     * The side ahead in material on the board, counted from the pieces on it rather than from
+     * the captures, so that a promotion counts; null while material is equal.
+     */
+    val materialAdvantage: MaterialAdvantage? get() {
+        val difference = position.material(Side.White) - position.material(Side.Black)
+        return when {
+            difference > 0 -> MaterialAdvantage(Side.White, difference)
+            difference < 0 -> MaterialAdvantage(Side.Black, -difference)
+            else -> null
+        }
+    }
+
+    /**
+     * This game after the side to move plays [move], which must be legal: the new position,
+     * any captured piece added to the mover's captures, and any automatic ending with its award.
+     */
+    fun played(move: Move): GameRecord {
+        val taken = position.captured(move)
+        val next = copy(
+            position = position.play(move),
+            captures = taken?.let { captures.plus(position.sideToMove, it.type) } ?: captures
+        )
+        return next.position.automaticResult()?.let(next::ended) ?: next
+    }
 
     /** Whether this game has ended and taken either total to the target, ending the match. */
     val matchOver: Boolean get() = result != null && score.reachedTarget
@@ -61,7 +117,10 @@ data class GameRecord(
     fun ended(result: GameResult): GameRecord =
         copy(result = result, doublePending = false, score = score + award(result, stake))
 
-    /** The match's next game: the opening position at one point, keeping the score. */
+    /**
+     * The match's next game: the opening position at one point, with no captures, keeping the
+     * score.
+     */
     fun nextGame(): GameRecord = New.copy(score = score)
 
     /**
