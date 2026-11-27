@@ -80,18 +80,20 @@ final class CapturesUITests: XCTestCase {
     @MainActor
     func testCapturesAndTheLeadStayOnTheFinalBoardWhenTheMatchIsOver() throws {
         let board = BoardRobot()
-        // Black to move, White a knight and a pawn up, with captures to match, and White one point from the target.
-        let fen = "r1bqkb1r/pppp1ppp/8/8/8/8/PPPPPPPP/RNBQKBNR b KQkq -"
-        board.launch(seedFile: #"{"version": 4, "position": "\#(fen)", "result": null, "stake": 1, "nextDoubler": null, "doublePending": false, "whiteTotal": 14, "blackTotal": 9, "captures": {"white": ["knight", "pawn", "knight"], "black": []}}"#)
-        XCTAssertEqual(board.captures("White"), "Captured by White: 1 pawn, 2 knights")
-        XCTAssertEqual(board.advantage.label, "White ahead by 7 in material")
+        // Black to move, with White's captures of every kind matching what Black has lost, and White one point from
+        // the target. Grouped pawn, knight, bishop, rook, queen, whatever order they were taken in.
+        let fen = "r1b1k3/pppppp2/8/8/8/8/PPPPPPPP/RNBQKBNR b KQ -"
+        board.launch(seedFile: #"{"version": 4, "position": "\#(fen)", "result": null, "stake": 1, "nextDoubler": null, "doublePending": false, "whiteTotal": 14, "blackTotal": 9, "captures": {"white": ["knight", "pawn", "queen", "knight", "rook", "bishop", "pawn"], "black": []}}"#)
+        XCTAssertEqual(board.captures("White"), "Captured by White: 2 pawns, 2 knights, 1 bishop, 1 rook, 1 queen")
+        XCTAssertEqual(board.captures("Black"), "Captured by Black: none")
+        XCTAssertEqual(board.advantage.label, "White ahead by 25 in material")
 
         board.app.buttons["Resign"].tap()
         board.app.alerts.firstMatch.buttons["Confirm"].tap()
         XCTAssertEqual(board.text("matchResult"), "White wins the match, 15 to 9")
-        XCTAssertEqual(board.captures("White"), "Captured by White: 1 pawn, 2 knights")
+        XCTAssertEqual(board.captures("White"), "Captured by White: 2 pawns, 2 knights, 1 bishop, 1 rook, 1 queen")
         XCTAssertEqual(board.captures("Black"), "Captured by Black: none")
-        XCTAssertEqual(board.advantage.label, "White ahead by 7 in material")
+        XCTAssertEqual(board.advantage.label, "White ahead by 25 in material")
         XCTAssertTrue(board.isBeside(board.advantage, "White"))
         // Apart from the stake and the match score, and never in points.
         XCTAssertEqual(board.text("matchScore"), "White 15 points · Black 9 points · first to 15 points")
@@ -133,6 +135,7 @@ final class CapturesUITests: XCTestCase {
         XCTAssertEqual(board.square("e4").label, "e4, Empty")
         XCTAssertEqual(board.captures("Black"), "Captured by Black: 1 pawn")
         XCTAssertEqual(board.advantage.label, "Black ahead by 1 in material")
+        try board.auditAccessibility()
     }
 
     // MARK: C5, C16
@@ -146,6 +149,7 @@ final class CapturesUITests: XCTestCase {
         XCTAssertTrue(board.app.staticTexts["Change not saved."].waitForExistence(timeout: 5))
         XCTAssertEqual(board.captures("White"), "Captured by White: none")
         XCTAssertFalse(board.advantage.exists)
+        try board.auditAccessibility()
         board.app.buttons["retrySave"].tap()
         XCTAssertEqual(board.captures("White"), "Captured by White: none")
 

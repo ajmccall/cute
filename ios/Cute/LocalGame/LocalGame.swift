@@ -237,8 +237,8 @@ final class LocalGame {
 
     private func play(_ move: Move) {
         var change = committed
-        if let taken = position.capture(by: move) {
-            change.captures[position.sideToMove].append(taken.kind)
+        if let captured = position.capturedPiece(by: move) {
+            change.captures[position.sideToMove].append(captured.kind)
         }
         change.position = position.applying(move)
         if let result = change.position.automaticResult {

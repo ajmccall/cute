@@ -23,9 +23,9 @@ nonisolated struct Captures: Equatable, Sendable {
     /// The kinds a colour has captured with how many of each, in the order pawn, knight, bishop, rook, queen,
     /// leaving out kinds it hasn't captured.
     func groups(by color: PieceColor) -> [(kind: PieceKind, count: Int)] {
-        let taken = self[color]
+        let captured = self[color]
         return Self.groupOrder.compactMap { kind in
-            let count = taken.count(where: { $0 == kind })
+            let count = captured.count(where: { $0 == kind })
             return count > 0 ? (kind, count) : nil
         }
     }

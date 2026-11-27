@@ -169,10 +169,14 @@ nonisolated private extension Captures {
     /// Whether a colour could have captured these pieces from an opponent that has these left on the board:
     /// never a king, and no more pieces, or pawns, than the opponent started with.
     func isPossible(by color: PieceColor, leaving position: Position) -> Bool {
-        let taken = self[color]
+        let captured = self[color]
         let remaining = position.pieces.values.filter { $0.color == color.opponent }
-        return !taken.contains(.king)
-            && taken.count + remaining.count <= 16
-            && taken.count(where: { $0 == .pawn }) + remaining.count(where: { $0.kind == .pawn }) <= 8
+        return !captured.contains(.king)
+            && captured.count + remaining.count <= Self.piecesPerSide
+            && captured.count(where: { $0 == .pawn }) + remaining.count(where: { $0.kind == .pawn }) <= Self.pawnsPerSide
     }
+
+    /// The pieces, and the pawns among them, each colour starts a game with.
+    static let piecesPerSide = 16
+    static let pawnsPerSide = 8
 }

@@ -67,6 +67,7 @@ struct BoardRobot {
     }
 
     func auditAccessibility() throws {
+        let window = app.windows.firstMatch.frame
         try app.performAccessibilityAudit { issue in
             // Stock bordered buttons are reported as "partially" supporting Dynamic Type, though their labels
             // grow and wrap up to the largest accessibility size (checked by screenshot at
@@ -77,6 +78,9 @@ struct BoardRobot {
             // the audit measures the longer spoken label against the shown text and reports it clipped.
             // The material lead is shown as +N and spoken in words, "{side} ahead by {N} in material", and is
             // reported clipped in the same way.
+            // A game action below the bottom of the screen, which the player scrolls to (as when "Change not saved."
+            // and both colours' captures push the actions down), is measured against what the screen's edge cuts
+            // off and reported as nearly passing contrast; on screen it is a stock bordered button.
             // Every other issue fails the test.
             let isGameAction = issue.element?.elementType == .button
                 && Self.gameActions.contains(issue.element?.label ?? "")
@@ -88,7 +92,8 @@ struct BoardRobot {
                 && issue.element?.label.hasSuffix(" in material") == true
             let ignored = isSpokenHalfPoint || isSpokenLead || isGameAction && (
                 (issue.auditType == .dynamicType && issue.compactDescription.contains("partially"))
-                || (issue.auditType == .contrast && issue.element?.isEnabled == false))
+                || (issue.auditType == .contrast && issue.element?.isEnabled == false)
+                || (issue.auditType == .contrast && (issue.element?.frame.maxY ?? 0) > window.maxY))
             if !ignored {
                 print("Accessibility audit issue: \(issue.compactDescription) on \(issue.element?.debugDescription ?? "no element")")
             }

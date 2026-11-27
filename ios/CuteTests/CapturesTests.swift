@@ -201,24 +201,8 @@ import Testing
 
     // MARK: Interface text
 
-    /// Each collection named by its colour, grouped by kind with a count in the order pawn, knight, bishop, rook,
-    /// queen, whatever order they were taken in.
-    @Test(arguments: [
-        (PieceColor.white, Captures.empty, "Captured by White: none"),
-        (.black, Captures(white: [.pawn], black: []), "Captured by Black: none"),
-        (.white, Captures(white: [.pawn], black: []), "Captured by White: 1 pawn"),
-        (.black, Captures(white: [], black: [.queen, .pawn, .knight, .pawn, .rook, .bishop, .bishop, .rook]),
-         "Captured by Black: 2 pawns, 1 knight, 2 bishops, 2 rooks, 1 queen"),
-        (.white, Captures(white: [.knight, .knight, .queen, .queen], black: [.pawn]),
-         "Captured by White: 2 knights, 2 queens"),
-    ])
-    func eachCollectionIsTextNamingItsColourAndEachKindWithItsCount(
-        color: PieceColor, captures: Captures, text: String
-    ) {
-        #expect(BoardText.captures(captures, by: color) == text)
-    }
-
-    /// Shown as +N and spoken by colour and amount, never in points.
+    /// Shown as +N and spoken by colour and amount, never in points. XCUITest reads only the spoken text, which
+    /// CapturesUITests checks on the board; the screenshots show +N.
     @Test(arguments: [
         (MaterialLead(side: .white, amount: 1), "+1", "White ahead by 1 in material"),
         (MaterialLead(side: .black, amount: 28), "+28", "Black ahead by 28 in material"),
