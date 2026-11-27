@@ -114,11 +114,11 @@ class StorageFailureTest {
     }
 
     @Test
-    fun `starting a new game in place of an unreadable one asks first`() = runTest {
+    fun `starting a new match in place of an unreadable game asks first`() = runTest {
         device.gameFile.writeText("damaged")
         val game = device.launch()
 
-        game.onNewGameRequested()
+        game.onNewMatchRequested()
         assertEquals(Confirmation.Replace, game.state.confirmation)
         game.onConfirmed()
 
@@ -222,6 +222,60 @@ class StorageFailureTest {
         assertEquals(1, device.launch().state.game?.stake)
     }
 
+    @Test
+    fun `an ending that can't be saved leaves the game in play and the score as it was`() =
+        runTest {
+            device.gameFile.writeText("cute-game 3\n$SAVED\nplaying\n2\nBlack\nanswered\n8\n26\n")
+            val saved = device.gameFile.readBytes()
+            val game = device.launch()
+            device.folder.setWritable(false)
+
+            game.onResignRequested()
+            game.onConfirmed()
+
+            assertEquals(Failure.Write, game.state.failure)
+            assertNull(game.state.game?.result)
+            assertEquals(score(white = 4.0, black = 13.0), game.state.game?.score)
+            assertFalse(game.state.game!!.matchOver)
+            assertArrayEquals(saved, device.gameFile.readBytes())
+
+            device.folder.setWritable(true)
+            game.onRetry()
+            assertNull(game.state.failure)
+            assertEquals(score(white = 4.0, black = 15.0), game.state.game?.score)
+            assertTrue(game.state.game!!.matchOver)
+            assertEquals(score(white = 4.0, black = 15.0), device.launch().state.game?.score)
+        }
+
+    @Test
+    fun `a next game or new match that can't be saved leaves the finished game and its score`() =
+        runTest {
+            device.gameFile.writeText(
+                "cute-game 3\n$SAVED\nWhite Resignation\n1\nEither\nanswered\n6\n4\n"
+            )
+            val saved = device.gameFile.readBytes()
+            val game = device.launch()
+            device.folder.setWritable(false)
+
+            game.onNextGameRequested()
+            assertEquals(Failure.Write, game.state.failure)
+            assertEquals(SAVED, game.state.fen)
+            assertEquals(score(white = 3.0, black = 2.0), game.state.game?.score)
+
+            game.onNewMatchRequested()
+            game.onConfirmed()
+            assertEquals(Failure.Write, game.state.failure)
+            assertEquals(SAVED, game.state.fen)
+            assertEquals(score(white = 3.0, black = 2.0), game.state.game?.score)
+            assertArrayEquals(saved, device.gameFile.readBytes())
+
+            device.folder.setWritable(true)
+            game.onRetry()
+            assertNull(game.state.failure)
+            assertEquals(OPENING, game.state.fen)
+            assertEquals(score(white = 0.0, black = 0.0), device.launch().state.game?.score)
+        }
+
     companion object {
         const val OPENING = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1"
         const val SAVED = "rnbqkbnr/pppp1ppp/8/4p3/4P3/8/PPPP1PPP/RNBQKBNR w KQkq e6 0 2"
@@ -280,7 +334,33 @@ class StorageFailureTest {
             "cute-game 2\n$GOOD_FEN\nplaying\n1\nEither\nmaybe\n",
             "cute-game 2\n$GOOD_FEN\nWhite Resignation\n1\nEither\npending\n",
             "cute-game 2\n$GOOD_FEN\nplaying\n2\nBlack\npending\n",
-            "cute-game 2\n$GOOD_FEN\nplaying\n64\nWhite\npending\n"
+            "cute-game 2\n$GOOD_FEN\nplaying\n64\nWhite\npending\n",
+            "cute-game 3\n$GOOD_FEN\nplaying\n1\nEither\nanswered\n",
+            "cute-game 3\n$GOOD_FEN\nplaying\n1\nEither\nanswered\n0\n",
+            "cute-game 3\n$GOOD_FEN\nplaying\n1\nEither\nanswered\n0\n0",
+            "cute-game 3\n$GOOD_FEN\nplaying\n1\nEither\nanswered\n0\n0\nextra\n",
+            "cute-game 3\n$GOOD_FEN\nplaying\n1\nEither\nanswered\n-1\n0\n",
+            "cute-game 3\n$GOOD_FEN\nplaying\n1\nEither\nanswered\n0\n+1\n",
+            "cute-game 3\n$GOOD_FEN\nplaying\n1\nEither\nanswered\n01\n0\n",
+            "cute-game 3\n$GOOD_FEN\nplaying\n1\nEither\nanswered\n1.5\n0\n",
+            "cute-game 3\n$GOOD_FEN\nplaying\n1\nEither\nanswered\n\n0\n",
+            "cute-game 3\n$GOOD_FEN\nplaying\n1\nEither\nanswered\n99999999999\n0\n",
+            "cute-game 3\n$GOOD_FEN\nplaying\n1\nEither\nanswered\n30\n0\n",
+            "cute-game 3\n$GOOD_FEN\nplaying\n1\nEither\nanswered\n0\n31\n",
+            "cute-game 3\n$GOOD_FEN\nWhite Resignation\n4\nBlack\nanswered\n7\n0\n",
+            "cute-game 3\n$GOOD_FEN\nDraw Agreement\n2\nBlack\nanswered\n2\n1\n",
+            "cute-game 3\n$GOOD_FEN\nWhite Resignation\n2\nBlack\nanswered\n34\n0\n",
+            "cute-game 3\n$GOOD_FEN\nDraw Agreement\n1\nEither\nanswered\n1\n31\n",
+            "cute-game 4\n$GOOD_FEN\nplaying\n1\nEither\nanswered\n0\n0\n",
+            "cute-game 4\n$GOOD_FEN\nplaying\n1\nEither\nanswered\n0\n0\nnone\n",
+            "cute-game 4\n$GOOD_FEN\nplaying\n1\nEither\nanswered\n0\n0\nnone\nnone",
+            "cute-game 4\n$GOOD_FEN\nplaying\n1\nEither\nanswered\n0\n0\nnone\nnone\nextra\n",
+            "cute-game 4\n$GOOD_FEN\nplaying\n1\nEither\nanswered\n0\n0\n\nnone\n",
+            "cute-game 4\n$GOOD_FEN\nplaying\n1\nEither\nanswered\n0\n0\nk\nnone\n",
+            "cute-game 4\n$GOOD_FEN\nplaying\n1\nEither\nanswered\n0\n0\nnone\nP\n",
+            "cute-game 4\n$GOOD_FEN\nplaying\n1\nEither\nanswered\n0\n0\np n\nnone\n",
+            "cute-game 4\n$GOOD_FEN\nplaying\n1\nEither\nanswered\n0\n0\nnone\nppppppppnnbbrrq\n",
+            "cute-game 4\n$GOOD_FEN\nplaying\n1\nEither\nanswered\n30\n0\nnone\nnone\n"
         )
     }
 }

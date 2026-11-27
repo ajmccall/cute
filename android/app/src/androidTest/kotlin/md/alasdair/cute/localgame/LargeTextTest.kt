@@ -8,11 +8,13 @@ import android.os.SystemClock
 import androidx.activity.ComponentActivity
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.v2.createAndroidComposeRule
+import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performScrollTo
 import androidx.test.platform.app.InstrumentationRegistry
 import org.junit.After
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
@@ -74,6 +76,9 @@ class LargeTextTest(private val orientation: Int) {
         board.seed("4k3/1P5p/8/8/8/8/8/4K3 w - - 0 1")
         board.launch()
         board.awaitText("White to move")
+        // In landscape the board is taller than the screen: scroll its top ranks into view.
+        board.square("b8").performScrollTo()
+        board.square("b7").performScrollTo()
         board.tap("b7", "b8")
 
         for (choice in listOf("Queen", "Rook", "Bishop", "Knight")) {
@@ -92,7 +97,7 @@ class LargeTextTest(private val orientation: Int) {
         board.launch()
         board.awaitText("White to move")
 
-        for (action in listOf("Resign", "Agree draw", "New game")) {
+        for (action in listOf("Resign", "Agree draw", "New match")) {
             rule.onNodeWithText(action).performScrollTo()
             board.tapText(action)
             rule.onNodeWithText("Confirm").assertIsDisplayed()
@@ -124,7 +129,55 @@ class LargeTextTest(private val orientation: Int) {
         rule.onNodeWithText("Stake: 2 points").performScrollTo().assertIsDisplayed()
     }
 
+    @Test
+    fun c10_c11_c12_theScoreNextGameAndMatchResultCanBeReachedAndUsed() {
+        board.gameFile.writeText(
+            "cute-game 3\n$OPENING\nplaying\n2\nWhite\nanswered\n9\n26\n"
+        )
+        board.launch()
+        board.awaitText("White to move")
+        rule.onNodeWithText("White 4½ points · Black 13 points · first to 15 points")
+            .performScrollTo().assertIsDisplayed()
+
+        rule.onNodeWithText("Agree draw").performScrollTo()
+        board.tapText("Agree draw")
+        board.tapText("Confirm")
+        board.awaitText("Draw · Agreement")
+        rule.onNodeWithText("Next game").performScrollTo().assertIsDisplayed()
+        board.tapText("Next game")
+        board.awaitText("White to move")
+
+        rule.onNodeWithText("Resign").performScrollTo()
+        board.tapText("Resign")
+        board.tapText("Confirm")
+        board.awaitText("Black wins the match, 15 to 5½")
+        rule.onNodeWithText("Black wins the match, 15 to 5½").performScrollTo()
+            .assertIsDisplayed()
+        rule.onNodeWithText("New match").performScrollTo().assertIsDisplayed()
+        board.tapText("New match")
+        board.awaitText("White 0 points · Black 0 points · first to 15 points")
+    }
+
+    @Test
+    fun c16_c17_theCapturesAndAdvantageCanBeReadWithoutCoveringTheBoard() {
+        board.saveWithCaptures(
+            "4k3/8/8/8/8/8/4P3/4K3 w - - 0 1",
+            white = "ppnbrqpp",
+            black = "none"
+        )
+        board.launch()
+        board.awaitText("White to move")
+
+        for (tag in listOf("captures-Black", "captures-White", "advantage-White")) {
+            val node = rule.onNodeWithTag(tag).performScrollTo().assertIsDisplayed()
+            val bounds = node.fetchSemanticsNode().boundsInRoot
+            val boardBounds = rule.onNodeWithTag("board").fetchSemanticsNode().boundsInRoot
+            assertTrue("$tag clear of the board", !bounds.overlaps(boardBounds))
+        }
+    }
+
     companion object {
+        const val OPENING = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1"
         const val FONT_SCALE = 2.0f
         const val DISPLAY_TIMEOUT_MS = 30_000L
         const val POLL_MS = 250L

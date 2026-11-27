@@ -1,0 +1,24 @@
+#!/bin/sh
+# Turn on the commit checks for this clone and every worktree of it. Run once.
+#
+# Git's hook setting is one per clone, but branches differ in where they keep
+# their hooks. So this installs a small hook in the clone itself that runs
+# whichever hook the checked-out branch carries, and runs nothing where a
+# branch carries none.
+set -eu
+hooks="$(git rev-parse --path-format=absolute --git-common-dir)/hooks"
+mkdir -p "$hooks"
+for name in pre-commit pre-merge-commit; do
+    cat > "$hooks/$name" <<HOOK
+#!/bin/sh
+# Installed by scripts/hooks/install: runs the hook this branch carries.
+top="\$(git rev-parse --show-toplevel)" || exit 0
+for dir in scripts/hooks framework/hooks; do
+    if [ -x "\$top/\$dir/$name" ]; then exec "\$top/\$dir/$name" "\$@"; fi
+done
+exit 0
+HOOK
+    chmod +x "$hooks/$name"
+done
+git config --unset core.hooksPath || true
+echo "Commit checks installed in $hooks"

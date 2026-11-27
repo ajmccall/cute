@@ -46,7 +46,7 @@ import Testing
 
         #expect(!game.canOfferDouble)
         #expect(!game.canResignOrAgreeDraw)
-        #expect(!game.canStartNewGame)
+        #expect(!game.canStartNewMatch)
         game.tap("e7")
         #expect(game.selection == nil)
         game.tap("e2")
@@ -54,7 +54,7 @@ import Testing
         game.offerDouble()
         game.resign()
         game.agreeDraw()
-        game.newGame()
+        game.newMatch()
 
         #expect(game.isAwaitingDoubleResponse)
         #expect(game.result == nil)
@@ -140,7 +140,7 @@ import Testing
         #expect(game.position.fen == Self.afterE4)
         #expect(!game.isAwaitingDoubleResponse)
         #expect(!game.canResignOrAgreeDraw)
-        #expect(!game.newGameNeedsConfirmation)
+        #expect(game.canStartNextGame)
 
         let reopened = LocalGame(store: storage.store)
         reopened.open()
@@ -182,7 +182,7 @@ import Testing
         game.agreeDraw()
         #expect(game.award == .split(1))
 
-        game.newGame()
+        game.nextGame()
         game.offerDouble()
         game.takeDouble()
         game.agreeDraw()
@@ -239,7 +239,7 @@ import Testing
         #expect(game.award == nil)
         #expect(!game.canOfferDouble)
 
-        game.newGame()
+        game.nextGame()
         #expect(game.stake == 1)
         #expect(game.canOfferDouble)
     }

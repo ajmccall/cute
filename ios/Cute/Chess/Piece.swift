@@ -13,7 +13,7 @@ nonisolated enum PieceColor: String, Codable, CaseIterable, Sendable {
     var promotionRank: Int { self == .white ? 7 : 0 }
 }
 
-nonisolated enum PieceKind: CaseIterable, Sendable {
+nonisolated enum PieceKind: String, Codable, CaseIterable, Sendable {
     case king, queen, rook, bishop, knight, pawn
 
     /// The pieces a pawn can become, in the order a choice offers them.

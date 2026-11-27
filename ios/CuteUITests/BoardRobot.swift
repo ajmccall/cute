@@ -67,23 +67,35 @@ struct BoardRobot {
     }
 
     func auditAccessibility() throws {
+        let window = app.windows.firstMatch.frame
         try app.performAccessibilityAudit { issue in
             // Stock bordered buttons are reported as "partially" supporting Dynamic Type, though their labels
             // grow and wrap up to the largest accessibility size (checked by screenshot at
             // accessibility-extra-extra-extra-large).
             // A game action dimmed because it can't be used now, such as Offer double for a side not entitled
             // to it, keeps the stock disabled look; WCAG 1.4.3 sets no contrast for inactive controls.
-            // A draw at one point shows "½ point" and is spoken "half a point" (local-game Interface text); the
-            // audit measures the longer spoken label against the shown text and reports it clipped.
+            // A half is shown as ½ and spoken in words, "half a point" or "and a half" (local-game Interface text);
+            // the audit measures the longer spoken label against the shown text and reports it clipped.
+            // The material lead is shown as +N and spoken in words, "{side} ahead by {N} in material", and is
+            // reported clipped in the same way.
+            // A game action cut off by the bottom of the screen, which the player scrolls to (as when "Change not
+            // saved." and both colours' captures push the actions down), is measured against what the edge cuts off
+            // and reported as nearly passing contrast; scrolled into view, the audit reports nothing on it. Only that
+            // near miss is ignored: a contrast failure on a cut-off action still fails the test.
             // Every other issue fails the test.
             let isGameAction = issue.element?.elementType == .button
                 && Self.gameActions.contains(issue.element?.label ?? "")
             let isSpokenHalfPoint = issue.auditType == .textClipped
-                && issue.element?.identifier == "award"
-                && issue.element?.label.contains("half a point") == true
-            let ignored = isSpokenHalfPoint || isGameAction && (
+                && Self.textsWithHalves.contains(issue.element?.identifier ?? "")
+                && issue.element?.label.contains("half") == true
+            let isSpokenLead = issue.auditType == .textClipped
+                && issue.element?.identifier == "advantage"
+                && issue.element?.label.hasSuffix(" in material") == true
+            let ignored = isSpokenHalfPoint || isSpokenLead || isGameAction && (
                 (issue.auditType == .dynamicType && issue.compactDescription.contains("partially"))
-                || (issue.auditType == .contrast && issue.element?.isEnabled == false))
+                || (issue.auditType == .contrast && issue.element?.isEnabled == false)
+                || (issue.auditType == .contrast && issue.compactDescription.contains("nearly passed")
+                    && (issue.element?.frame.maxY ?? 0) > window.maxY))
             if !ignored {
                 print("Accessibility audit issue: \(issue.compactDescription) on \(issue.element?.debugDescription ?? "no element")")
             }
@@ -91,5 +103,9 @@ struct BoardRobot {
         }
     }
 
-    static let gameActions: Set<String> = ["New game", "Resign", "Agree draw", "Offer double", "Take", "Decline"]
+    static let gameActions: Set<String> = [
+        "New match", "Next game", "Resign", "Agree draw", "Offer double", "Take", "Decline",
+    ]
+    /// Texts that can show half a point.
+    static let textsWithHalves: Set<String> = ["award", "matchScore", "matchResult"]
 }

@@ -1,6 +1,7 @@
 import Foundation
 
-/// The one current game a device keeps: its committed position, any result, and the doubling cube.
+/// The one current game a device keeps: its committed position, any result, the doubling cube and each colour's
+/// captures, saved together with the match score so a game's result and its award are written in one save.
 nonisolated struct SavedGame: Equatable, Sendable {
     /// The highest stake: once a game is played for this, neither side can offer.
     static let maximumStake = 64
@@ -13,8 +14,32 @@ nonisolated struct SavedGame: Equatable, Sendable {
     var nextDoubler: PieceColor? = nil
     /// An offer the side to move made, waiting for the other side to take or decline.
     var doublePending = false
+    /// White's and Black's totals in this match, including this game's award once it has finished.
+    var score: MatchScore = .zero
+    /// The opponent's pieces each colour has captured in this game, saved with the move that captured each.
+    var captures: Captures = .empty
 
+    /// The first game of a new match: the opening position at one point, at no points each and nothing captured.
     static let opening = SavedGame(position: .opening, result: nil)
+
+    /// What the game awards once finished: nothing while it is played, or for a game finished before the cube.
+    var award: PointAward? {
+        guard let stake else { return nil }
+        return switch result {
+        case let .win(winner, _): .win(winner, stake)
+        case .draw: .split(stake)
+        case nil: nil
+        }
+    }
+
+    /// The game ended with this result, and its award added to the match score, as one change.
+    func ending(with result: GameResult) -> SavedGame {
+        var ended = self
+        ended.result = result
+        ended.doublePending = false
+        if let award = ended.award { ended.score = score.adding(award) }
+        return ended
+    }
 
     /// Whether the side to move is entitled to offer a double: below the maximum stake, and either before
     /// the first take or as the side that took the last double.

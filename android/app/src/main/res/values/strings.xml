@@ -32,8 +32,9 @@
     <string name="black_knight">Black knight</string>
     <string name="black_pawn">Black pawn</string>
 
-    <string name="new_game">New game</string>
-    <string name="confirm_replace">Replace this game?</string>
+    <string name="new_match">New match</string>
+    <string name="confirm_replace">Replace this match?</string>
+    <string name="next_game">Next game</string>
     <string name="resign">Resign</string>
     <string name="confirm_resign">Resign as %1$s?</string>
     <string name="agree_draw">Agree draw</string>
@@ -57,10 +58,63 @@
     <string name="decline">Decline</string>
     <string name="take_effect">Take: play for %1$s.</string>
     <string name="decline_effect">Decline: %1$s wins %2$s.</string>
+    <string name="decline_effect_match">Decline: %1$s wins %2$s and the match.</string>
     <string name="win_award">%1$s earns %2$s.</string>
     <string name="draw_award">Each player earns %1$s.</string>
     <!-- The status with its award, as a screen reader speaks it: the result, then the award. -->
     <string name="status_with_award">%1$s. %2$s</string>
+    <!-- The status with its award and the match result, as a screen reader speaks it. -->
+    <string name="status_with_match">%1$s. %2$s %3$s</string>
+
+    <!-- Match totals: whole points use the points plural; a half is shown as ½. -->
+    <string name="points_and_half">%1$d½ points</string>
+    <plurals name="points_and_half_spoken">
+        <item quantity="one">%1$d and a half points</item>
+        <item quantity="other">%1$d and a half points</item>
+    </plurals>
+    <string name="total_and_half">%1$d½</string>
+    <plurals name="total_and_half_spoken">
+        <item quantity="one">%1$d and a half</item>
+        <item quantity="other">%1$d and a half</item>
+    </plurals>
+    <string name="total_half">½</string>
+    <string name="total_half_spoken">a half</string>
+    <string name="match_score">White %1$s · Black %2$s · first to %3$s</string>
+    <string name="match_win">%1$s wins the match, %2$s to %3$s</string>
+    <string name="match_draw">Match drawn, %1$s to %2$s</string>
+
+    <!-- Each side's captures, as a screen reader speaks them: counts and kinds, such as
+         "2 pawns, 1 knight", in the order pawn, knight, bishop, rook, queen. -->
+    <string name="captures">Captured by %1$s: %2$s</string>
+    <string name="no_captures">Captured by %1$s: none</string>
+    <!-- Shown before the captured pieces' icons. -->
+    <string name="captures_label">Captured by %1$s:</string>
+    <string name="captures_separator">", "</string>
+    <!-- How many of one kind of captured piece, shown after its icon when more than one. -->
+    <string name="captures_count">×%1$d</string>
+    <plurals name="captured_pawns">
+        <item quantity="one">%1$d pawn</item>
+        <item quantity="other">%1$d pawns</item>
+    </plurals>
+    <plurals name="captured_knights">
+        <item quantity="one">%1$d knight</item>
+        <item quantity="other">%1$d knights</item>
+    </plurals>
+    <plurals name="captured_bishops">
+        <item quantity="one">%1$d bishop</item>
+        <item quantity="other">%1$d bishops</item>
+    </plurals>
+    <plurals name="captured_rooks">
+        <item quantity="one">%1$d rook</item>
+        <item quantity="other">%1$d rooks</item>
+    </plurals>
+    <plurals name="captured_queens">
+        <item quantity="one">%1$d queen</item>
+        <item quantity="other">%1$d queens</item>
+    </plurals>
+    <!-- The material advantage, beside the leading side's captures: never in point units. -->
+    <string name="advantage">+%1$d</string>
+    <string name="advantage_spoken">%1$s ahead by %2$d in material</string>
 
     <string name="read_failure">Couldn’t open the saved game.</string>
     <string name="write_failure">Change not saved.</string>

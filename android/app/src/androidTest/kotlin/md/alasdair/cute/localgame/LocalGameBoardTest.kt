@@ -7,6 +7,7 @@ import androidx.compose.ui.test.assertTextEquals
 import androidx.compose.ui.test.junit4.v2.createAndroidComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
+import androidx.compose.ui.test.performScrollTo
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import org.junit.After
 import org.junit.Assert.assertTrue
@@ -176,7 +177,7 @@ class LocalGameBoardTest {
     }
 
     @Test
-    fun c4_foolsMateEndsAndFreezesTheBoard_thenNewGameStartsAtOnce() {
+    fun c4_foolsMateEndsAndFreezesTheBoard_thenNextGameStartsAtOnce() {
         board.launch()
         board.awaitText("White to move")
 
@@ -194,9 +195,10 @@ class LocalGameBoardTest {
         board.relaunch()
         board.awaitText("Black wins · Checkmate")
 
-        board.tapText("New game")
+        rule.onNodeWithText("Next game").performScrollTo()
+        board.tapText("Next game")
         board.awaitText("White to move")
-        rule.onNodeWithText("Replace this game?").assertDoesNotExist()
+        rule.onNodeWithText("Replace this match?").assertDoesNotExist()
         board.assertSquare("e2", "e2, White pawn")
     }
 
@@ -258,19 +260,19 @@ class LocalGameBoardTest {
     }
 
     @Test
-    fun c4_replacingAnOngoingGameAsksFirst() {
+    fun c13_replacingAMatchUnderWayAsksFirst() {
         board.launch()
         board.awaitText("White to move")
         board.tap("e2", "e4")
         board.awaitText("Black to move")
 
-        board.tapText("New game")
-        rule.onNodeWithText("Replace this game?").assertIsDisplayed()
+        board.tapText("New match")
+        rule.onNodeWithText("Replace this match?").assertIsDisplayed()
         board.tapText("Cancel")
         status().assertTextEquals("Black to move")
         board.assertSquare("e4", "e4, White pawn")
 
-        board.tapText("New game")
+        board.tapText("New match")
         board.tapText("Confirm")
         board.awaitText("White to move")
         board.assertSquare("e2", "e2, White pawn")

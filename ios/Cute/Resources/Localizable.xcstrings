@@ -1,6 +1,17 @@
 {
   "sourceLanguage": "en",
   "strings": {
+    "%@ ahead by %lld in material": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%1$@ ahead by %2$lld in material"
+          }
+        }
+      }
+    },
     "%@ bishop": {
       "extractionState": "manual"
     },
@@ -36,6 +47,17 @@
     "%@ to move · Check": {
       "extractionState": "manual"
     },
+    "%@ wins the match, %@ to %@": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%1$@ wins the match, %2$@ to %3$@"
+          }
+        }
+      }
+    },
     "%@ wins · %@": {
       "extractionState": "manual",
       "localizations": {
@@ -61,6 +83,104 @@
     "%@, answer the double": {
       "extractionState": "manual"
     },
+    "%lld and a half": {
+      "extractionState": "manual"
+    },
+    "%lld and a half points": {
+      "extractionState": "manual"
+    },
+    "%lld bishops": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "variations": {
+            "plural": {
+              "one": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%lld bishop"
+                }
+              },
+              "other": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%lld bishops"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "%lld kings": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "variations": {
+            "plural": {
+              "one": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%lld king"
+                }
+              },
+              "other": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%lld kings"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "%lld knights": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "variations": {
+            "plural": {
+              "one": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%lld knight"
+                }
+              },
+              "other": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%lld knights"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "%lld pawns": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "variations": {
+            "plural": {
+              "one": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%lld pawn"
+                }
+              },
+              "other": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%lld pawns"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "%lld points": {
       "extractionState": "manual",
       "localizations": {
@@ -84,6 +204,61 @@
         }
       }
     },
+    "%lld queens": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "variations": {
+            "plural": {
+              "one": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%lld queen"
+                }
+              },
+              "other": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%lld queens"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "%lld rooks": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "variations": {
+            "plural": {
+              "one": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%lld rook"
+                }
+              },
+              "other": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%lld rooks"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "%lld½": {
+      "extractionState": "manual"
+    },
+    "%lld½ points": {
+      "extractionState": "manual"
+    },
+    "+%lld": {
+      "extractionState": "manual"
+    },
     "Agree draw": {
       "extractionState": "manual"
     },
@@ -97,6 +272,23 @@
       "extractionState": "manual"
     },
     "Cancel": {
+      "extractionState": "manual"
+    },
+    "Captured by %@:": {
+      "extractionState": "manual"
+    },
+    "Captured by %@: %@": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Captured by %1$@: %2$@"
+          }
+        }
+      }
+    },
+    "Captured by %@: none": {
       "extractionState": "manual"
     },
     "Change not saved.": {
@@ -116,6 +308,17 @@
     },
     "Decline": {
       "extractionState": "manual"
+    },
+    "Decline: %@ wins %@ and the match.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Decline: %1$@ wins %2$@ and the match."
+          }
+        }
+      }
     },
     "Decline: %@ wins %@.": {
       "extractionState": "manual",
@@ -155,10 +358,24 @@
     "Legal destination": {
       "extractionState": "manual"
     },
+    "Match drawn, %@ to %@": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Match drawn, %1$@ to %2$@"
+          }
+        }
+      }
+    },
     "Maximum stake reached": {
       "extractionState": "manual"
     },
-    "New game": {
+    "New match": {
+      "extractionState": "manual"
+    },
+    "Next game": {
       "extractionState": "manual"
     },
     "Offer double": {
@@ -176,7 +393,7 @@
     "Queen": {
       "extractionState": "manual"
     },
-    "Replace this game?": {
+    "Replace this match?": {
       "extractionState": "manual"
     },
     "Resign": {
@@ -215,10 +432,30 @@
     "White": {
       "extractionState": "manual"
     },
+    "White %@ · Black %@ · first to %@": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "White %1$@ · Black %2$@ · first to %3$@"
+          }
+        }
+      }
+    },
+    "a half": {
+      "extractionState": "manual"
+    },
     "half a point": {
       "extractionState": "manual"
     },
+    "½": {
+      "extractionState": "manual"
+    },
     "½ point": {
+      "extractionState": "manual"
+    },
+    "×%lld": {
       "extractionState": "manual"
     }
   },

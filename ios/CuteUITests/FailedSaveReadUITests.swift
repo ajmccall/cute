@@ -45,7 +45,7 @@ final class FailedSaveReadUITests: XCTestCase {
         XCTAssertTrue(board.app.buttons["retryRead"].exists)
         XCTAssertFalse(board.app.buttons["square-e2"].exists)
         XCTAssertFalse(board.app.staticTexts["status"].exists)
-        XCTAssertTrue(board.app.buttons["New game"].exists)
+        XCTAssertTrue(board.app.buttons["New match"].exists)
         try board.auditAccessibility()
         board.attachScreenshot(named: "local-game-C5-read", to: self)
 
@@ -58,20 +58,20 @@ final class FailedSaveReadUITests: XCTestCase {
     }
 
     @MainActor
-    func testAfterAFailedReadNewGameReplacesTheSavedGameOnlyOnConfirmation() throws {
+    func testAfterAFailedReadNewMatchReplacesTheSavedGameOnlyOnConfirmation() throws {
         let board = BoardRobot()
         board.launch(seed: Self.saved)
         board.launch(fault: "read")
         let notice = board.app.staticTexts["Couldn’t open the saved game."]
         XCTAssertTrue(notice.waitForExistence(timeout: 5))
 
-        board.app.buttons["New game"].tap()
-        let alert = board.app.alerts["Replace this game?"]
+        board.app.buttons["New match"].tap()
+        let alert = board.app.alerts["Replace this match?"]
         XCTAssertTrue(alert.waitForExistence(timeout: 5))
         alert.buttons["Cancel"].tap()
         XCTAssertTrue(notice.exists)
 
-        board.app.buttons["New game"].tap()
+        board.app.buttons["New match"].tap()
         XCTAssertTrue(alert.waitForExistence(timeout: 5))
         alert.buttons["Confirm"].tap()
         XCTAssertEqual(board.status, "White to move")
@@ -84,15 +84,15 @@ final class FailedSaveReadUITests: XCTestCase {
     }
 
     @MainActor
-    func testWhenNewGameCannotBeSavedAfterAFailedReadNoBoardIsShownAndBothFailuresAreIdentified() throws {
+    func testWhenNewMatchCannotBeSavedAfterAFailedReadNoBoardIsShownAndBothFailuresAreIdentified() throws {
         let board = BoardRobot()
         board.launch(seed: Self.saved)
         board.launch(fault: "read,write")
         let readNotice = board.app.staticTexts["Couldn’t open the saved game."]
         XCTAssertTrue(readNotice.waitForExistence(timeout: 5))
 
-        board.app.buttons["New game"].tap()
-        let alert = board.app.alerts["Replace this game?"]
+        board.app.buttons["New match"].tap()
+        let alert = board.app.alerts["Replace this match?"]
         XCTAssertTrue(alert.waitForExistence(timeout: 5))
         alert.buttons["Confirm"].tap()
 

@@ -30,8 +30,8 @@ import Testing
         #expect(try storage.store.load()?.position.fen == afterMove)
     }
 
-    @Test(arguments: ["resign", "agreeDraw", "newGame"])
-    func anEndingOrNewGameThatCannotBeSavedChangesNothing(action: String) throws {
+    @Test(arguments: ["resign", "agreeDraw", "newMatch"])
+    func anEndingOrNewMatchThatCannotBeSavedChangesNothing(action: String) throws {
         let storage = try TemporaryStorage()
         let game = try openGame(at: Self.savedPosition, in: storage)
 
@@ -39,7 +39,7 @@ import Testing
         switch action {
         case "resign": game.resign()
         case "agreeDraw": game.agreeDraw()
-        default: game.newGame()
+        default: game.newMatch()
         }
 
         #expect(game.hasUnsavedChange)
@@ -66,7 +66,7 @@ import Testing
         Data(),
         Data("not json".utf8),
         Data([0xFF, 0xFE, 0x00, 0x12]),
-        Data(#"{"version": 3, "position": "4k3/8/8/8/8/8/8/4K3 w - -", "result": null, "stake": 1, "nextDoubler": null, "doublePending": false}"#.utf8),
+        Data(#"{"version": 5, "position": "4k3/8/8/8/8/8/8/4K3 w - -", "result": null, "stake": 1, "nextDoubler": null, "doublePending": false, "whiteTotal": 0, "blackTotal": 0, "captures": {"white": [], "black": []}}"#.utf8),
         Data(#"{"position": "4k3/8/8/8/8/8/8/4K3 w - -", "result": null}"#.utf8),
         Data(#"{"version": 1, "result": null}"#.utf8),
         Data(#"{"version": 1, "position": "4k3/8/8/8/8/8/8/4K3 w - -", "result": {"winner": "green", "reason": "checkmate"}}"#.utf8),
@@ -121,6 +121,25 @@ import Testing
     func anImpossibleCubeIsReportedAsUnreadable(fields: String) throws {
         let fen = "rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq -"
         try expectReadFailure(Data(#"{"version": 2, "position": "\#(fen)", \#(fields)}"#.utf8))
+    }
+
+    /// Version 3 files whose totals are missing, malformed or ones that no match can reach,
+    /// each on a position with Black to move after 1. e4 at one point.
+    @Test(arguments: [
+        #""result": null, "blackTotal": 0"#,                                    // no White total
+        #""result": null, "whiteTotal": 0"#,                                    // no Black total
+        #""result": null, "whiteTotal": "1", "blackTotal": 0"#,                 // a total as text
+        #""result": null, "whiteTotal": -1, "blackTotal": 0"#,                  // below no points
+        #""result": null, "whiteTotal": 0.25, "blackTotal": 0"#,                // not a half point
+        #""result": null, "whiteTotal": 1e300, "blackTotal": 0"#,               // too large to count
+        #""result": null, "whiteTotal": 15, "blackTotal": 0"#,                  // at the target, game in play
+        #""result": {"draw": "agreement"}, "whiteTotal": 0, "blackTotal": 0"#,  // a draw not added
+        #""result": {"winner": "white", "reason": "resignation"}, "whiteTotal": 16, "blackTotal": 0"#,  // over before it
+    ])
+    func impossibleTotalsAreReportedAsUnreadable(fields: String) throws {
+        let fen = "rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq -"
+        try expectReadFailure(Data(
+            #"{"version": 3, "position": "\#(fen)", "stake": 1, "nextDoubler": null, "doublePending": false, \#(fields)}"#.utf8))
     }
 
     @Test func anOfferOnAPositionAlreadyEndedIsReportedAsUnreadable() throws {
@@ -183,6 +202,9 @@ import Testing
         #"{"version": 2, "position": "4k3/8/8/8/8/8/8/4K3 w - -", "result": {"winner": "white", "reason": "doubleDeclined"}, "stake": 1, "nextDoubler": null, "doublePending": false}"#,
         #"{"result": {"draw": "agreement"}, "position": "4k3/8/8/8/8/8/8/4K3 w - -", "version": 1, "extra": true}"#,
         #"{"version": 1, "position": "r3k2r/8/8/8/3pP3/8/8/R3K2R b KQkq e3", "result": null}"#,
+        #"{"version": 3, "position": "4k3/8/8/8/8/8/8/4K3 w - -", "result": null, "stake": 1, "nextDoubler": null, "doublePending": false, "whiteTotal": 14.5, "blackTotal": 14.5}"#,
+        #"{"version": 3, "position": "4k3/8/8/8/8/8/8/4K3 w - -", "result": {"draw": "agreement"}, "stake": 4, "nextDoubler": "white", "doublePending": false, "whiteTotal": 16.5, "blackTotal": 15}"#,
+        #"{"version": 3, "position": "4k3/8/8/8/8/8/8/4K3 w - -", "result": {"winner": "black", "reason": "doubleDeclined"}, "stake": 64, "nextDoubler": "black", "doublePending": false, "whiteTotal": 14.5, "blackTotal": 78.5}"#,
     ])
     func wellFormedSavedGamesAtTheEdgesOfTheFormatOpen(contents: String) throws {
         let storage = try TemporaryStorage()
@@ -194,22 +216,22 @@ import Testing
         #expect(game.hasNoFailure)
     }
 
-    @Test func afterAFailedReadNewGameReplacesTheUnreadableGameOnlyOnConfirmation() throws {
+    @Test func afterAFailedReadNewMatchReplacesTheUnreadableGameOnlyOnConfirmation() throws {
         let storage = try TemporaryStorage()
         try Data("not json".utf8).write(to: storage.fileURL)
         let game = LocalGame(store: storage.store)
         game.open()
         #expect(game.couldNotReadSavedGame)
-        #expect(game.newGameNeedsConfirmation)
+        #expect(game.newMatchNeedsConfirmation)
 
-        game.newGame()
+        game.newMatch()
 
         #expect(game.hasNoFailure)
         #expect(game.position == .opening)
         #expect(try storage.store.load() == .opening)
     }
 
-    @Test func whenNewGameCannotBeSavedAfterAFailedReadNoBoardIsPlayableAndBothFailuresAreIdentified() throws {
+    @Test func whenNewMatchCannotBeSavedAfterAFailedReadNoBoardIsPlayableAndBothFailuresAreIdentified() throws {
         let storage = try TemporaryStorage()
         let unreadable = Data("not json".utf8)
         try unreadable.write(to: storage.fileURL)
@@ -217,7 +239,7 @@ import Testing
         let game = LocalGame(store: storage.store)
         game.open()
 
-        game.newGame()
+        game.newMatch()
 
         #expect(game.couldNotReadSavedGame)
         #expect(game.couldNotReadSavedGame)
@@ -231,7 +253,7 @@ import Testing
         #expect(game.couldNotReadSavedGame)
         #expect(game.hasUnsavedChange)
 
-        // Once the folder takes writes again, retrying the save starts the new game.
+        // Once the folder takes writes again, retrying the save starts the new match.
         try storage.makeWritable()
         game.retrySave()
         #expect(game.hasNoFailure)
@@ -241,13 +263,13 @@ import Testing
         #expect(try storage.store.load() == .opening)
     }
 
-    @Test func whenTheSavedGameReadsOnRetryTheUnsavedNewGameIsDropped() throws {
+    @Test func whenTheSavedGameReadsOnRetryTheUnsavedNewMatchIsDropped() throws {
         let storage = try TemporaryStorage()
         try Data("not json".utf8).write(to: storage.fileURL)
         try storage.makeReadOnly()
         let game = LocalGame(store: storage.store)
         game.open()
-        game.newGame()
+        game.newMatch()
 
         try storage.makeWritable()
         try SavedGame(position: try #require(Position(fen: Self.savedPosition)), result: nil).encodedForTest()
