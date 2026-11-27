@@ -1,9 +1,11 @@
 package md.alasdair.cute.localgame
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -25,6 +27,7 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.LiveRegionMode
+import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.liveRegion
@@ -37,13 +40,16 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import md.alasdair.cute.R
 import md.alasdair.cute.chess.EndReason
 import md.alasdair.cute.chess.GameResult
+import md.alasdair.cute.chess.Piece
 import md.alasdair.cute.chess.PieceType
 import md.alasdair.cute.chess.Position
 import md.alasdair.cute.chess.Side
 import md.alasdair.cute.chess.Square
+import md.alasdair.cute.localgame.data.Captures
 import md.alasdair.cute.localgame.data.GameRecord
 import md.alasdair.cute.localgame.data.MatchScore
 import md.alasdair.cute.ui.theme.CuteTheme
+import md.alasdair.cute.ui.theme.LocalBoardColors
 
 /** The Board destination: the app's root, which launch opens. */
 @Composable
@@ -106,15 +112,20 @@ fun BoardScreen(state: LocalGameUiState, actions: BoardActions, modifier: Modifi
                 MatchScoreLine(game.score)
                 GameStatus(game, state.inCheck)
                 if (game.result == null && !game.doublePending) StakeSummary(game)
-                ChessBoard(
-                    position = game.position,
-                    bottomSide = state.bottomSide,
-                    selection = state.selection,
-                    destinations = state.destinations,
-                    enabled = game.result == null && !game.doublePending,
-                    onSquareTapped = actions.onSquareTapped,
-                    modifier = Modifier.fillMaxWidth()
-                )
+                // Each side's captures at its own edge of the board, so they turn with it.
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    CapturesLine(game, state.bottomSide.opponent)
+                    ChessBoard(
+                        position = game.position,
+                        bottomSide = state.bottomSide,
+                        selection = state.selection,
+                        destinations = state.destinations,
+                        enabled = game.result == null && !game.doublePending,
+                        onSquareTapped = actions.onSquareTapped,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                    CapturesLine(game, state.bottomSide)
+                }
             }
             if (game?.doublePending == true) {
                 // While a double awaits its answer, Take and Decline are the only game actions.
@@ -344,6 +355,99 @@ private fun StakeSummary(game: GameRecord) {
 }
 
 /**
+ * The opponent's pieces [side] has captured in this game, grouped by kind with a count, and
+ * the material advantage beside them when [side] is ahead. The captures are shown as piece
+ * icons and announced as text naming the side, each kind and its count. The advantage is
+ * shown as +N and announced as who is ahead in material, never in points.
+ */
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun CapturesLine(game: GameRecord, side: Side) {
+    val pieces = game.captures.of(side)
+    val groups = capturedKinds.mapNotNull { (type, plural) ->
+        pieces.count { it == type }.takeIf { it > 0 }?.let { Triple(type, plural, it) }
+    }
+    val name = sideName(side)
+    val spoken = if (groups.isEmpty()) {
+        stringResource(R.string.no_captures, name)
+    } else {
+        val kinds = groups.map { (_, plural, count) -> pluralStringResource(plural, count, count) }
+        stringResource(
+            R.string.captures,
+            name,
+            kinds.joinToString(stringResource(R.string.captures_separator))
+        )
+    }
+    val advantage = game.materialAdvantage?.takeIf { it.side == side }
+    Row(
+        Modifier.padding(horizontal = 16.dp).fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        FlowRow(
+            Modifier
+                .weight(1f, fill = false)
+                .testTag("captures-${side.name}")
+                .clearAndSetSemantics { contentDescription = spoken },
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            itemVerticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                if (groups.isEmpty()) spoken else stringResource(R.string.captures_label, name),
+                style = MaterialTheme.typography.bodyMedium
+            )
+            for ((type, _, count) in groups) {
+                CapturedKind(Piece(side.opponent, type), count)
+            }
+        }
+        if (advantage != null) {
+            val advantageSpoken = stringResource(R.string.advantage_spoken, name, advantage.amount)
+            Text(
+                stringResource(R.string.advantage, advantage.amount),
+                style = MaterialTheme.typography.titleMedium,
+                modifier = Modifier
+                    .testTag("advantage-${side.name}")
+                    .semantics { contentDescription = advantageSpoken }
+            )
+        }
+    }
+}
+
+/**
+ * One kind of captured piece and how many, on the light squares' colour so that a black piece
+ * stays visible in the dark theme.
+ */
+@Composable
+private fun CapturedKind(piece: Piece, count: Int) {
+    val colors = LocalBoardColors.current
+    val glyphSize = MaterialTheme.typography.titleLarge.fontSize
+    Row(
+        Modifier
+            .background(colors.lightSquare, MaterialTheme.shapes.small)
+            .padding(horizontal = 4.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        PieceGlyph(piece, glyphSize)
+        if (count > 1) {
+            Text(
+                stringResource(R.string.captures_count, count),
+                style = MaterialTheme.typography.bodyMedium,
+                color = colors.pieceInk
+            )
+        }
+    }
+}
+
+/** The kinds a side can capture, in the order they are shown and announced. */
+private val capturedKinds = listOf(
+    PieceType.Pawn to R.plurals.captured_pawns,
+    PieceType.Knight to R.plurals.captured_knights,
+    PieceType.Bishop to R.plurals.captured_bishops,
+    PieceType.Rook to R.plurals.captured_rooks,
+    PieceType.Queen to R.plurals.captured_queens
+)
+
+/**
  * The Double response surface, below the board in place of the game actions while a double
  * awaits its answer, under the status that names the responder: the stake as it is, what
  * taking or declining means, and the only two game actions, with equal weight so that neither
@@ -518,7 +622,11 @@ private fun DoubleResponseBoardScreenPreview() {
                     result = null,
                     stake = 2,
                     nextDoubler = Side.White,
-                    doublePending = true
+                    doublePending = true,
+                    captures = Captures(
+                        white = listOf(PieceType.Pawn, PieceType.Knight, PieceType.Pawn),
+                        black = listOf(PieceType.Bishop)
+                    )
                 )
             ),
             actions = BoardActions()

@@ -9,6 +9,7 @@ import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.withContext
 import md.alasdair.cute.chess.EndReason
 import md.alasdair.cute.chess.GameResult
+import md.alasdair.cute.chess.PieceType
 import md.alasdair.cute.chess.Position
 import md.alasdair.cute.chess.Side
 import md.alasdair.cute.chess.automaticResult
@@ -53,24 +54,41 @@ class FileGameRepository @Inject constructor(
 
         /** Saves from before matches: the game and its cube. Read, never written. */
         private const val HEADER_V2 = "cute-game 2"
+
+        /** Saves from before captures: the game, its cube and the match. Read, never written. */
         private const val HEADER_V3 = "cute-game 3"
+        private const val HEADER_V4 = "cute-game 4"
         private const val PLAYING = "playing"
         private const val NO_STAKE = "none"
         private const val EITHER = "Either"
         private const val PENDING = "pending"
         private const val ANSWERED = "answered"
+        private const val NO_CAPTURES = "none"
+
+        /** The letter each kind of captured piece is saved as, as in FEN. Kings aren't taken. */
+        private val CAPTURE_LETTERS = mapOf(
+            PieceType.Pawn to 'p',
+            PieceType.Knight to 'n',
+            PieceType.Bishop to 'b',
+            PieceType.Rook to 'r',
+            PieceType.Queen to 'q'
+        )
+
+        /** A side has 15 pieces besides its king, on the board or captured. */
+        private const val PIECES_BESIDES_KING = 15
 
         /**
-         * Version 3: the header, then one line each for the position as FEN, the result or
+         * Version 4: the header, then one line each for the position as FEN, the result or
          * `playing`, the stake or `none`, the next doubler or `Either`, whether a double is
-         * `pending` or `answered`, and White's and Black's match totals in half points. The
-         * game and the score are one record, so a game's result and its award are saved
-         * together.
+         * `pending` or `answered`, White's and Black's match totals in half points, and the
+         * pieces White and Black have captured, in the order taken, as letters such as `pnp`, or
+         * `none`. The game and the score are one record, so a game's result and its award, and
+         * a move and what it captured, are saved together.
          */
         fun encode(record: GameRecord): String {
             val result = record.result?.let { "${it.winner?.name ?: "Draw"} ${it.reason.name}" }
             return listOf(
-                HEADER_V3,
+                HEADER_V4,
                 record.position.toFen(),
                 result ?: PLAYING,
                 record.stake?.toString() ?: NO_STAKE,
@@ -78,8 +96,16 @@ class FileGameRepository @Inject constructor(
                 if (record.doublePending) PENDING else ANSWERED,
                 record.score.whiteHalves.toString(),
                 record.score.blackHalves.toString(),
+                encodeCaptures(record.captures.white),
+                encodeCaptures(record.captures.black),
                 ""
             ).joinToString("\n")
+        }
+
+        private fun encodeCaptures(pieces: List<PieceType>): String = if (pieces.isEmpty()) {
+            NO_CAPTURES
+        } else {
+            pieces.joinToString("") { CAPTURE_LETTERS.getValue(it).toString() }
         }
 
         /** Throws [IllegalArgumentException] for text that isn't a whole saved game. */
@@ -90,6 +116,7 @@ class FileGameRepository @Inject constructor(
                 HEADER_V1 -> decodeV1(lines)
                 HEADER_V2 -> decodeV2(lines)
                 HEADER_V3 -> decodeV3(lines)
+                HEADER_V4 -> decodeV4(lines)
                 else -> throw IllegalArgumentException("Not a saved game")
             }
         }
@@ -116,13 +143,47 @@ class FileGameRepository @Inject constructor(
             return game.copy(score = game.award)
         }
 
-        /**
-         * A save of a match. Each total is whole or half points from 0. The match is under way
-         * before this game's award, so a game in play has both totals below the target, and a
-         * finished one has each total, less its award, below the target.
-         */
+        /** A save of a match from before captures, opened with no captures for either side. */
         private fun decodeV3(lines: List<String>): GameRecord {
             require(lines.size == 9) { "Not a saved game" }
+            return decodeMatch(lines)
+        }
+
+        /**
+         * A save of a match with each side's captures. A side can't have lost more pieces than
+         * it has besides its king, counting those still on the board.
+         */
+        private fun decodeV4(lines: List<String>): GameRecord {
+            require(lines.size == 11) { "Not a saved game" }
+            val game = decodeMatch(lines)
+            val captures = Captures(decodeCaptures(lines[8]), decodeCaptures(lines[9]))
+            for (side in Side.entries) {
+                val onBoard = game.position.board.values
+                    .count { it.side == side && it.type != PieceType.King }
+                require(onBoard + captures.of(side.opponent).size <= PIECES_BESIDES_KING) {
+                    "Too many of $side's pieces captured"
+                }
+            }
+            return game.copy(captures = captures)
+        }
+
+        private fun decodeCaptures(text: String): List<PieceType> {
+            if (text == NO_CAPTURES) return emptyList()
+            require(text.isNotEmpty()) { "Bad captures: $text" }
+            return text.map { letter ->
+                requireNotNull(CAPTURE_LETTERS.entries.firstOrNull { it.value == letter }?.key) {
+                    "Bad captures: $text"
+                }
+            }
+        }
+
+        /**
+         * The game, its cube and the match, lines 1 to 7. Each total is whole or half points
+         * from 0. The match is under way before this game's award, so a game in play has both
+         * totals below the target, and a finished one has each total, less its award, below
+         * the target.
+         */
+        private fun decodeMatch(lines: List<String>): GameRecord {
             val game = decodeCube(lines)
             val score = MatchScore(decodeHalves(lines[6]), decodeHalves(lines[7]))
             val award = game.award

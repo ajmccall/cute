@@ -50,6 +50,22 @@ class BoardHarness(private val rule: BoardRule) {
         FileGameRepository(gameFile, Dispatchers.IO).save(GameRecord(positionFromFen(fen), null))
     }
 
+    /**
+     * Writes a version-4 save of a game in play at [fen], at one point, with [white]'s and
+     * [black]'s captures as piece letters in the order taken, or `none`, and the totals in half
+     * points.
+     */
+    fun saveWithCaptures(
+        fen: String,
+        white: String,
+        black: String,
+        whiteHalves: Int = 0,
+        blackHalves: Int = 0
+    ) = gameFile.writeText(
+        "cute-game 4\n$fen\nplaying\n1\nEither\nanswered\n$whiteHalves\n$blackHalves\n" +
+            "$white\n$black\n"
+    )
+
     fun launch() {
         rule.setContent {
             CuteTheme {

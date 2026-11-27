@@ -350,7 +350,17 @@ class StorageFailureTest {
             "cute-game 3\n$GOOD_FEN\nWhite Resignation\n4\nBlack\nanswered\n7\n0\n",
             "cute-game 3\n$GOOD_FEN\nDraw Agreement\n2\nBlack\nanswered\n2\n1\n",
             "cute-game 3\n$GOOD_FEN\nWhite Resignation\n2\nBlack\nanswered\n34\n0\n",
-            "cute-game 3\n$GOOD_FEN\nDraw Agreement\n1\nEither\nanswered\n1\n31\n"
+            "cute-game 3\n$GOOD_FEN\nDraw Agreement\n1\nEither\nanswered\n1\n31\n",
+            "cute-game 4\n$GOOD_FEN\nplaying\n1\nEither\nanswered\n0\n0\n",
+            "cute-game 4\n$GOOD_FEN\nplaying\n1\nEither\nanswered\n0\n0\nnone\n",
+            "cute-game 4\n$GOOD_FEN\nplaying\n1\nEither\nanswered\n0\n0\nnone\nnone",
+            "cute-game 4\n$GOOD_FEN\nplaying\n1\nEither\nanswered\n0\n0\nnone\nnone\nextra\n",
+            "cute-game 4\n$GOOD_FEN\nplaying\n1\nEither\nanswered\n0\n0\n\nnone\n",
+            "cute-game 4\n$GOOD_FEN\nplaying\n1\nEither\nanswered\n0\n0\nk\nnone\n",
+            "cute-game 4\n$GOOD_FEN\nplaying\n1\nEither\nanswered\n0\n0\nnone\nP\n",
+            "cute-game 4\n$GOOD_FEN\nplaying\n1\nEither\nanswered\n0\n0\np n\nnone\n",
+            "cute-game 4\n$GOOD_FEN\nplaying\n1\nEither\nanswered\n0\n0\nnone\nppppppppnnbbrrq\n",
+            "cute-game 4\n$GOOD_FEN\nplaying\n1\nEither\nanswered\n30\n0\nnone\nnone\n"
         )
     }
 }

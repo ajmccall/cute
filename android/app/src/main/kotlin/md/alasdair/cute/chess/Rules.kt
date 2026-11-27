@@ -74,6 +74,31 @@ fun Position.play(move: Move): Position {
 }
 
 /**
+ * The piece [move] captures, if any: the piece on its destination, or the pawn taken en passant
+ * on the square it passed. A promoted piece is captured as the piece it had become.
+ */
+fun Position.captured(move: Move): Piece? {
+    get(move.to)?.let { return it }
+    val mover = get(move.from)?.takeIf { it.type == PieceType.Pawn } ?: return null
+    if (move.to != enPassant) return null
+    return get(Square(move.to.file, move.from.rank))?.takeIf { it.side != mover.side }
+}
+
+/** The total value of [side]'s pieces on the board. */
+fun Position.material(side: Side): Int =
+    board.values.filter { it.side == side }.sumOf { it.type.value }
+
+/** A piece's value in material: pawn 1, knight and bishop 3, rook 5, queen 9; kings not counted. */
+val PieceType.value: Int
+    get() = when (this) {
+        PieceType.Pawn -> 1
+        PieceType.Knight, PieceType.Bishop -> 3
+        PieceType.Rook -> 5
+        PieceType.Queen -> 9
+        PieceType.King -> 0
+    }
+
+/**
  * The ending this position reaches by itself, if any: checkmate wins for the side that just
  * moved, stalemate draws, and so do the insufficient-material cases the schema lists: kings
  * alone, one bishop or knight besides them, or only bishops, all on squares of one colour.
