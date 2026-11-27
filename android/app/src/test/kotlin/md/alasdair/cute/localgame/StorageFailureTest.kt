@@ -128,6 +128,21 @@ class StorageFailureTest {
     }
 
     @Test
+    fun `starting a new match while the saved game is still loading does nothing`() = runTest {
+        device.seed(SAVED)
+        val slow = StandardTestDispatcher(main.dispatcher.scheduler)
+        val game = LocalGameHarness(device.folder, slow).launch()
+        assertTrue(game.state.loading)
+
+        game.onNewMatchRequested()
+
+        assertNull(game.state.confirmation)
+        advanceUntilIdle()
+        assertNull(game.state.confirmation)
+        assertEquals(SAVED, game.state.fen)
+    }
+
+    @Test
     fun `a move that can't be saved is reported and the saved position stays on the board`() =
         runTest {
             device.seed(SAVED)

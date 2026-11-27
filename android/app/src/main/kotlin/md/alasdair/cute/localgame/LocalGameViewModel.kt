@@ -107,7 +107,7 @@ class LocalGameViewModel @Inject constructor(private val repository: GameReposit
      */
     fun onNewMatchRequested() {
         val state = _uiState.value
-        if (busy || state.loading || state.game?.doublePending == true) return
+        if (busy || state.game?.doublePending == true) return
         if (state.game?.matchOver == true) {
             save(GameRecord.New)
         } else {

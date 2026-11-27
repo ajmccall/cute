@@ -16,8 +16,6 @@ import md.alasdair.cute.chess.play
  * stake of one point stays whole: [whiteHalves] 9 is 4½ points.
  */
 data class MatchScore(val whiteHalves: Int = 0, val blackHalves: Int = 0) {
-    fun halvesOf(side: Side): Int = if (side == Side.White) whiteHalves else blackHalves
-
     operator fun plus(other: MatchScore) =
         MatchScore(whiteHalves + other.whiteHalves, blackHalves + other.blackHalves)
 
