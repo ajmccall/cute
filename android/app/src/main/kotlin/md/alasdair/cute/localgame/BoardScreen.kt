@@ -1,5 +1,7 @@
 package md.alasdair.cute.localgame
 
+import androidx.annotation.PluralsRes
+import androidx.annotation.StringRes
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -203,12 +205,11 @@ private fun GameStatus(game: GameRecord, inCheck: Boolean) {
     val headline = statusText(game, inCheck)
     val award = game.result?.let { result -> game.stake?.let { award(result, it) } }
     val match = if (game.matchOver) matchResult(game.matchScore) else null
+    // A match result always comes with the award of the game that ended the match.
     val spoken = when {
-        award != null && match != null ->
-            stringResource(R.string.status_with_match, headline, award.spoken, match.spoken)
-        award != null -> stringResource(R.string.status_with_award, headline, award.spoken)
-        match != null -> stringResource(R.string.status_with_award, headline, match.spoken)
-        else -> null
+        award == null -> null
+        match == null -> stringResource(R.string.status_with_award, headline, award.spoken)
+        else -> stringResource(R.string.status_with_match, headline, award.spoken, match.spoken)
     }
     Column(
         Modifier
@@ -231,8 +232,8 @@ private fun GameStatus(game: GameRecord, inCheck: Boolean) {
 /** The match result, once a game has taken either total to 15: the higher total wins. */
 @Composable
 private fun matchResult(matchScore: MatchScore): Spoken {
-    val white = total(matchScore.whiteHalves, withUnit = false)
-    val black = total(matchScore.blackHalves, withUnit = false)
+    val white = bareTotal(matchScore.whiteHalves)
+    val black = bareTotal(matchScore.blackHalves)
     val winner = matchScore.leader
         ?: return Spoken(
             stringResource(R.string.match_draw, white.shown, black.shown),
@@ -251,8 +252,8 @@ private fun matchResult(matchScore: MatchScore): Spoken {
  */
 @Composable
 private fun MatchScoreLine(matchScore: MatchScore) {
-    val white = total(matchScore.whiteHalves, withUnit = true)
-    val black = total(matchScore.blackHalves, withUnit = true)
+    val white = pointsTotal(matchScore.whiteHalves)
+    val black = pointsTotal(matchScore.blackHalves)
     val target = points(MatchScore.TARGET)
     val spoken = stringResource(R.string.match_score, white.spoken, black.spoken, target)
     Text(
@@ -270,35 +271,56 @@ private fun MatchScoreLine(matchScore: MatchScore) {
 private class Spoken(val shown: String, val spoken: String)
 
 /**
- * A total of [halves] half points. With its unit, as in the match score: 3 points, ½ point,
- * 4½ points. Without, as in a match result: 16, ½, 14½.
+ * A total of [halves] half points with its unit, as in the match score: 3 points, ½ point,
+ * 4½ points.
  */
 @Composable
-private fun total(halves: Int, withUnit: Boolean): Spoken {
+private fun pointsTotal(halves: Int): Spoken = total(halves, HalfStrings.WithUnit) { points(it) }
+
+/** A total of [halves] half points without a unit, as in a match result: 16, ½, 14½. */
+@Composable
+private fun bareTotal(halves: Int): Spoken = total(halves, HalfStrings.Bare) { it.toString() }
+
+/** The strings one way of writing a total uses for a lone half, and for a number and a half. */
+private class HalfStrings(
+    @param:StringRes val half: Int,
+    @param:StringRes val halfSpoken: Int,
+    @param:StringRes val andHalf: Int,
+    @param:PluralsRes val andHalfSpoken: Int
+) {
+    companion object {
+        val WithUnit = HalfStrings(
+            half = R.string.half_point,
+            halfSpoken = R.string.half_point_spoken,
+            andHalf = R.string.points_and_half,
+            andHalfSpoken = R.plurals.points_and_half_spoken
+        )
+        val Bare = HalfStrings(
+            half = R.string.total_half,
+            halfSpoken = R.string.total_half_spoken,
+            andHalf = R.string.total_and_half,
+            andHalfSpoken = R.plurals.total_and_half_spoken
+        )
+    }
+}
+
+/**
+ * A total of [halves] half points: a whole number as [wholeText] writes it, a lone half, or a
+ * number and a half from [strings].
+ */
+@Composable
+private fun total(
+    halves: Int,
+    strings: HalfStrings,
+    wholeText: @Composable (Int) -> String
+): Spoken {
     val whole = halves / 2
     return when {
-        halves % 2 == 0 ->
-            (if (withUnit) points(whole) else whole.toString()).let { Spoken(it, it) }
-        whole == 0 -> Spoken(
-            stringResource(if (withUnit) R.string.half_point else R.string.total_half),
-            stringResource(
-                if (withUnit) R.string.half_point_spoken else R.string.total_half_spoken
-            )
-        )
+        halves % 2 == 0 -> wholeText(whole).let { Spoken(it, it) }
+        whole == 0 -> Spoken(stringResource(strings.half), stringResource(strings.halfSpoken))
         else -> Spoken(
-            stringResource(
-                if (withUnit) R.string.points_and_half else R.string.total_and_half,
-                whole
-            ),
-            pluralStringResource(
-                if (withUnit) {
-                    R.plurals.points_and_half_spoken
-                } else {
-                    R.plurals.total_and_half_spoken
-                },
-                whole,
-                whole
-            )
+            stringResource(strings.andHalf, whole),
+            pluralStringResource(strings.andHalfSpoken, whole, whole)
         )
     }
 }
