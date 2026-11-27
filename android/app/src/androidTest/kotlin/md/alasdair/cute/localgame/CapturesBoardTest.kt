@@ -75,7 +75,7 @@ class CapturesBoardTest {
 
     @Test
     fun c16_capturesAreGroupedByKind_andAnnouncedByColourKindAndCount() {
-        board.save(SPARSE, white = "qpnpb", black = "r")
+        board.saveWithCaptures(SPARSE, white = "qpnpb", black = "r")
         board.launch()
         board.awaitText("White to move")
 
@@ -120,6 +120,8 @@ class CapturesBoardTest {
         board.tap("b7", "b8")
         rule.onNodeWithText("Promote pawn").assertIsDisplayed()
         advantage("Black").assertTextEquals("+4")
+        captures("White").assertContentDescriptionEquals("Captured by White: none")
+        captures("Black").assertContentDescriptionEquals("Captured by Black: none")
         board.tapText("Queen")
 
         board.awaitText("Black to move · Check")
@@ -137,7 +139,13 @@ class CapturesBoardTest {
 
     @Test
     fun c16_c17_showInMatchOver_andNextGameStartsWithNone() {
-        board.save(SPARSE, white = "pp", black = "none", whiteHalves = 4, blackHalves = 26)
+        board.saveWithCaptures(
+            SPARSE,
+            white = "pp",
+            black = "none",
+            whiteHalves = 4,
+            blackHalves = 26
+        )
         board.launch()
         board.awaitText("White to move")
 
@@ -153,7 +161,7 @@ class CapturesBoardTest {
         captures("Black").assertContentDescriptionEquals("Captured by Black: none")
         assertNoAdvantage()
 
-        board.save(SPARSE, white = "pp", black = "n", whiteHalves = 4, blackHalves = 28)
+        board.saveWithCaptures(SPARSE, white = "pp", black = "n", whiteHalves = 4, blackHalves = 28)
         board.relaunch()
         board.awaitText("White to move")
         board.tapText("Resign")
@@ -196,17 +204,6 @@ class CapturesBoardTest {
         node.fetchSemanticsNode().boundsInRoot
 
     /** Writes a version-4 save of a game in play at [fen], with each side's captures. */
-    private fun BoardHarness.save(
-        fen: String,
-        white: String,
-        black: String,
-        whiteHalves: Int = 0,
-        blackHalves: Int = 0
-    ) = gameFile.writeText(
-        "cute-game 4\n$fen\nplaying\n1\nEither\nanswered\n$whiteHalves\n$blackHalves\n" +
-            "$white\n$black\n"
-    )
-
     companion object {
         /** White's pawn on b7 can promote; Black's rook on a8 is 4 ahead of it. */
         const val PROMOTION = "r3k3/1P6/8/8/8/8/8/4K3 w - - 0 1"

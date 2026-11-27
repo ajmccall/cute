@@ -160,9 +160,10 @@ class LargeTextTest(private val orientation: Int) {
 
     @Test
     fun c16_c17_theCapturesAndAdvantageCanBeReadWithoutCoveringTheBoard() {
-        board.gameFile.writeText(
-            "cute-game 4\n4k3/8/8/8/8/8/4P3/4K3 w - - 0 1\nplaying\n1\nEither\nanswered\n" +
-                "0\n0\nppnbrqpp\nnone\n"
+        board.saveWithCaptures(
+            "4k3/8/8/8/8/8/4P3/4K3 w - - 0 1",
+            white = "ppnbrqpp",
+            black = "none"
         )
         board.launch()
         board.awaitText("White to move")

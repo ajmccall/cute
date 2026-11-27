@@ -49,7 +49,7 @@ data class Captures(
     fun of(side: Side): List<PieceType> = if (side == Side.White) white else black
 
     /** These captures with [type] added to [side]'s. */
-    fun plus(side: Side, type: PieceType): Captures =
+    fun withCapture(side: Side, type: PieceType): Captures =
         if (side == Side.White) copy(white = white + type) else copy(black = black + type)
 
     companion object {
@@ -102,7 +102,7 @@ data class GameRecord(
         val taken = position.captured(move)
         val next = copy(
             position = position.play(move),
-            captures = taken?.let { captures.plus(position.sideToMove, it.type) } ?: captures
+            captures = taken?.let { captures.withCapture(position.sideToMove, it.type) } ?: captures
         )
         return next.position.automaticResult()?.let(next::ended) ?: next
     }
