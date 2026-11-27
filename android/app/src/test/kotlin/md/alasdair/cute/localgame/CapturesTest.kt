@@ -150,7 +150,7 @@ class CapturesTest {
     }
 
     @Test
-    fun `the next game starts with no captures, keeping the score`() = runTest {
+    fun `the next game starts with no captures, keeping the match score`() = runTest {
         val game = device.launch()
         game.move("e2", "e4")
         game.move("d7", "d5")
@@ -164,7 +164,7 @@ class CapturesTest {
 
         assertCaptures(game, white = emptyList(), black = emptyList())
         assertNull(game.state.game?.materialAdvantage)
-        assertEquals(score(white = 1.0, black = 0.0), game.state.game?.score)
+        assertEquals(matchScore(white = 1.0, black = 0.0), game.state.game?.matchScore)
         assertCaptures(device.launch(), white = emptyList(), black = emptyList())
     }
 

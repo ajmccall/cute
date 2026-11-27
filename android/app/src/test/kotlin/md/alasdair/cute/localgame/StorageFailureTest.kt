@@ -223,7 +223,7 @@ class StorageFailureTest {
     }
 
     @Test
-    fun `an ending that can't be saved leaves the game in play and the score as it was`() =
+    fun `an ending that can't be saved leaves the game in play and the match score as it was`() =
         runTest {
             device.gameFile.writeText("cute-game 3\n$SAVED\nplaying\n2\nBlack\nanswered\n8\n26\n")
             val saved = device.gameFile.readBytes()
@@ -235,20 +235,23 @@ class StorageFailureTest {
 
             assertEquals(Failure.Write, game.state.failure)
             assertNull(game.state.game?.result)
-            assertEquals(score(white = 4.0, black = 13.0), game.state.game?.score)
+            assertEquals(matchScore(white = 4.0, black = 13.0), game.state.game?.matchScore)
             assertFalse(game.state.game!!.matchOver)
             assertArrayEquals(saved, device.gameFile.readBytes())
 
             device.folder.setWritable(true)
             game.onRetry()
             assertNull(game.state.failure)
-            assertEquals(score(white = 4.0, black = 15.0), game.state.game?.score)
+            assertEquals(matchScore(white = 4.0, black = 15.0), game.state.game?.matchScore)
             assertTrue(game.state.game!!.matchOver)
-            assertEquals(score(white = 4.0, black = 15.0), device.launch().state.game?.score)
+            assertEquals(
+                matchScore(white = 4.0, black = 15.0),
+                device.launch().state.game?.matchScore
+            )
         }
 
     @Test
-    fun `a next game or new match that can't be saved leaves the finished game and its score`() =
+    fun `a failed save of a next game or new match keeps the finished game and its match score`() =
         runTest {
             device.gameFile.writeText(
                 "cute-game 3\n$SAVED\nWhite Resignation\n1\nEither\nanswered\n6\n4\n"
@@ -260,20 +263,23 @@ class StorageFailureTest {
             game.onNextGameRequested()
             assertEquals(Failure.Write, game.state.failure)
             assertEquals(SAVED, game.state.fen)
-            assertEquals(score(white = 3.0, black = 2.0), game.state.game?.score)
+            assertEquals(matchScore(white = 3.0, black = 2.0), game.state.game?.matchScore)
 
             game.onNewMatchRequested()
             game.onConfirmed()
             assertEquals(Failure.Write, game.state.failure)
             assertEquals(SAVED, game.state.fen)
-            assertEquals(score(white = 3.0, black = 2.0), game.state.game?.score)
+            assertEquals(matchScore(white = 3.0, black = 2.0), game.state.game?.matchScore)
             assertArrayEquals(saved, device.gameFile.readBytes())
 
             device.folder.setWritable(true)
             game.onRetry()
             assertNull(game.state.failure)
             assertEquals(OPENING, game.state.fen)
-            assertEquals(score(white = 0.0, black = 0.0), device.launch().state.game?.score)
+            assertEquals(
+                matchScore(white = 0.0, black = 0.0),
+                device.launch().state.game?.matchScore
+            )
         }
 
     companion object {

@@ -239,7 +239,7 @@ class DoublingCubeTest {
                 GameResult(Side.White, EndReason.DoubleDeclined),
                 stake = 64,
                 nextDoubler = Side.White,
-                score = MatchScore(whiteHalves = 128)
+                matchScore = MatchScore(whiteHalves = 128)
             ),
             GameRecord(opening, GameResult(null, EndReason.Agreement), stake = null)
         )
