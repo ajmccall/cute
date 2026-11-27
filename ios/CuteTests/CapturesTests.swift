@@ -44,7 +44,7 @@ import Testing
     func aFreshGameStartsWithNothingCapturedSavedWithTheFreshGame(action: String) throws {
         let storage = try TemporaryStorage()
         try storage.store.save(SavedGame(position: try #require(Position(fen: Self.afterExd5)),
-                                         result: .win(.white, .resignation), score: MatchScore(white: 1, black: 0),
+                                         result: .win(.white, .resignation), matchScore: MatchScore(white: 1, black: 0),
                                          captures: Captures(white: [.pawn], black: [])))
         let game = LocalGame(store: storage.store)
         game.open()
@@ -71,7 +71,7 @@ import Testing
         #expect(game.position.fen == Self.afterExd5)
         #expect(game.stake == 2)
         #expect(game.nextDoubler == .white)
-        #expect(game.score == MatchScore(white: 4.5, black: 3))
+        #expect(game.matchScore == MatchScore(white: 4.5, black: 3))
         // Material is counted from the board, so the lead shows without the capture that made it.
         #expect(game.materialLead == MaterialLead(side: .white, amount: 1))
 

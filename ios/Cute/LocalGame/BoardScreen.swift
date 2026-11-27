@@ -54,7 +54,7 @@ struct BoardScreen: View {
 
     private var playSurface: some View {
         VStack(spacing: 16) {
-            MatchScoreView(score: game.score)
+            MatchScoreView(matchScore: game.matchScore)
             VStack(spacing: 4) {
                 Text(BoardText.status(of: game))
                     .font(.title2.weight(.semibold))
@@ -67,9 +67,9 @@ struct BoardScreen: View {
                         .accessibilityIdentifier("award")
                 }
                 if game.isMatchOver {
-                    Text(BoardText.matchResult(game.score, spoken: false))
+                    Text(BoardText.matchResult(game.matchScore, spoken: false))
                         .font(.headline)
-                        .accessibilityLabel(BoardText.matchResult(game.score, spoken: true))
+                        .accessibilityLabel(BoardText.matchResult(game.matchScore, spoken: true))
                         .accessibilityIdentifier("matchResult")
                 }
             }
@@ -171,16 +171,16 @@ private struct WriteFailureBanner: View {
 
 /// White's and Black's totals and the target, in every state of the board, with halves spoken in words.
 private struct MatchScoreView: View {
-    let score: MatchScore
+    let matchScore: MatchScore
 
     var body: some View {
-        Text(BoardText.matchScore(score, spoken: false))
+        Text(BoardText.matchScore(matchScore, spoken: false))
             .font(.subheadline.weight(.medium))
             .monospacedDigit()
             .multilineTextAlignment(.center)
             .fixedSize(horizontal: false, vertical: true)
             .padding(.horizontal)
-            .accessibilityLabel(BoardText.matchScore(score, spoken: true))
+            .accessibilityLabel(BoardText.matchScore(matchScore, spoken: true))
             .accessibilityIdentifier("matchScore")
     }
 }
