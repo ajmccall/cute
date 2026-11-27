@@ -39,22 +39,22 @@ class MatchBoardTest {
     fun cleanUp() = board.cleanUp()
 
     @Test
-    fun c10_theScoreAndTargetShowInPlay_duringADoubleResponse_andAfterTheEnd_andReopen() {
+    fun c10_theMatchScoreAndTargetShowInPlay_duringADoubleResponse_andAfterTheEnd_andReopen() {
         board.launch()
         board.awaitText("White to move")
-        score().assertTextEquals("White 0 points · Black 0 points · first to 15 points")
+        matchScore().assertTextEquals("White 0 points · Black 0 points · first to 15 points")
 
         offer()
         board.awaitText("Black, answer the double")
-        score().assertTextEquals("White 0 points · Black 0 points · first to 15 points")
+        matchScore().assertTextEquals("White 0 points · Black 0 points · first to 15 points")
 
         board.tapText("Decline")
         board.awaitText("White wins · Double declined")
-        score().assertTextEquals("White 1 point · Black 0 points · first to 15 points")
+        matchScore().assertTextEquals("White 1 point · Black 0 points · first to 15 points")
 
         board.relaunch()
         board.awaitText("White wins · Double declined")
-        score().assertTextEquals("White 1 point · Black 0 points · first to 15 points")
+        matchScore().assertTextEquals("White 1 point · Black 0 points · first to 15 points")
     }
 
     @Test
@@ -66,21 +66,21 @@ class MatchBoardTest {
         board.tapText("Confirm")
 
         board.awaitText("Draw · Agreement")
-        score().assertTextEquals("White ½ point · Black ½ point · first to 15 points")
-        assertSpoken(score(), "White half a point · Black half a point · first to 15 points")
+        matchScore().assertTextEquals("White ½ point · Black ½ point · first to 15 points")
+        assertSpoken(matchScore(), "White half a point · Black half a point · first to 15 points")
 
         board.save("playing", white = 9, black = 3)
         board.relaunch()
         board.awaitText("White to move")
-        score().assertTextEquals("White 4½ points · Black 1½ points · first to 15 points")
+        matchScore().assertTextEquals("White 4½ points · Black 1½ points · first to 15 points")
         assertSpoken(
-            score(),
+            matchScore(),
             "White 4 and a half points · Black 1 and a half points · first to 15 points"
         )
     }
 
     @Test
-    fun c11_aFinishedGameBelow15OffersNextGame_whichStartsAtOnceAndKeepsTheScore() {
+    fun c11_aFinishedGameBelow15OffersNextGame_whichStartsAtOnceAndKeepsTheMatchScore() {
         board.save("playing", stake = "4", nextDoubler = "Black", white = 6, black = 10)
         board.launch()
         board.awaitText("White to move")
@@ -88,7 +88,7 @@ class MatchBoardTest {
         board.tapText("Resign")
         board.tapText("Confirm")
         board.awaitText("Black wins · Resignation")
-        score().assertTextEquals("White 3 points · Black 9 points · first to 15 points")
+        matchScore().assertTextEquals("White 3 points · Black 9 points · first to 15 points")
         listOf("Resign", "Agree draw", "Offer double").forEach {
             rule.onNodeWithText(it).assertDoesNotExist()
         }
@@ -102,11 +102,11 @@ class MatchBoardTest {
         board.assertSquare("e2", "e2, White pawn")
         board.assertSquare("e4", "e4, Empty")
         stake().assertTextEquals("Stake: 1 point", "Either player can offer")
-        score().assertTextEquals("White 3 points · Black 9 points · first to 15 points")
+        matchScore().assertTextEquals("White 3 points · Black 9 points · first to 15 points")
         rule.onNodeWithText("Next game").assertDoesNotExist()
         board.relaunch()
         board.awaitText("White to move")
-        score().assertTextEquals("White 3 points · Black 9 points · first to 15 points")
+        matchScore().assertTextEquals("White 3 points · Black 9 points · first to 15 points")
     }
 
     @Test
@@ -124,7 +124,7 @@ class MatchBoardTest {
             "White earns 2 points.",
             "White wins the match, 15 to 5"
         )
-        score().assertTextEquals("White 15 points · Black 5 points · first to 15 points")
+        matchScore().assertTextEquals("White 15 points · Black 5 points · first to 15 points")
         board.square("e7").assertIsNotEnabled()
         listOf("Next game", "Resign", "Agree draw", "Offer double").forEach {
             rule.onNodeWithText(it).assertDoesNotExist()
@@ -136,27 +136,28 @@ class MatchBoardTest {
 
         board.awaitText("White to move")
         rule.onNodeWithText("Replace this match?").assertDoesNotExist()
-        score().assertTextEquals("White 0 points · Black 0 points · first to 15 points")
+        matchScore().assertTextEquals("White 0 points · Black 0 points · first to 15 points")
         stake().assertTextEquals("Stake: 1 point", "Either player can offer")
         board.assertSquare("e4", "e4, Empty")
     }
 
     @Test
     fun c12_aSplitDrawPast15IsWonByTheHigherTotal_orDrawnWhenEqual() {
-        board.save("playing", stake = "2", nextDoubler = "White", white = 28, black = 27)
+        board.save("playing", stake = "4", nextDoubler = "White", white = 29, black = 28)
         board.launch()
         board.awaitText("White to move")
         board.tapText("Agree draw")
         board.tapText("Confirm")
-        board.awaitText("White wins the match, 15 to 14½")
+        board.awaitText("White wins the match, 16½ to 16")
         status().assertTextEquals(
             "Draw · Agreement",
-            "Each player earns 1 point.",
-            "White wins the match, 15 to 14½"
+            "Each player earns 2 points.",
+            "White wins the match, 16½ to 16"
         )
         assertSpoken(
             status(),
-            "Draw · Agreement. Each player earns 1 point. White wins the match, 15 to 14 and a half"
+            "Draw · Agreement. Each player earns 2 points. " +
+                "White wins the match, 16 and a half to 16"
         )
 
         board.save("playing", stake = "2", nextDoubler = "Black", white = 28, black = 28)
@@ -181,16 +182,16 @@ class MatchBoardTest {
         board.tapText("Cancel")
         status().assertTextEquals("Black to move")
         board.assertSquare("e4", "e4, White pawn")
-        score().assertTextEquals("White 4 points · Black 1½ points · first to 15 points")
+        matchScore().assertTextEquals("White 4 points · Black 1½ points · first to 15 points")
 
         newMatch()
         board.tapText("Confirm")
         board.awaitText("White to move")
         board.assertSquare("e4", "e4, Empty")
-        score().assertTextEquals("White 0 points · Black 0 points · first to 15 points")
+        matchScore().assertTextEquals("White 0 points · Black 0 points · first to 15 points")
         board.relaunch()
         board.awaitText("White to move")
-        score().assertTextEquals("White 0 points · Black 0 points · first to 15 points")
+        matchScore().assertTextEquals("White 0 points · Black 0 points · first to 15 points")
     }
 
     @Test
@@ -205,7 +206,7 @@ class MatchBoardTest {
         newMatch()
         rule.onNodeWithText("Replace this match?").assertIsDisplayed()
         board.tapText("Cancel")
-        score().assertTextEquals("White 4 points · Black 2½ points · first to 15 points")
+        matchScore().assertTextEquals("White 4 points · Black 2½ points · first to 15 points")
 
         nextGame()
         board.awaitText("White to move")
@@ -259,19 +260,19 @@ class MatchBoardTest {
         board.gameFile.writeText("cute-game 2\n$AFTER_E4\nplaying\n2\nWhite\nanswered\n")
         board.launch()
         board.awaitText("Black to move")
-        score().assertTextEquals("White 0 points · Black 0 points · first to 15 points")
+        matchScore().assertTextEquals("White 0 points · Black 0 points · first to 15 points")
 
         board.gameFile.writeText("cute-game 2\n$AFTER_E4\nWhite Checkmate\n4\nBlack\nanswered\n")
         board.relaunch()
         board.awaitText("White wins · Checkmate")
-        score().assertTextEquals("White 4 points · Black 0 points · first to 15 points")
+        matchScore().assertTextEquals("White 4 points · Black 0 points · first to 15 points")
         rule.onNodeWithText("Next game").assertExists()
 
         board.gameFile.writeText("cute-game 1\n$AFTER_E4\nWhite Resignation\n")
         board.relaunch()
         board.awaitText("White wins · Resignation")
         status().assertTextEquals("White wins · Resignation")
-        score().assertTextEquals("White 0 points · Black 0 points · first to 15 points")
+        matchScore().assertTextEquals("White 0 points · Black 0 points · first to 15 points")
         rule.onNodeWithText("Next game").assertExists()
 
         board.gameFile.writeText(
@@ -279,13 +280,13 @@ class MatchBoardTest {
         )
         board.relaunch()
         board.awaitText("Black wins the match, 16 to 0")
-        score().assertTextEquals("White 0 points · Black 16 points · first to 15 points")
+        matchScore().assertTextEquals("White 0 points · Black 16 points · first to 15 points")
         rule.onNodeWithText("Next game").assertDoesNotExist()
         rule.onNodeWithText("New match").assertExists()
     }
 
     @Test
-    fun c5_anEndingThatCantBeSavedKeepsTheGameAndScore_andRetrySavesBoth() {
+    fun c5_anEndingThatCantBeSavedKeepsTheGameAndMatchScore_andRetrySavesBoth() {
         board.save("playing", stake = "2", nextDoubler = "Black", white = 8, black = 26)
         board.launch()
         board.awaitText("White to move")
@@ -296,11 +297,11 @@ class MatchBoardTest {
 
         board.awaitText("Change not saved.")
         status().assertTextEquals("White to move")
-        score().assertTextEquals("White 4 points · Black 13 points · first to 15 points")
+        matchScore().assertTextEquals("White 4 points · Black 13 points · first to 15 points")
         board.folder.setWritable(true)
         board.tapText("Retry")
         board.awaitText("Black wins the match, 15 to 4")
-        score().assertTextEquals("White 4 points · Black 15 points · first to 15 points")
+        matchScore().assertTextEquals("White 4 points · Black 15 points · first to 15 points")
         board.relaunch()
         board.awaitText("Black wins the match, 15 to 4")
     }
@@ -340,7 +341,7 @@ class MatchBoardTest {
 
     private fun status() = rule.onNodeWithTag("status")
 
-    private fun score() = rule.onNodeWithTag("score")
+    private fun matchScore() = rule.onNodeWithTag("matchScore")
 
     private fun stake() = rule.onNodeWithTag("stake")
 

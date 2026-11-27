@@ -20,7 +20,7 @@ class MatchTest {
     fun `a new match starts at 0 to 0`() = runTest {
         val game = device.launch()
 
-        assertEquals(score(white = 0.0, black = 0.0), game.state.game?.score)
+        assertEquals(matchScore(white = 0.0, black = 0.0), game.state.game?.matchScore)
     }
 
     @Test
@@ -30,8 +30,8 @@ class MatchTest {
         game.onResignRequested()
         game.onConfirmed()
 
-        assertEquals(score(white = 0.0, black = 1.0), game.state.game?.score)
-        assertEquals(score(white = 0.0, black = 1.0), device.launch().state.game?.score)
+        assertEquals(matchScore(white = 0.0, black = 1.0), game.state.game?.matchScore)
+        assertEquals(matchScore(white = 0.0, black = 1.0), device.launch().state.game?.matchScore)
     }
 
     @Test
@@ -41,8 +41,8 @@ class MatchTest {
         game.onDrawRequested()
         game.onConfirmed()
 
-        assertEquals(score(white = 0.5, black = 0.5), game.state.game?.score)
-        assertEquals(score(white = 0.5, black = 0.5), device.launch().state.game?.score)
+        assertEquals(matchScore(white = 0.5, black = 0.5), game.state.game?.matchScore)
+        assertEquals(matchScore(white = 0.5, black = 0.5), device.launch().state.game?.matchScore)
     }
 
     @Test
@@ -53,8 +53,8 @@ class MatchTest {
         game.onOfferDoubleRequested()
         game.onDoubleDeclined()
 
-        assertEquals(score(white = 7.0, black = 1.0), game.state.game?.score)
-        assertEquals(score(white = 7.0, black = 1.0), device.launch().state.game?.score)
+        assertEquals(matchScore(white = 7.0, black = 1.0), game.state.game?.matchScore)
+        assertEquals(matchScore(white = 7.0, black = 1.0), device.launch().state.game?.matchScore)
     }
 
     @Test
@@ -64,16 +64,16 @@ class MatchTest {
         game.move("e7", "e5")
         game.move("g2", "g4")
         game.move("d8", "h4")
-        assertEquals(score(white = 0.0, black = 1.0), game.state.game?.score)
+        assertEquals(matchScore(white = 0.0, black = 1.0), game.state.game?.matchScore)
 
         device.save("playing", "7k/8/6K1/8/8/8/8/5Q2 w - - 0 1", "2", "Black", 3, 4)
         val stalemate = device.launch()
         stalemate.move("f1", "f7")
-        assertEquals(score(white = 2.5, black = 3.0), stalemate.state.game?.score)
+        assertEquals(matchScore(white = 2.5, black = 3.0), stalemate.state.game?.matchScore)
     }
 
     @Test
-    fun `a game in play keeps the score as it was`() = runTest {
+    fun `a game in play keeps the match score as it was`() = runTest {
         device.save("playing", white = 5, black = 9)
         val game = device.launch()
 
@@ -81,18 +81,18 @@ class MatchTest {
         game.onOfferDoubleRequested()
         game.onDoubleTaken()
 
-        assertEquals(score(white = 2.5, black = 4.5), game.state.game?.score)
-        assertEquals(score(white = 2.5, black = 4.5), device.launch().state.game?.score)
+        assertEquals(matchScore(white = 2.5, black = 4.5), game.state.game?.matchScore)
+        assertEquals(matchScore(white = 2.5, black = 4.5), device.launch().state.game?.matchScore)
     }
 
     @Test
-    fun `a game ending below 15 offers Next game, which starts at once and keeps the score`() =
+    fun `a game below 15 offers Next game, which starts at once and keeps the match score`() =
         runTest {
             device.save("playing", stake = "4", nextDoubler = "Black", white = 6, black = 10)
             val game = device.launch()
             game.onResignRequested()
             game.onConfirmed()
-            assertTrue(game.state.game!!.finished)
+            assertTrue(game.state.game!!.canStartNextGame)
             assertFalse(game.state.game!!.matchOver)
 
             game.onNextGameRequested()
@@ -104,10 +104,10 @@ class MatchTest {
             assertEquals(1, game.state.game?.stake)
             assertNull(game.state.game?.nextDoubler)
             assertTrue(game.state.canOfferDouble)
-            assertEquals(score(white = 3.0, black = 9.0), game.state.game?.score)
+            assertEquals(matchScore(white = 3.0, black = 9.0), game.state.game?.matchScore)
             val reopened = device.launch()
             assertEquals(OPENING, reopened.state.fen)
-            assertEquals(score(white = 3.0, black = 9.0), reopened.state.game?.score)
+            assertEquals(matchScore(white = 3.0, black = 9.0), reopened.state.game?.matchScore)
         }
 
     @Test
@@ -134,9 +134,9 @@ class MatchTest {
             game.onConfirmed()
 
             assertTrue(game.state.game!!.matchOver)
-            assertFalse(game.state.game!!.finished)
-            assertEquals(score(white = 9.0, black = 15.0), game.state.game?.score)
-            assertEquals(Side.Black, game.state.game?.score?.leader)
+            assertFalse(game.state.game!!.canStartNextGame)
+            assertEquals(matchScore(white = 9.0, black = 15.0), game.state.game?.matchScore)
+            assertEquals(Side.Black, game.state.game?.matchScore?.leader)
             game.onNextGameRequested()
             game.onResignRequested()
             game.onDrawRequested()
@@ -144,7 +144,7 @@ class MatchTest {
             game.onSquareTapped(sq("e2"))
             assertNull(game.state.confirmation)
             assertNull(game.state.selection)
-            assertEquals(score(white = 9.0, black = 15.0), game.state.game?.score)
+            assertEquals(matchScore(white = 9.0, black = 15.0), game.state.game?.matchScore)
             assertTrue(device.launch().state.game!!.matchOver)
 
             game.onNewMatchRequested()
@@ -153,8 +153,11 @@ class MatchTest {
             assertEquals(OPENING, game.state.fen)
             assertNull(game.state.game?.result)
             assertEquals(1, game.state.game?.stake)
-            assertEquals(score(white = 0.0, black = 0.0), game.state.game?.score)
-            assertEquals(score(white = 0.0, black = 0.0), device.launch().state.game?.score)
+            assertEquals(matchScore(white = 0.0, black = 0.0), game.state.game?.matchScore)
+            assertEquals(
+                matchScore(white = 0.0, black = 0.0),
+                device.launch().state.game?.matchScore
+            )
         }
 
     @Test
@@ -166,29 +169,48 @@ class MatchTest {
         game.onDoubleDeclined()
 
         assertTrue(game.state.game!!.matchOver)
-        assertEquals(score(white = 16.0, black = 0.0), game.state.game?.score)
-        assertEquals(Side.White, game.state.game?.score?.leader)
+        assertEquals(matchScore(white = 16.0, black = 0.0), game.state.game?.matchScore)
+        assertEquals(Side.White, game.state.game?.matchScore?.leader)
     }
 
     @Test
     fun `a split draw that takes both past 15 is won by the higher total, or drawn if equal`() =
         runTest {
-            device.save("playing", stake = "2", nextDoubler = "White", white = 28, black = 27)
+            device.save("playing", stake = "4", nextDoubler = "White", white = 29, black = 28)
             val higher = device.launch()
             higher.onDrawRequested()
             higher.onConfirmed()
             assertTrue(higher.state.game!!.matchOver)
-            assertEquals(score(white = 15.0, black = 14.5), higher.state.game?.score)
-            assertEquals(Side.White, higher.state.game?.score?.leader)
+            assertEquals(matchScore(white = 16.5, black = 16.0), higher.state.game?.matchScore)
+            assertEquals(Side.White, higher.state.game?.matchScore?.leader)
 
             device.save("playing", stake = "2", nextDoubler = "Black", white = 28, black = 28)
             val equal = device.launch()
             equal.onDrawRequested()
             equal.onConfirmed()
             assertTrue(equal.state.game!!.matchOver)
-            assertEquals(score(white = 15.0, black = 15.0), equal.state.game?.score)
-            assertNull(equal.state.game?.score?.leader)
+            assertEquals(matchScore(white = 15.0, black = 15.0), equal.state.game?.matchScore)
+            assertNull(equal.state.game?.matchScore?.leader)
         }
+
+    @Test
+    fun `declining ends the match only when the old stake takes the offerer to 15`() = runTest {
+        device.save("playing", stake = "4", nextDoubler = "White", white = 22, black = 0)
+        val reaches = device.launch()
+        reaches.onOfferDoubleRequested()
+        assertTrue(reaches.state.game!!.declineEndsMatch)
+        reaches.onDoubleDeclined()
+        assertTrue(reaches.state.game!!.matchOver)
+        assertEquals(matchScore(white = 15.0, black = 0.0), reaches.state.game?.matchScore)
+
+        device.save("playing", stake = "4", nextDoubler = "White", white = 21, black = 29)
+        val short = device.launch()
+        short.onOfferDoubleRequested()
+        assertFalse(short.state.game!!.declineEndsMatch)
+        short.onDoubleDeclined()
+        assertTrue(short.state.game!!.canStartNextGame)
+        assertEquals(matchScore(white = 14.5, black = 14.5), short.state.game?.matchScore)
+    }
 
     @Test
     fun `New match asks first while the match is under way, and cancelling changes nothing`() =
@@ -203,20 +225,23 @@ class MatchTest {
 
             assertNull(game.state.confirmation)
             assertEquals(AFTER_E4, game.state.fen)
-            assertEquals(score(white = 4.0, black = 1.5), game.state.game?.score)
+            assertEquals(matchScore(white = 4.0, black = 1.5), game.state.game?.matchScore)
 
             game.onResignRequested()
             game.onConfirmed()
-            assertTrue(game.state.game!!.finished)
+            assertTrue(game.state.game!!.canStartNextGame)
             game.onNewMatchRequested()
             assertEquals(Confirmation.Replace, game.state.confirmation)
             game.onCancelled()
-            assertEquals(score(white = 5.0, black = 1.5), game.state.game?.score)
-            assertEquals(score(white = 5.0, black = 1.5), device.launch().state.game?.score)
+            assertEquals(matchScore(white = 5.0, black = 1.5), game.state.game?.matchScore)
+            assertEquals(
+                matchScore(white = 5.0, black = 1.5),
+                device.launch().state.game?.matchScore
+            )
         }
 
     @Test
-    fun `confirming New match replaces the game and the score with a fresh game at 0 to 0`() =
+    fun `confirming New match replaces the game and the match score with a fresh game at 0 to 0`() =
         runTest {
             device.save("playing", stake = "2", nextDoubler = "Black", white = 8, black = 3)
             val game = device.launch()
@@ -228,10 +253,10 @@ class MatchTest {
             assertEquals(OPENING, game.state.fen)
             assertEquals(1, game.state.game?.stake)
             assertNull(game.state.game?.nextDoubler)
-            assertEquals(score(white = 0.0, black = 0.0), game.state.game?.score)
+            assertEquals(matchScore(white = 0.0, black = 0.0), game.state.game?.matchScore)
             val reopened = device.launch()
             assertEquals(OPENING, reopened.state.fen)
-            assertEquals(score(white = 0.0, black = 0.0), reopened.state.game?.score)
+            assertEquals(matchScore(white = 0.0, black = 0.0), reopened.state.game?.matchScore)
         }
 
     @Test
@@ -244,7 +269,21 @@ class MatchTest {
 
         assertNull(game.state.confirmation)
         assertTrue(game.state.game!!.doublePending)
-        assertEquals(score(white = 4.0, black = 1.5), game.state.game?.score)
+        assertEquals(matchScore(white = 4.0, black = 1.5), game.state.game?.matchScore)
+    }
+
+    @Test
+    fun `a save keeps its version-4 form, which opens as the same game`() = runTest {
+        device.save("playing", stake = "2", nextDoubler = "White", white = 9, black = 4)
+        val game = device.launch()
+
+        game.move("e2", "e4")
+
+        val saved = "cute-game 4\n$AFTER_E4\nplaying\n2\nWhite\nanswered\n9\n4\nnone\nnone\n"
+        assertEquals(saved, device.gameFile.readText())
+        val reopened = device.launch()
+        assertEquals(game.state.game, reopened.state.game)
+        assertEquals(matchScore(white = 4.5, black = 2.0), reopened.state.game?.matchScore)
     }
 
     /**
@@ -270,7 +309,7 @@ class MatchTest {
 }
 
 /** The match score [white] to [black], each in whole or half points. */
-fun score(white: Double, black: Double) =
+fun matchScore(white: Double, black: Double) =
     MatchScore(whiteHalves = (white * 2).toInt(), blackHalves = (black * 2).toInt())
 
 /** Saves from before matches open as the first game of a match (C15), at the model. */
@@ -286,15 +325,15 @@ class SavesBeforeMatchesTest {
 
         assertEquals(AFTER_E4, game.state.fen)
         assertEquals(2, game.state.game?.stake)
-        assertEquals(score(white = 0.0, black = 0.0), game.state.game?.score)
+        assertEquals(matchScore(white = 0.0, black = 0.0), game.state.game?.matchScore)
 
         game.onResignRequested()
         game.onConfirmed()
-        assertEquals(score(white = 2.0, black = 0.0), game.state.game?.score)
-        assertTrue(game.state.game!!.finished)
+        assertEquals(matchScore(white = 2.0, black = 0.0), game.state.game?.matchScore)
+        assertTrue(game.state.game!!.canStartNextGame)
         game.onNextGameRequested()
         assertEquals(OPENING, game.state.fen)
-        assertEquals(score(white = 2.0, black = 0.0), device.launch().state.game?.score)
+        assertEquals(matchScore(white = 2.0, black = 0.0), device.launch().state.game?.matchScore)
     }
 
     @Test
@@ -303,21 +342,21 @@ class SavesBeforeMatchesTest {
 
         val game = device.launch()
 
-        assertEquals(score(white = 0.0, black = 0.0), game.state.game?.score)
+        assertEquals(matchScore(white = 0.0, black = 0.0), game.state.game?.matchScore)
         assertEquals(1, game.state.game?.stake)
     }
 
     @Test
-    fun `a finished game with a stake opens with its award as the score`() = runTest {
+    fun `a finished game with a stake opens with its award as the match score`() = runTest {
         device.gameFile.writeText("cute-game 2\n$AFTER_E4\nDraw Agreement\n1\nEither\nanswered\n")
 
         val game = device.launch()
 
-        assertEquals(score(white = 0.5, black = 0.5), game.state.game?.score)
-        assertTrue(game.state.game!!.finished)
+        assertEquals(matchScore(white = 0.5, black = 0.5), game.state.game?.matchScore)
+        assertTrue(game.state.game!!.canStartNextGame)
         game.onNextGameRequested()
         assertEquals(OPENING, game.state.fen)
-        assertEquals(score(white = 0.5, black = 0.5), game.state.game?.score)
+        assertEquals(matchScore(white = 0.5, black = 0.5), game.state.game?.matchScore)
     }
 
     @Test
@@ -328,15 +367,15 @@ class SavesBeforeMatchesTest {
 
         val game = device.launch()
 
-        assertEquals(score(white = 0.0, black = 16.0), game.state.game?.score)
+        assertEquals(matchScore(white = 0.0, black = 16.0), game.state.game?.matchScore)
         assertTrue(game.state.game!!.matchOver)
-        assertEquals(Side.Black, game.state.game?.score?.leader)
+        assertEquals(Side.Black, game.state.game?.matchScore?.leader)
         game.onNextGameRequested()
         assertEquals(AFTER_E4, game.state.fen)
         game.onNewMatchRequested()
         assertNull(game.state.confirmation)
         assertEquals(OPENING, game.state.fen)
-        assertEquals(score(white = 0.0, black = 0.0), game.state.game?.score)
+        assertEquals(matchScore(white = 0.0, black = 0.0), game.state.game?.matchScore)
     }
 
     @Test
@@ -346,11 +385,11 @@ class SavesBeforeMatchesTest {
         val game = device.launch()
 
         assertNull(game.state.game?.stake)
-        assertEquals(score(white = 0.0, black = 0.0), game.state.game?.score)
-        assertTrue(game.state.game!!.finished)
+        assertEquals(matchScore(white = 0.0, black = 0.0), game.state.game?.matchScore)
+        assertTrue(game.state.game!!.canStartNextGame)
         game.onNextGameRequested()
         assertEquals(OPENING, game.state.fen)
-        assertEquals(score(white = 0.0, black = 0.0), game.state.game?.score)
+        assertEquals(matchScore(white = 0.0, black = 0.0), game.state.game?.matchScore)
     }
 
     @Test
