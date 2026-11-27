@@ -75,13 +75,18 @@ struct BoardRobot {
             // to it, keeps the stock disabled look; WCAG 1.4.3 sets no contrast for inactive controls.
             // A half is shown as ½ and spoken in words, "half a point" or "and a half" (local-game Interface text);
             // the audit measures the longer spoken label against the shown text and reports it clipped.
+            // The material lead is shown as +N and spoken in words, "{side} ahead by {N} in material", and is
+            // reported clipped in the same way.
             // Every other issue fails the test.
             let isGameAction = issue.element?.elementType == .button
                 && Self.gameActions.contains(issue.element?.label ?? "")
             let isSpokenHalfPoint = issue.auditType == .textClipped
                 && Self.textsWithHalves.contains(issue.element?.identifier ?? "")
                 && issue.element?.label.contains("half") == true
-            let ignored = isSpokenHalfPoint || isGameAction && (
+            let isSpokenLead = issue.auditType == .textClipped
+                && issue.element?.identifier == "advantage"
+                && issue.element?.label.hasSuffix(" in material") == true
+            let ignored = isSpokenHalfPoint || isSpokenLead || isGameAction && (
                 (issue.auditType == .dynamicType && issue.compactDescription.contains("partially"))
                 || (issue.auditType == .contrast && issue.element?.isEnabled == false))
             if !ignored {

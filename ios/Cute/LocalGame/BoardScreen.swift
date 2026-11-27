@@ -1,6 +1,7 @@
 import SwiftUI
 
-/// The app's root destination: the match score, the board, whose turn or result, and the game actions.
+/// The app's root destination: the match score, whose turn or result, the board with each colour's captures at its
+/// edge, and the game actions.
 struct BoardScreen: View {
     let game: LocalGame
 
@@ -76,7 +77,12 @@ struct BoardScreen: View {
             if game.isInPlay, !game.isAwaitingDoubleResponse, let stake = game.stake {
                 StakeView(stake: stake, doubleRight: BoardText.doubleRight(of: game))
             }
-            BoardView(game: game)
+            // Each colour's captures at its own edge of the board, so they turn with it.
+            VStack(spacing: 8) {
+                CapturesView(side: game.sideAtBottom.opponent, captures: game.captures, lead: game.materialLead)
+                BoardView(game: game)
+                CapturesView(side: game.sideAtBottom, captures: game.captures, lead: game.materialLead)
+            }
             if game.isAwaitingDoubleResponse, let stake = game.stake {
                 DoubleResponseView(
                     stake: stake, offerer: game.position.sideToMove, endsMatch: game.declineEndsMatch,

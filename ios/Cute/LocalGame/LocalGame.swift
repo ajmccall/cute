@@ -16,6 +16,8 @@ final class LocalGame {
     private var doublePending = false
     /// White's and Black's totals in this match, including this game's award once it has finished.
     private(set) var score: MatchScore = .zero
+    /// The opponent's pieces each colour has captured in this game, as last committed.
+    private(set) var captures: Captures = .empty
     /// The saved game couldn't be read, and no game has been read or saved since.
     /// Nothing is playable and no board is shown until it is read or replaced.
     private(set) var couldNotReadSavedGame = false
@@ -41,6 +43,10 @@ final class LocalGame {
 
     /// The side that answers a pending offer: the other side from the offerer, who is the side to move.
     var responder: PieceColor { position.sideToMove.opponent }
+
+    /// The side whose pieces the board puts at the bottom: the side to move, or the responder while an offer
+    /// waits for its answer. Which way the board faces never changes whose move it is.
+    var sideAtBottom: PieceColor { isAwaitingDoubleResponse ? responder : position.sideToMove }
 
     /// What a finished game awards: nothing while it is played, or for a game finished before the cube.
     var award: PointAward? {
@@ -86,6 +92,10 @@ final class LocalGame {
 
     var isChoosingPromotion: Bool { promotionMove != nil }
 
+    /// The colour ahead in material on the committed position, and by how much; nil when material is equal.
+    /// A promotion still being chosen isn't committed, so it doesn't count.
+    var materialLead: MaterialLead? { MaterialLead(in: position) }
+
     /// Whether the side to move may offer to double the stake now (`SavedGame.sideToMoveMayOffer`).
     var canOfferDouble: Bool { isAwaitingMove && committed.sideToMoveMayOffer }
 
@@ -105,6 +115,7 @@ final class LocalGame {
             nextDoubler = saved.nextDoubler
             doublePending = saved.doublePending
             score = saved.score
+            captures = saved.captures
             couldNotReadSavedGame = false
             unsavedChange = nil
         } catch {
@@ -221,11 +232,14 @@ final class LocalGame {
     /// The game as last committed, the base for the next change.
     private var committed: SavedGame {
         SavedGame(position: position, result: result, stake: stake, nextDoubler: nextDoubler,
-                  doublePending: doublePending, score: score)
+                  doublePending: doublePending, score: score, captures: captures)
     }
 
     private func play(_ move: Move) {
         var change = committed
+        if let taken = position.capture(by: move) {
+            change.captures[position.sideToMove].append(taken.kind)
+        }
         change.position = position.applying(move)
         if let result = change.position.automaticResult {
             change = change.ending(with: result)
@@ -255,5 +269,6 @@ final class LocalGame {
         nextDoubler = game.nextDoubler
         doublePending = game.doublePending
         score = game.score
+        captures = game.captures
     }
 }

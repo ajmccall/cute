@@ -66,7 +66,7 @@ import Testing
         Data(),
         Data("not json".utf8),
         Data([0xFF, 0xFE, 0x00, 0x12]),
-        Data(#"{"version": 4, "position": "4k3/8/8/8/8/8/8/4K3 w - -", "result": null, "stake": 1, "nextDoubler": null, "doublePending": false, "whiteTotal": 0, "blackTotal": 0}"#.utf8),
+        Data(#"{"version": 5, "position": "4k3/8/8/8/8/8/8/4K3 w - -", "result": null, "stake": 1, "nextDoubler": null, "doublePending": false, "whiteTotal": 0, "blackTotal": 0, "captures": {"white": [], "black": []}}"#.utf8),
         Data(#"{"position": "4k3/8/8/8/8/8/8/4K3 w - -", "result": null}"#.utf8),
         Data(#"{"version": 1, "result": null}"#.utf8),
         Data(#"{"version": 1, "position": "4k3/8/8/8/8/8/8/4K3 w - -", "result": {"winner": "green", "reason": "checkmate"}}"#.utf8),

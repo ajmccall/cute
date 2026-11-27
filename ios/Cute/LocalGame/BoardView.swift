@@ -5,12 +5,9 @@ import SwiftUI
 struct BoardView: View {
     let game: LocalGame
 
-    private var bottomSide: PieceColor {
-        game.isAwaitingDoubleResponse ? game.responder : game.position.sideToMove
-    }
-
     /// Rows top to bottom, each left to right, for the side whose pieces sit at the bottom.
     private var rows: [[Square]] {
+        let bottomSide = game.sideAtBottom
         let ranks: [Int] = bottomSide == .white ? Array((0..<8).reversed()) : Array(0..<8)
         let files: [Int] = bottomSide == .white ? Array(0..<8) : Array((0..<8).reversed())
         return ranks.map { rank in files.map { Square(file: $0, rank: rank)! } }
@@ -82,8 +79,8 @@ private struct SquareView: View {
 }
 
 /// A piece drawn from the Unicode chess glyphs: filled for Black, filled white with an outline for White.
-/// Drawn as a graphic that scales with the board, not as text; the square's label names the piece.
-private struct PieceGlyph: View {
+/// Drawn as a graphic that scales with its frame, not as text; the square or captures label names the piece.
+struct PieceGlyph: View {
     let piece: Piece
     let size: CGFloat
 

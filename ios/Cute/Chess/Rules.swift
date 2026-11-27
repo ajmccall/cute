@@ -67,6 +67,14 @@ nonisolated extension Position {
         return isAttacked(king, by: color.opponent)
     }
 
+    /// The opponent's piece a move takes, if any: the piece on the destination, or for en passant the pawn that
+    /// passed. Assumes the move is legal.
+    func capture(by move: Move) -> Piece? {
+        if let taken = self[move.to] { return taken }
+        guard self[move.from]?.kind == .pawn, move.to == enPassantTarget else { return nil }
+        return self[Square(file: move.to.file, rank: move.from.rank)!]
+    }
+
     /// The position after a move, with the other side to move. Assumes the move is legal.
     func applying(_ move: Move) -> Position {
         var next = self

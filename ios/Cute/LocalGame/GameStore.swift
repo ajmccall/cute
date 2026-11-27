@@ -1,7 +1,7 @@
 import Foundation
 
-/// The one current game a device keeps: its committed position, any result, and the doubling cube,
-/// saved together with the match score so a game's result and its award are written in one save.
+/// The one current game a device keeps: its committed position, any result, the doubling cube and each colour's
+/// captures, saved together with the match score so a game's result and its award are written in one save.
 nonisolated struct SavedGame: Equatable, Sendable {
     /// The highest stake: once a game is played for this, neither side can offer.
     static let maximumStake = 64
@@ -16,8 +16,10 @@ nonisolated struct SavedGame: Equatable, Sendable {
     var doublePending = false
     /// White's and Black's totals in this match, including this game's award once it has finished.
     var score: MatchScore = .zero
+    /// The opponent's pieces each colour has captured in this game, saved with the move that captured each.
+    var captures: Captures = .empty
 
-    /// The first game of a new match: the opening position at one point, at no points each.
+    /// The first game of a new match: the opening position at one point, at no points each and nothing captured.
     static let opening = SavedGame(position: .opening, result: nil)
 
     /// What the game awards once finished: nothing while it is played, or for a game finished before the cube.
