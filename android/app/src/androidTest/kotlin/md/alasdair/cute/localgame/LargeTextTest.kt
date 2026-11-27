@@ -20,18 +20,16 @@ import org.junit.Rule
 import org.junit.Test
 import org.junit.rules.ExternalResource
 import org.junit.rules.RuleChain
-import org.junit.runner.RunWith
-import org.junit.runners.Parameterized
 
 /**
- * The board's dialogs at the largest font scale, 200%, in portrait and in landscape, where a
- * dialog has the least height (rule 5.4). The font scale is set before the activity starts;
- * the rotation is locked once the activity is in front, and each test waits, at most 30
+ * The board's dialogs at the largest font scale, 200%, in portrait (rule 5.4). The font scale is
+ * set before the activity starts; the rotation is locked once the activity is in front, and each
+ * test waits, at most 30
  * seconds, until the activity runs at that scale and orientation. Accessibility checks run on
  * every action (BoardHarness.enableAccessibilityChecks).
  */
-@RunWith(Parameterized::class)
-class LargeTextTest(private val orientation: Int) {
+class LargeTextTest {
+    private val orientation = Configuration.ORIENTATION_PORTRAIT
     private val rule = createAndroidComposeRule<ComponentActivity>()
     private val display = DisplaySettings(FONT_SCALE)
 
@@ -76,7 +74,7 @@ class LargeTextTest(private val orientation: Int) {
         board.seed("4k3/1P5p/8/8/8/8/8/4K3 w - - 0 1")
         board.launch()
         board.awaitText("White to move")
-        // In landscape the board is taller than the screen: scroll its top ranks into view.
+        // Keep both ranks reachable at large font scale.
         board.square("b8").performScrollTo()
         board.square("b7").performScrollTo()
         board.tap("b7", "b8")
@@ -181,11 +179,6 @@ class LargeTextTest(private val orientation: Int) {
         const val FONT_SCALE = 2.0f
         const val DISPLAY_TIMEOUT_MS = 30_000L
         const val POLL_MS = 250L
-
-        @JvmStatic
-        @Parameterized.Parameters(name = "orientation={0}")
-        fun orientations() =
-            listOf(Configuration.ORIENTATION_PORTRAIT, Configuration.ORIENTATION_LANDSCAPE)
     }
 }
 

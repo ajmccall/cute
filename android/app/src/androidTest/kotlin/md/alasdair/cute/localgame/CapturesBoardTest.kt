@@ -172,6 +172,27 @@ class CapturesBoardTest {
         advantage("White").assertTextEquals("+1")
     }
 
+    @Test
+    fun interaction_enPassantCaptureSurvivesFailedSaveRetryAndRelaunch() {
+        board.seed("4k3/8/8/8/3Pp3/8/8/4K3 b - d3 0 1")
+        board.launch()
+        board.awaitText("Black to move")
+        board.folder.setWritable(false)
+        board.tap("e4", "d3")
+        board.awaitText("Change not saved.")
+        captures("Black").assertContentDescriptionEquals("Captured by Black: none")
+        board.assertSquare("d4", "d4, White pawn")
+        board.folder.setWritable(true)
+        board.tapText("Retry")
+        board.awaitText("White to move")
+        captures("Black").assertContentDescriptionEquals("Captured by Black: 1 pawn")
+        advantage("Black").assertTextEquals("+1")
+        board.relaunch()
+        board.awaitText("White to move")
+        captures("Black").assertContentDescriptionEquals("Captured by Black: 1 pawn")
+        board.assertSquare("d4", "d4, Empty")
+    }
+
     private fun captures(side: String) = rule.onNodeWithTag("captures-$side")
 
     private fun advantage(side: String) = rule.onNodeWithTag("advantage-$side")
