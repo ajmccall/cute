@@ -8,14 +8,27 @@ nonisolated struct Points: Comparable, Hashable, Sendable, ExpressibleByIntegerL
         self.halves = halves
     }
 
+    /// A whole number of points.
+    init(_ whole: Int) {
+        halves = whole * 2
+    }
+
+    /// Whole or half points, such as 4.5; nil for any other number.
+    init?(exactly points: Double) {
+        guard let halves = Int(exactly: points * 2) else { return nil }
+        self.halves = halves
+    }
+
     init(integerLiteral points: Int) {
-        halves = points * 2
+        self.init(points)
     }
 
     /// Whole or half points only, such as 4.5.
     init(floatLiteral points: Double) {
-        precondition((points * 2).rounded() == points * 2, "Not a whole or half number of points: \(points)")
-        halves = Int(points * 2)
+        guard let exact = Points(exactly: points) else {
+            preconditionFailure("Not a whole or half number of points: \(points)")
+        }
+        self = exact
     }
 
     /// The whole points, leaving out any half.
@@ -68,11 +81,5 @@ nonisolated struct MatchScore: Equatable, Sendable {
         if white > black { return .white }
         if black > white { return .black }
         return nil
-    }
-}
-
-nonisolated extension Points {
-    init(_ whole: Int) {
-        halves = whole * 2
     }
 }

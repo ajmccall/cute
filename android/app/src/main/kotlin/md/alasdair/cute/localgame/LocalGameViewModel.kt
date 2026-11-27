@@ -91,12 +91,12 @@ class LocalGameViewModel @Inject constructor(private val repository: GameReposit
 
     /**
      * Once a game has finished with the match still under way, starts the match's next game at
-     * once, without confirmation, keeping the score.
+     * once, without confirmation, keeping the match score.
      */
     fun onNextGameRequested() {
         val state = _uiState.value
         if (busy || state.confirmation != null) return
-        val game = state.game?.takeIf { it.finished } ?: return
+        val game = state.game?.takeIf { it.canStartNextGame } ?: return
         save(game.nextGame())
     }
 
@@ -107,7 +107,7 @@ class LocalGameViewModel @Inject constructor(private val repository: GameReposit
      */
     fun onNewMatchRequested() {
         val state = _uiState.value
-        if (busy || state.loading || state.game?.doublePending == true) return
+        if (busy || state.game?.doublePending == true) return
         if (state.game?.matchOver == true) {
             save(GameRecord.New)
         } else {
@@ -156,7 +156,7 @@ class LocalGameViewModel @Inject constructor(private val repository: GameReposit
      */
     fun onDoubleDeclined() {
         val game = pendingDouble() ?: return
-        save(game.ended(GameResult(game.position.sideToMove, EndReason.DoubleDeclined)))
+        save(game.doubleDeclined())
     }
 
     /** Tries the failed read or save again. */

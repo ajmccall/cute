@@ -130,7 +130,7 @@ class LargeTextTest(private val orientation: Int) {
     }
 
     @Test
-    fun c10_c11_c12_theScoreNextGameAndMatchResultCanBeReachedAndUsed() {
+    fun c10_c11_c12_theMatchScoreNextGameAndMatchResultCanBeReachedAndUsed() {
         board.gameFile.writeText(
             "cute-game 3\n$OPENING\nplaying\n2\nWhite\nanswered\n9\n26\n"
         )

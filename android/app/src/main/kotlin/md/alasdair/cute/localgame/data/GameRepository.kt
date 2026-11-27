@@ -1,5 +1,6 @@
 package md.alasdair.cute.localgame.data
 
+import md.alasdair.cute.chess.EndReason
 import md.alasdair.cute.chess.GameResult
 import md.alasdair.cute.chess.Move
 import md.alasdair.cute.chess.PieceType
@@ -15,8 +16,6 @@ import md.alasdair.cute.chess.play
  * stake of one point stays whole: [whiteHalves] 9 is 4½ points.
  */
 data class MatchScore(val whiteHalves: Int = 0, val blackHalves: Int = 0) {
-    fun halvesOf(side: Side): Int = if (side == Side.White) whiteHalves else blackHalves
-
     operator fun plus(other: MatchScore) =
         MatchScore(whiteHalves + other.whiteHalves, blackHalves + other.blackHalves)
 
@@ -66,8 +65,8 @@ data class MaterialAdvantage(val side: Side, val amount: Int)
  * only for a game that had already finished in a save from before the cube, which has no point
  * award. [nextDoubler] is the only side that may offer the next double, or null while either
  * may. While [doublePending], the side to move has offered a double and the other side must
- * answer it. [captures] are the pieces each side has taken in this game. [score] includes this
- * game's award once it has ended.
+ * answer it. [captures] are the pieces each side has taken in this game. [matchScore] includes
+ * this game's award once it has ended.
  */
 data class GameRecord(
     val position: Position,
@@ -76,7 +75,7 @@ data class GameRecord(
     val nextDoubler: Side? = null,
     val doublePending: Boolean = false,
     val captures: Captures = Captures.None,
-    val score: MatchScore = MatchScore.Zero
+    val matchScore: MatchScore = MatchScore.Zero
 ) {
     /** This game's award once it has ended: the stake to the winner, or half to each on a draw. */
     val award: MatchScore get() = award(result, stake)
@@ -108,20 +107,36 @@ data class GameRecord(
     }
 
     /** Whether this game has ended and taken either total to the target, ending the match. */
-    val matchOver: Boolean get() = result != null && score.reachedTarget
+    val matchOver: Boolean get() = result != null && matchScore.reachedTarget
 
-    /** Whether this game has ended with the match still under way, so Next game can follow. */
-    val finished: Boolean get() = result != null && !score.reachedTarget
+    /**
+     * Whether Next game can follow: this game has ended with the match still under way. False
+     * both during play and once the match is over.
+     */
+    val canStartNextGame: Boolean get() = result != null && !matchOver
 
-    /** This game ended with [result]: no offer pending, and its award added to the score. */
-    fun ended(result: GameResult): GameRecord =
-        copy(result = result, doublePending = false, score = score + award(result, stake))
+    /** This game ended with [result]: no offer pending, and its award added to the match score. */
+    fun ended(result: GameResult): GameRecord = copy(
+        result = result,
+        doublePending = false,
+        matchScore = matchScore + award(result, stake)
+    )
+
+    /**
+     * This game after the responder declines a double: won by the offerer, the side to move,
+     * without a move, at the stake as it was.
+     */
+    fun doubleDeclined(): GameRecord =
+        ended(GameResult(position.sideToMove, EndReason.DoubleDeclined))
+
+    /** Whether declining a double would end the match, by taking the offerer to the target. */
+    val declineEndsMatch: Boolean get() = doubleDeclined().matchOver
 
     /**
      * The match's next game: the opening position at one point, with no captures, keeping the
-     * score.
+     * match score.
      */
-    fun nextGame(): GameRecord = New.copy(score = score)
+    fun nextGame(): GameRecord = New.copy(matchScore = matchScore)
 
     /**
      * Whether the side to move may offer a double now: during play, with no offer pending,

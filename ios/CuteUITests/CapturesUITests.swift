@@ -12,17 +12,17 @@ final class CapturesUITests: XCTestCase {
     func testEachPlayersCapturesSitAtTheirEdgeAndTurnWithTheBoardIncludingDuringAResponse() throws {
         let board = BoardRobot()
         board.launch()
-        XCTAssertEqual(board.captures("White"), "Captured by White: none")
-        XCTAssertEqual(board.captures("Black"), "Captured by Black: none")
+        board.expectCaptures("White", "Captured by White: none")
+        board.expectCaptures("Black", "Captured by Black: none")
         XCTAssertFalse(board.advantage.exists)
         XCTAssertTrue(board.capturesAreBelowTheBoard("White"))
         XCTAssertTrue(board.capturesAreAboveTheBoard("Black"))
 
         board.tap("e2", "e4", "d7", "d5", "e4", "d5")
-        XCTAssertEqual(board.status, "Black to move")
-        XCTAssertEqual(board.captures("White"), "Captured by White: 1 pawn")
-        XCTAssertEqual(board.captures("Black"), "Captured by Black: none")
-        XCTAssertEqual(board.advantage.label, "White ahead by 1 in material")
+        board.expectStatus("Black to move")
+        board.expectCaptures("White", "Captured by White: 1 pawn")
+        board.expectCaptures("Black", "Captured by Black: none")
+        board.expectAdvantage("White ahead by 1 in material")
         XCTAssertFalse(board.advantage.label.localizedCaseInsensitiveContains("point"))
         // The board has turned to Black: White's captures and the lead beside them are now at the top.
         XCTAssertTrue(board.isAtBottom("Black"))
@@ -34,46 +34,46 @@ final class CapturesUITests: XCTestCase {
 
         // Black offers: the board faces White, the responder, and the captures turn with it.
         board.offerDouble.tap()
-        XCTAssertEqual(board.status, "White, answer the double")
+        board.expectStatus("White, answer the double")
         XCTAssertTrue(board.isAtBottom("White"))
         XCTAssertTrue(board.capturesAreBelowTheBoard("White"))
         XCTAssertTrue(board.capturesAreAboveTheBoard("Black"))
         XCTAssertTrue(board.followsCaptures(board.advantage, "White"))
-        XCTAssertEqual(board.captures("White"), "Captured by White: 1 pawn")
-        XCTAssertEqual(board.advantage.label, "White ahead by 1 in material")
+        board.expectCaptures("White", "Captured by White: 1 pawn")
+        board.expectAdvantage("White ahead by 1 in material")
         try board.auditAccessibility()
         board.attachScreenshot(named: "local-game-C16-C17-response", to: self)
 
         // Taken: Black, the offerer, moves again, and the queen's recapture evens the material.
         board.app.buttons["Take"].tap()
-        XCTAssertEqual(board.status, "Black to move")
+        board.expectStatus("Black to move")
         board.tap("d8", "d5")
-        XCTAssertEqual(board.captures("Black"), "Captured by Black: 1 pawn")
+        board.expectCaptures("Black", "Captured by Black: 1 pawn")
         XCTAssertFalse(board.advantage.exists)
 
         board.launch()
-        XCTAssertEqual(board.status, "White to move")
-        XCTAssertEqual(board.captures("White"), "Captured by White: 1 pawn")
-        XCTAssertEqual(board.captures("Black"), "Captured by Black: 1 pawn")
+        board.expectStatus("White to move")
+        board.expectCaptures("White", "Captured by White: 1 pawn")
+        board.expectCaptures("Black", "Captured by Black: 1 pawn")
         XCTAssertFalse(board.advantage.exists)
 
         // Finished, the final board keeps its captures; the next game starts with none.
         board.tap("b1", "c3", "d5", "a2")
-        XCTAssertEqual(board.captures("Black"), "Captured by Black: 2 pawns")
+        board.expectCaptures("Black", "Captured by Black: 2 pawns")
         board.app.buttons["Resign"].tap()
         board.app.alerts.firstMatch.buttons["Confirm"].tap()
-        XCTAssertEqual(board.status, "Black wins · Resignation")
-        XCTAssertEqual(board.captures("White"), "Captured by White: 1 pawn")
-        XCTAssertEqual(board.captures("Black"), "Captured by Black: 2 pawns")
-        XCTAssertEqual(board.advantage.label, "Black ahead by 1 in material")
+        board.expectStatus("Black wins · Resignation")
+        board.expectCaptures("White", "Captured by White: 1 pawn")
+        board.expectCaptures("Black", "Captured by Black: 2 pawns")
+        board.expectAdvantage("Black ahead by 1 in material")
         XCTAssertTrue(board.followsCaptures(board.advantage, "Black"))
         try board.auditAccessibility()
         board.attachScreenshot(named: "local-game-C16-C17-finished", to: self)
 
         board.app.buttons["Next game"].tap()
-        XCTAssertEqual(board.status, "White to move")
-        XCTAssertEqual(board.captures("White"), "Captured by White: none")
-        XCTAssertEqual(board.captures("Black"), "Captured by Black: none")
+        board.expectStatus("White to move")
+        board.expectCaptures("White", "Captured by White: none")
+        board.expectCaptures("Black", "Captured by Black: none")
         XCTAssertFalse(board.advantage.exists)
     }
 
@@ -84,24 +84,24 @@ final class CapturesUITests: XCTestCase {
         // the target. Grouped pawn, knight, bishop, rook, queen, whatever order they were taken in.
         let fen = "r1b1k3/pppppp2/8/8/8/8/PPPPPPPP/RNBQKBNR b KQ -"
         board.launch(seedFile: #"{"version": 4, "position": "\#(fen)", "result": null, "stake": 1, "nextDoubler": null, "doublePending": false, "whiteTotal": 14, "blackTotal": 9, "captures": {"white": ["knight", "pawn", "queen", "knight", "rook", "bishop", "pawn"], "black": []}}"#)
-        XCTAssertEqual(board.captures("White"), "Captured by White: 2 pawns, 2 knights, 1 bishop, 1 rook, 1 queen")
-        XCTAssertEqual(board.captures("Black"), "Captured by Black: none")
-        XCTAssertEqual(board.advantage.label, "White ahead by 25 in material")
+        board.expectCaptures("White", "Captured by White: 2 pawns, 2 knights, 1 bishop, 1 rook, 1 queen")
+        board.expectCaptures("Black", "Captured by Black: none")
+        board.expectAdvantage("White ahead by 25 in material")
 
         board.app.buttons["Resign"].tap()
         board.app.alerts.firstMatch.buttons["Confirm"].tap()
-        XCTAssertEqual(board.text("matchResult"), "White wins the match, 15 to 9")
-        XCTAssertEqual(board.captures("White"), "Captured by White: 2 pawns, 2 knights, 1 bishop, 1 rook, 1 queen")
-        XCTAssertEqual(board.captures("Black"), "Captured by Black: none")
-        XCTAssertEqual(board.advantage.label, "White ahead by 25 in material")
+        board.expectText("matchResult", "White wins the match, 15 to 9")
+        board.expectCaptures("White", "Captured by White: 2 pawns, 2 knights, 1 bishop, 1 rook, 1 queen")
+        board.expectCaptures("Black", "Captured by Black: none")
+        board.expectAdvantage("White ahead by 25 in material")
         XCTAssertTrue(board.followsCaptures(board.advantage, "White"))
         // Apart from the stake and the match score, and never in points.
-        XCTAssertEqual(board.text("matchScore"), "White 15 points · Black 9 points · first to 15 points")
+        board.expectText("matchScore", "White 15 points · Black 9 points · first to 15 points")
         try board.auditAccessibility()
         board.attachScreenshot(named: "local-game-C16-C17-match-over", to: self)
 
         board.app.buttons["New match"].tap()
-        XCTAssertEqual(board.captures("White"), "Captured by White: none")
+        board.expectCaptures("White", "Captured by White: none")
         XCTAssertFalse(board.advantage.exists)
     }
 
@@ -109,26 +109,26 @@ final class CapturesUITests: XCTestCase {
     func testAPromotionMovesTheLeadWithoutACaptureAndACapturedPromotedPieceShowsAsItsPromotedKind() throws {
         let board = BoardRobot()
         board.launch(seed: "3r3k/4P3/8/8/8/8/8/K7 w - -")
-        XCTAssertEqual(board.advantage.label, "Black ahead by 4 in material")
+        board.expectAdvantage("Black ahead by 4 in material")
         XCTAssertTrue(board.followsCaptures(board.advantage, "Black"))
 
         // While the promotion is being chosen, the board behind the choice keeps the position before the move.
         board.tap("e7", "e8")
         let choice = board.app.alerts.firstMatch
         XCTAssertTrue(choice.waitForExistence(timeout: 5))
-        XCTAssertEqual(board.captures("White"), "Captured by White: none")
-        XCTAssertEqual(board.captures("Black"), "Captured by Black: none")
-        XCTAssertEqual(board.advantage.label, "Black ahead by 4 in material")
+        board.expectCaptures("White", "Captured by White: none")
+        board.expectCaptures("Black", "Captured by Black: none")
+        board.expectAdvantage("Black ahead by 4 in material")
         choice.buttons["Queen"].tap()
-        XCTAssertEqual(board.status, "Black to move · Check")
-        XCTAssertEqual(board.captures("White"), "Captured by White: none")
-        XCTAssertEqual(board.captures("Black"), "Captured by Black: none")
-        XCTAssertEqual(board.advantage.label, "White ahead by 4 in material")
+        board.expectStatus("Black to move · Check")
+        board.expectCaptures("White", "Captured by White: none")
+        board.expectCaptures("Black", "Captured by Black: none")
+        board.expectAdvantage("White ahead by 4 in material")
         XCTAssertTrue(board.followsCaptures(board.advantage, "White"))
 
         board.tap("d8", "e8")
-        XCTAssertEqual(board.captures("Black"), "Captured by Black: 1 queen")
-        XCTAssertEqual(board.advantage.label, "Black ahead by 5 in material")
+        board.expectCaptures("Black", "Captured by Black: 1 queen")
+        board.expectAdvantage("Black ahead by 5 in material")
         try board.auditAccessibility()
         board.attachScreenshot(named: "local-game-C16-C17-promotion", to: self)
     }
@@ -138,9 +138,9 @@ final class CapturesUITests: XCTestCase {
         let board = BoardRobot()
         board.launch(seed: "4k3/8/8/8/3p4/8/4P3/4K3 w - -")
         board.tap("e2", "e4", "d4", "e3")
-        XCTAssertEqual(board.square("e4").label, "e4, Empty")
-        XCTAssertEqual(board.captures("Black"), "Captured by Black: 1 pawn")
-        XCTAssertEqual(board.advantage.label, "Black ahead by 1 in material")
+        board.expectSquare("e4", "e4, Empty")
+        board.expectCaptures("Black", "Captured by Black: 1 pawn")
+        board.expectAdvantage("Black ahead by 1 in material")
         // +1 follows Black's one captured pawn in the same row, not at the far edge (product owner, on #39).
         XCTAssertTrue(board.followsCaptures(board.advantage, "Black"))
         XCTAssertTrue(board.isCloseAfterTheHeading(board.advantage, "Black"),
@@ -158,24 +158,27 @@ final class CapturesUITests: XCTestCase {
         board.tap("e4", "d5")
 
         XCTAssertTrue(board.app.staticTexts["Change not saved."].waitForExistence(timeout: 5))
-        XCTAssertEqual(board.captures("White"), "Captured by White: none")
+        board.expectCaptures("White", "Captured by White: none")
         XCTAssertFalse(board.advantage.exists)
         try board.auditAccessibility()
         board.app.buttons["retrySave"].tap()
-        XCTAssertEqual(board.captures("White"), "Captured by White: none")
+        board.expectCaptures("White", "Captured by White: none")
 
         board.launch()
-        XCTAssertEqual(board.square("d5").label, "d5, Black pawn")
-        XCTAssertEqual(board.captures("White"), "Captured by White: none")
+        board.expectSquare("d5", "d5, Black pawn")
+        board.expectCaptures("White", "Captured by White: none")
     }
 }
 
 extension BoardRobot {
-    /// The spoken text of a colour's captures, "White" or "Black", once it appears.
-    func captures(_ side: String) -> String {
-        let element = capturesElement(side)
-        XCTAssertTrue(element.waitForExistence(timeout: 5), "captures-\(side)")
-        return element.label
+    /// The spoken text of a colour's captures, "White" or "Black".
+    func expectCaptures(_ side: String, _ expected: String, file: StaticString = #filePath, line: UInt = #line) {
+        expectLabel(of: capturesElement(side), expected, "captures-\(side.lowercased())", file: file, line: line)
+    }
+
+    /// The spoken text of the material lead.
+    func expectAdvantage(_ expected: String, file: StaticString = #filePath, line: UInt = #line) {
+        expectLabel(of: advantage, expected, "advantage", file: file, line: line)
     }
 
     func capturesElement(_ side: String) -> XCUIElement {

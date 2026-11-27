@@ -83,10 +83,16 @@
     "%@, answer the double": {
       "extractionState": "manual"
     },
+    "%lld": {
+      "comment": "A match total that is a whole number of points, without its unit, as it appears in the match result: the 15 and the 9 in “White wins the match, 15 to 9”. The number is formatted for the locale.",
+      "extractionState": "manual"
+    },
     "%lld and a half": {
+      "comment": "A match total with a half, without its unit, as VoiceOver speaks it in the match result: “16 and a half” in “White wins the match, 16 and a half to 15”. Shown on screen as “%lld½”.",
       "extractionState": "manual"
     },
     "%lld and a half points": {
+      "comment": "A match total with a half, with its unit, as VoiceOver speaks it in the match score: “4 and a half points”. Shown on screen as “%lld½ points”.",
       "extractionState": "manual"
     },
     "%lld bishops": {
@@ -251,12 +257,15 @@
       }
     },
     "%lld½": {
+      "comment": "A match total with a half, without its unit, as shown in the match result: “16½” in “White wins the match, 16½ to 15”. VoiceOver speaks “%lld and a half”.",
       "extractionState": "manual"
     },
     "%lld½ points": {
+      "comment": "A match total with a half, with its unit, as shown in the match score: “4½ points”. VoiceOver speaks “%lld and a half points”.",
       "extractionState": "manual"
     },
     "+%lld": {
+      "comment": "The material lead shown beside the captures of the side that is ahead: “+3”. Chess material, not match points. VoiceOver speaks “%@ ahead by %lld in material”.",
       "extractionState": "manual"
     },
     "Agree draw": {
@@ -444,18 +453,23 @@
       }
     },
     "a half": {
+      "comment": "A match total of exactly half a point, without its unit, as VoiceOver speaks it in the match result: “a half” in “White wins the match, 15 to a half”. Shown on screen as “½”.",
       "extractionState": "manual"
     },
     "half a point": {
+      "comment": "Half a point with its unit, as VoiceOver speaks it in a match total or a point award: “Each player earns half a point.” Shown on screen as “½ point”.",
       "extractionState": "manual"
     },
     "½": {
+      "comment": "A match total of exactly half a point, without its unit, as shown in the match result: “½” in “White wins the match, 15 to ½”. VoiceOver speaks “a half”.",
       "extractionState": "manual"
     },
     "½ point": {
+      "comment": "Half a point with its unit, as shown in a match total or a point award: “Each player earns ½ point.” VoiceOver speaks “half a point”.",
       "extractionState": "manual"
     },
     "×%lld": {
+      "comment": "How many pieces of one kind a player has captured, shown beside that piece’s icon: “×2”.",
       "extractionState": "manual"
     }
   },

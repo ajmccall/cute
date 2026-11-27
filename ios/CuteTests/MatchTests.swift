@@ -11,20 +11,20 @@ import Testing
         let storage = try TemporaryStorage()
         let game = LocalGame(store: storage.store)
         game.open()
-        #expect(game.score == MatchScore(white: 0, black: 0))
+        #expect(game.matchScore == MatchScore(white: 0, black: 0))
 
         game.tap("e2"); game.tap("e4")
         game.resign()
 
         #expect(game.result == .win(.white, .resignation))
-        #expect(game.score == MatchScore(white: 1, black: 0))
+        #expect(game.matchScore == MatchScore(white: 1, black: 0))
         let saved = try #require(try storage.store.load())
         #expect(saved.result == .win(.white, .resignation))
-        #expect(saved.score == MatchScore(white: 1, black: 0))
+        #expect(saved.matchScore == MatchScore(white: 1, black: 0))
 
         let reopened = LocalGame(store: storage.store)
         reopened.open()
-        #expect(reopened.score == MatchScore(white: 1, black: 0))
+        #expect(reopened.matchScore == MatchScore(white: 1, black: 0))
     }
 
     @Test func aDrawAddsHalfTheStakeToEachTotal() throws {
@@ -34,20 +34,20 @@ import Testing
 
         game.agreeDraw()
 
-        #expect(game.score == MatchScore(white: 0.5, black: 0.5))
-        #expect(try storage.store.load()?.score == MatchScore(white: 0.5, black: 0.5))
+        #expect(game.matchScore == MatchScore(white: 0.5, black: 0.5))
+        #expect(try storage.store.load()?.matchScore == MatchScore(white: 0.5, black: 0.5))
     }
 
     @Test func aDeclinedDoubleAndACheckmateEachAddTheirAwardToTheTotalsSoFar() throws {
         let storage = try TemporaryStorage()
         try storage.store.save(SavedGame(position: .opening, result: nil, stake: 4, nextDoubler: .white,
-                                         score: MatchScore(white: 3.5, black: 2)))
+                                         matchScore: MatchScore(white: 3.5, black: 2)))
         let game = LocalGame(store: storage.store)
         game.open()
 
         game.offerDouble()
         game.declineDouble()
-        #expect(game.score == MatchScore(white: 7.5, black: 2))
+        #expect(game.matchScore == MatchScore(white: 7.5, black: 2))
 
         game.nextGame()
         game.tap("f2"); game.tap("f3")
@@ -55,8 +55,8 @@ import Testing
         game.tap("g2"); game.tap("g4")
         game.tap("d8"); game.tap("h4")
         #expect(game.result == .win(.black, .checkmate))
-        #expect(game.score == MatchScore(white: 7.5, black: 3))
-        #expect(try storage.store.load()?.score == MatchScore(white: 7.5, black: 3))
+        #expect(game.matchScore == MatchScore(white: 7.5, black: 3))
+        #expect(try storage.store.load()?.matchScore == MatchScore(white: 7.5, black: 3))
     }
 
     // MARK: C11
@@ -64,7 +64,7 @@ import Testing
     @Test func aGameEndingBelowTheTargetOffersNextGameWhichStartsAFreshGameAtOnceAndKeepsTheTotals() throws {
         let storage = try TemporaryStorage()
         try storage.store.save(SavedGame(position: try #require(Position(fen: Self.afterE4)), result: nil,
-                                         stake: 2, nextDoubler: .black, score: MatchScore(white: 4, black: 6.5)))
+                                         stake: 2, nextDoubler: .black, matchScore: MatchScore(white: 4, black: 6.5)))
         let game = LocalGame(store: storage.store)
         game.open()
         #expect(!game.canStartNextGame)
@@ -72,7 +72,7 @@ import Testing
         game.resign()
 
         #expect(game.result == .win(.white, .resignation))
-        #expect(game.score == MatchScore(white: 6, black: 6.5))
+        #expect(game.matchScore == MatchScore(white: 6, black: 6.5))
         #expect(!game.isMatchOver)
         #expect(game.canStartNextGame)
 
@@ -83,9 +83,9 @@ import Testing
         #expect(game.stake == 1)
         #expect(game.nextDoubler == nil)
         #expect(game.canOfferDouble)
-        #expect(game.score == MatchScore(white: 6, black: 6.5))
+        #expect(game.matchScore == MatchScore(white: 6, black: 6.5))
         #expect(try storage.store.load() == SavedGame(position: .opening, result: nil,
-                                                      score: MatchScore(white: 6, black: 6.5)))
+                                                      matchScore: MatchScore(white: 6, black: 6.5)))
         #expect(!game.canStartNextGame)
     }
 
@@ -105,7 +105,7 @@ import Testing
     ) throws {
         let storage = try TemporaryStorage()
         try storage.store.save(SavedGame(position: try #require(Position(fen: Self.afterE4)), result: nil,
-                                         stake: stake, nextDoubler: stake == 1 ? nil : .black, score: before))
+                                         stake: stake, nextDoubler: stake == 1 ? nil : .black, matchScore: before))
         let game = LocalGame(store: storage.store)
         game.open()
         try #require(!game.isMatchOver)
@@ -116,9 +116,9 @@ import Testing
         default: game.offerDouble(); game.declineDouble()
         }
 
-        #expect(game.score == after)
+        #expect(game.matchScore == after)
         #expect(game.isMatchOver)
-        #expect(game.matchWinner == winner)
+        #expect(game.matchScore.leader == winner)
         #expect(!game.canStartNextGame)
         #expect(!game.canResignOrAgreeDraw)
         #expect(!game.canOfferDouble)
@@ -128,14 +128,14 @@ import Testing
         let reopened = LocalGame(store: storage.store)
         reopened.open()
         #expect(reopened.isMatchOver)
-        #expect(reopened.score == after)
-        #expect(reopened.matchWinner == winner)
+        #expect(reopened.matchScore == after)
+        #expect(reopened.matchScore.leader == winner)
     }
 
     @Test func onceTheMatchIsOverNewMatchStartsANewMatchAtNoPointsEachWithoutConfirmation() throws {
         let storage = try TemporaryStorage()
         try storage.store.save(SavedGame(position: .opening, result: .win(.white, .resignation), stake: 1,
-                                         score: MatchScore(white: 15, black: 3)))
+                                         matchScore: MatchScore(white: 15, black: 3)))
         let game = LocalGame(store: storage.store)
         game.open()
         #expect(game.isMatchOver)
@@ -147,7 +147,7 @@ import Testing
         #expect(game.position == .opening)
         #expect(game.result == nil)
         #expect(game.stake == 1)
-        #expect(game.score == .zero)
+        #expect(game.matchScore == .zero)
         #expect(try storage.store.load() == .opening)
     }
 
@@ -156,7 +156,7 @@ import Testing
     @Test func whileTheMatchIsUnderWayNewMatchNeedsConfirmationAndReplacesTheGameAndTotals() throws {
         let storage = try TemporaryStorage()
         try storage.store.save(SavedGame(position: try #require(Position(fen: Self.afterE4)), result: nil,
-                                         stake: 2, nextDoubler: .black, score: MatchScore(white: 4, black: 6.5)))
+                                         stake: 2, nextDoubler: .black, matchScore: MatchScore(white: 4, black: 6.5)))
         let game = LocalGame(store: storage.store)
         game.open()
         #expect(game.canStartNewMatch)
@@ -171,7 +171,7 @@ import Testing
 
         #expect(game.position == .opening)
         #expect(game.result == nil)
-        #expect(game.score == .zero)
+        #expect(game.matchScore == .zero)
         #expect(game.nextDoubler == nil)
         #expect(try storage.store.load() == .opening)
         #expect(game.newMatchNeedsConfirmation)
@@ -179,7 +179,7 @@ import Testing
 
     @Test func newMatchIsNotAvailableDuringADoubleResponse() throws {
         let storage = try TemporaryStorage()
-        try storage.store.save(SavedGame(position: .opening, result: nil, score: MatchScore(white: 2, black: 1)))
+        try storage.store.save(SavedGame(position: .opening, result: nil, matchScore: MatchScore(white: 2, black: 1)))
         let game = LocalGame(store: storage.store)
         game.open()
         game.offerDouble()
@@ -188,8 +188,26 @@ import Testing
         game.newMatch()
 
         #expect(game.isAwaitingDoubleResponse)
-        #expect(game.score == MatchScore(white: 2, black: 1))
+        #expect(game.matchScore == MatchScore(white: 2, black: 1))
         #expect(try storage.store.load()?.doublePending == true)
+    }
+
+    /// The saved game's format, field for field: the totals stay `whiteTotal` and `blackTotal` whatever the code
+    /// calls the match score.
+    @Test func theMatchScoreIsSavedAsWhiteTotalAndBlackTotal() throws {
+        let storage = try TemporaryStorage()
+        let saved = SavedGame(position: try #require(Position(fen: CapturesTests.afterExd5)), result: nil, stake: 2,
+                              nextDoubler: .white, matchScore: MatchScore(white: 4.5, black: 3),
+                              captures: Captures(white: [.pawn], black: []))
+        let contents = #"{"version": 4, "position": "\#(CapturesTests.afterExd5)", "result": null, "stake": 2, "nextDoubler": "white", "doublePending": false, "whiteTotal": 4.5, "blackTotal": 3, "captures": {"white": ["pawn"], "black": []}}"#
+
+        try storage.store.save(saved)
+        let written = try JSONSerialization.jsonObject(with: Data(contentsOf: storage.fileURL)) as? NSDictionary
+        let expected = try JSONSerialization.jsonObject(with: Data(contents.utf8)) as? NSDictionary
+        #expect(written == expected)
+
+        try Data(contents.utf8).write(to: storage.fileURL)
+        #expect(try storage.store.load() == saved)
     }
 
     // MARK: C14
@@ -208,7 +226,7 @@ import Testing
         // Black to move and entitled to offer.
         try storage.store.save(SavedGame(position: try #require(Position(fen: Self.afterE4)), result: nil,
                                          stake: stake, nextDoubler: stake == 1 ? nil : .black,
-                                         score: MatchScore(white: 3, black: offerersTotal)))
+                                         matchScore: MatchScore(white: 3, black: offerersTotal)))
         let game = LocalGame(store: storage.store)
         game.open()
         game.offerDouble()
@@ -238,7 +256,7 @@ import Testing
          MatchScore.zero, false, false),
         (#"{"version": 2, "position": "\#(MatchTests.afterE4)", "result": null, "stake": 1, "nextDoubler": null, "doublePending": true}"#,
          MatchScore.zero, false, false),
-        // Finished with a stake: its award is the score.
+        // Finished with a stake: its award is the match score.
         (#"{"version": 2, "position": "\#(MatchTests.afterE4)", "result": {"winner": "white", "reason": "resignation"}, "stake": 4, "nextDoubler": "white", "doublePending": false}"#,
          MatchScore(white: 4, black: 0), true, false),
         (#"{"version": 2, "position": "\#(MatchTests.afterE4)", "result": {"draw": "agreement"}, "stake": 1, "nextDoubler": null, "doublePending": false}"#,
@@ -253,7 +271,7 @@ import Testing
          MatchScore.zero, true, false),
     ])
     func aGameSavedBeforeMatchesOpensAsTheFirstGameOfAMatch(
-        contents: String, score: MatchScore, offersNextGame: Bool, isMatchOver: Bool
+        contents: String, matchScore: MatchScore, offersNextGame: Bool, isMatchOver: Bool
     ) throws {
         let storage = try TemporaryStorage()
         let saved = Data(contents.utf8)
@@ -263,7 +281,7 @@ import Testing
         game.open()
 
         #expect(game.hasNoFailure)
-        #expect(game.score == score)
+        #expect(game.matchScore == matchScore)
         #expect(game.canStartNextGame == offersNextGame)
         #expect(game.isMatchOver == isMatchOver)
         #expect(try Data(contentsOf: storage.fileURL) == saved)
@@ -277,11 +295,11 @@ import Testing
 
         game.resign()
 
-        #expect(game.score == MatchScore(white: 1, black: 0))
+        #expect(game.matchScore == MatchScore(white: 1, black: 0))
         #expect(game.canStartNextGame)
         game.nextGame()
-        #expect(game.score == MatchScore(white: 1, black: 0))
-        #expect(try storage.store.load()?.score == MatchScore(white: 1, black: 0))
+        #expect(game.matchScore == MatchScore(white: 1, black: 0))
+        #expect(try storage.store.load()?.matchScore == MatchScore(white: 1, black: 0))
     }
 
     // MARK: C5
@@ -293,7 +311,7 @@ import Testing
         // White to move with mate in one (Qh5xf7#), at 13 to 12.
         let mateInOne = "r1bqkbnr/pppp1ppp/2n5/4p2Q/2B1P3/8/PPPP1PPP/RNB1K1NR w KQkq -"
         let before = MatchScore(white: 13, black: 12)
-        try storage.store.save(SavedGame(position: try #require(Position(fen: mateInOne)), result: nil, score: before))
+        try storage.store.save(SavedGame(position: try #require(Position(fen: mateInOne)), result: nil, matchScore: before))
         let game = LocalGame(store: storage.store)
         game.open()
         if ending == "decline" { game.offerDouble() }
@@ -309,7 +327,7 @@ import Testing
 
         #expect(game.hasUnsavedChange)
         #expect(game.result == nil)
-        #expect(game.score == before)
+        #expect(game.matchScore == before)
         #expect(game.position.fen == mateInOne)
         #expect(!game.canStartNextGame)
         #expect(try Data(contentsOf: storage.fileURL) == savedBytes)
@@ -318,17 +336,17 @@ import Testing
         game.retrySave()
         #expect(game.hasNoFailure)
         #expect(game.result != nil)
-        #expect(game.score != before)
+        #expect(game.matchScore != before)
         let saved = try #require(try storage.store.load())
         #expect(saved.result == game.result)
-        #expect(saved.score == game.score)
+        #expect(saved.matchScore == game.matchScore)
     }
 
     @Test(arguments: ["nextGame", "newMatch"])
     func nextGameOrNewMatchThatCannotBeSavedKeepsTheFinishedGameAndTotals(action: String) throws {
         let storage = try TemporaryStorage()
         try storage.store.save(SavedGame(position: try #require(Position(fen: Self.afterE4)),
-                                         result: .win(.white, .resignation), score: MatchScore(white: 5, black: 2)))
+                                         result: .win(.white, .resignation), matchScore: MatchScore(white: 5, black: 2)))
         let game = LocalGame(store: storage.store)
         game.open()
         let savedBytes = try Data(contentsOf: storage.fileURL)
@@ -339,20 +357,20 @@ import Testing
         #expect(game.hasUnsavedChange)
         #expect(game.result == .win(.white, .resignation))
         #expect(game.position.fen == Self.afterE4)
-        #expect(game.score == MatchScore(white: 5, black: 2))
+        #expect(game.matchScore == MatchScore(white: 5, black: 2))
         #expect(try Data(contentsOf: storage.fileURL) == savedBytes)
 
         try storage.makeWritable()
         game.retrySave()
         #expect(game.hasNoFailure)
         #expect(game.position == .opening)
-        #expect(game.score == (action == "nextGame" ? MatchScore(white: 5, black: 2) : .zero))
-        #expect(try storage.store.load()?.score == game.score)
+        #expect(game.matchScore == (action == "nextGame" ? MatchScore(white: 5, black: 2) : .zero))
+        #expect(try storage.store.load()?.matchScore == game.matchScore)
     }
 
     // MARK: Interface text
 
-    /// The score line, which XCUITest reads only as spoken: a half is shown as ½.
+    /// The match score line, which XCUITest reads only as spoken: a half is shown as ½.
     @Test(arguments: [
         (MatchScore.zero, "White 0 points · Black 0 points · first to 15 points",
          "White 0 points · Black 0 points · first to 15 points"),
@@ -363,9 +381,9 @@ import Testing
         (MatchScore(white: 1.5, black: 0), "White 1½ points · Black 0 points · first to 15 points",
          "White 1 and a half points · Black 0 points · first to 15 points"),
     ])
-    func theScoreLineShowsBothTotalsAndTheTargetWithTheirUnits(score: MatchScore, shown: String, spoken: String) {
-        #expect(BoardText.matchScore(score, spoken: false) == shown)
-        #expect(BoardText.matchScore(score, spoken: true) == spoken)
+    func theMatchScoreLineShowsBothTotalsAndTheTargetWithTheirUnits(matchScore: MatchScore, shown: String, spoken: String) {
+        #expect(BoardText.matchScore(matchScore, spoken: false) == shown)
+        #expect(BoardText.matchScore(matchScore, spoken: true) == spoken)
     }
 
     /// The match result, with totals in the winner's-first order and without units.
@@ -380,9 +398,9 @@ import Testing
         (MatchScore(white: 0.5, black: 64.5), "Black wins the match, 64½ to ½",
          "Black wins the match, 64 and a half to a half"),
     ])
-    func theMatchResultNamesTheWinnerAndBothTotals(score: MatchScore, shown: String, spoken: String) {
-        #expect(BoardText.matchResult(score, spoken: false) == shown)
-        #expect(BoardText.matchResult(score, spoken: true) == spoken)
+    func theMatchResultNamesTheWinnerAndBothTotals(matchScore: MatchScore, shown: String, spoken: String) {
+        #expect(BoardText.matchResult(matchScore, spoken: false) == shown)
+        #expect(BoardText.matchResult(matchScore, spoken: true) == spoken)
     }
 
     nonisolated static let afterE4 = "rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq -"

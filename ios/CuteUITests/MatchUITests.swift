@@ -19,27 +19,27 @@ final class MatchUITests: XCTestCase {
     // MARK: C10
 
     @MainActor
-    func testTheScoreLineShowsBothTotalsAndTheTargetInPlayDuringAResponseAndAfterTheEnd() throws {
+    func testTheMatchScoreLineShowsBothTotalsAndTheTargetInPlayDuringAResponseAndAfterTheEnd() throws {
         let board = BoardRobot()
         board.launch()
-        XCTAssertEqual(board.text("matchScore"), "White 0 points · Black 0 points · first to 15 points")
+        board.expectText("matchScore", "White 0 points · Black 0 points · first to 15 points")
         try board.auditAccessibility()
         board.attachScreenshot(named: "local-game-C10", to: self)
 
         board.offerDouble.tap()
-        XCTAssertEqual(board.status, "Black, answer the double")
-        XCTAssertEqual(board.text("matchScore"), "White 0 points · Black 0 points · first to 15 points")
+        board.expectStatus("Black, answer the double")
+        board.expectText("matchScore", "White 0 points · Black 0 points · first to 15 points")
         try board.auditAccessibility()
         board.attachScreenshot(named: "local-game-C10-response", to: self)
 
         board.app.buttons["Decline"].tap()
-        XCTAssertEqual(board.status, "White wins · Double declined")
-        XCTAssertEqual(board.text("award"), "White earns 1 point.")
-        XCTAssertEqual(board.text("matchScore"), "White 1 point · Black 0 points · first to 15 points")
+        board.expectStatus("White wins · Double declined")
+        board.expectText("award", "White earns 1 point.")
+        board.expectText("matchScore", "White 1 point · Black 0 points · first to 15 points")
 
         board.launch()
-        XCTAssertEqual(board.status, "White wins · Double declined")
-        XCTAssertEqual(board.text("matchScore"), "White 1 point · Black 0 points · first to 15 points")
+        board.expectStatus("White wins · Double declined")
+        board.expectText("matchScore", "White 1 point · Black 0 points · first to 15 points")
     }
 
     // MARK: C10, C11
@@ -51,10 +51,10 @@ final class MatchUITests: XCTestCase {
         board.app.buttons["Agree draw"].tap()
         board.app.alerts.firstMatch.buttons["Confirm"].tap()
 
-        XCTAssertEqual(board.status, "Draw · Agreement")
+        board.expectStatus("Draw · Agreement")
         // Shown as "3½ points" (MatchTests checks the text; the screenshot shows it), spoken in words.
-        XCTAssertEqual(board.text("matchScore"),
-                       "White 3 and a half points · Black 2 and a half points · first to 15 points")
+        board.expectText("matchScore",
+                         "White 3 and a half points · Black 2 and a half points · first to 15 points")
         XCTAssertTrue(board.app.buttons["Next game"].exists)
         XCTAssertTrue(board.app.buttons["New match"].exists)
         XCTAssertFalse(board.app.buttons["Resign"].exists)
@@ -64,23 +64,23 @@ final class MatchUITests: XCTestCase {
 
         board.app.buttons["Next game"].tap()
         XCTAssertFalse(board.app.alerts.firstMatch.waitForExistence(timeout: 1))
-        XCTAssertEqual(board.status, "White to move")
+        board.expectStatus("White to move")
         XCTAssertTrue(board.isAtBottom("White"))
-        XCTAssertEqual(board.square("e2").label, "e2, White pawn")
-        XCTAssertEqual(board.square("e4").label, "e4, Empty")
-        XCTAssertEqual(board.text("stake"), "Stake: 1 point")
-        XCTAssertEqual(board.text("doubleRight"), "Either player can offer")
+        board.expectSquare("e2", "e2, White pawn")
+        board.expectSquare("e4", "e4, Empty")
+        board.expectText("stake", "Stake: 1 point")
+        board.expectText("doubleRight", "Either player can offer")
         XCTAssertTrue(board.offerDouble.isEnabled)
         XCTAssertFalse(board.app.buttons["Next game"].exists)
-        XCTAssertEqual(board.text("matchScore"),
-                       "White 3 and a half points · Black 2 and a half points · first to 15 points")
+        board.expectText("matchScore",
+                         "White 3 and a half points · Black 2 and a half points · first to 15 points")
         try board.auditAccessibility()
         board.attachScreenshot(named: "local-game-C11", to: self)
 
         board.launch()
-        XCTAssertEqual(board.status, "White to move")
-        XCTAssertEqual(board.text("matchScore"),
-                       "White 3 and a half points · Black 2 and a half points · first to 15 points")
+        board.expectStatus("White to move")
+        board.expectText("matchScore",
+                         "White 3 and a half points · Black 2 and a half points · first to 15 points")
     }
 
     @MainActor
@@ -90,7 +90,7 @@ final class MatchUITests: XCTestCase {
         board.app.buttons["Agree draw"].tap()
         board.app.alerts.firstMatch.buttons["Confirm"].tap()
 
-        XCTAssertEqual(board.text("matchScore"), "White half a point · Black half a point · first to 15 points")
+        board.expectText("matchScore", "White half a point · Black half a point · first to 15 points")
         try board.auditAccessibility()
         board.attachScreenshot(named: "local-game-C10-half", to: self)
     }
@@ -104,24 +104,24 @@ final class MatchUITests: XCTestCase {
         board.app.buttons["Resign"].tap()
         board.app.alerts.firstMatch.buttons["Confirm"].tap()
 
-        XCTAssertEqual(board.status, "White wins · Resignation")
-        XCTAssertEqual(board.text("award"), "White earns 2 points.")
-        XCTAssertEqual(board.text("matchResult"), "White wins the match, 15 to 9")
-        XCTAssertEqual(board.text("matchScore"), "White 15 points · Black 9 points · first to 15 points")
+        board.expectStatus("White wins · Resignation")
+        board.expectText("award", "White earns 2 points.")
+        board.expectText("matchResult", "White wins the match, 15 to 9")
+        board.expectText("matchScore", "White 15 points · Black 9 points · first to 15 points")
         try expectNewMatchAlone(board)
         try board.auditAccessibility()
         board.attachScreenshot(named: "local-game-C12-win", to: self)
 
         board.launch()
-        XCTAssertEqual(board.text("matchResult"), "White wins the match, 15 to 9")
+        board.expectText("matchResult", "White wins the match, 15 to 9")
         try expectNewMatchAlone(board)
 
         board.app.buttons["New match"].tap()
         XCTAssertFalse(board.app.alerts.firstMatch.waitForExistence(timeout: 1))
-        XCTAssertEqual(board.status, "White to move")
-        XCTAssertEqual(board.square("e4").label, "e4, Empty")
-        XCTAssertEqual(board.text("matchScore"), "White 0 points · Black 0 points · first to 15 points")
-        XCTAssertEqual(board.text("stake"), "Stake: 1 point")
+        board.expectStatus("White to move")
+        board.expectSquare("e4", "e4, Empty")
+        board.expectText("matchScore", "White 0 points · Black 0 points · first to 15 points")
+        board.expectText("stake", "Stake: 1 point")
         XCTAssertFalse(board.app.staticTexts["matchResult"].exists)
     }
 
@@ -131,10 +131,10 @@ final class MatchUITests: XCTestCase {
         board.launch(seedFile: Self.savedGame(stake: 4, nextDoubler: "black", white: 14.5, black: 13))
         board.app.buttons["Agree draw"].tap()
         board.app.alerts.firstMatch.buttons["Confirm"].tap()
-        XCTAssertEqual(board.status, "Draw · Agreement")
-        XCTAssertEqual(board.text("award"), "Each player earns 2 points.")
+        board.expectStatus("Draw · Agreement")
+        board.expectText("award", "Each player earns 2 points.")
         // Shown as "16½ to 15" (MatchTests checks the text), spoken in words.
-        XCTAssertEqual(board.text("matchResult"), "White wins the match, 16 and a half to 15")
+        board.expectText("matchResult", "White wins the match, 16 and a half to 15")
         try expectNewMatchAlone(board)
         try board.auditAccessibility()
         board.attachScreenshot(named: "local-game-C12-split-draw", to: self)
@@ -142,8 +142,8 @@ final class MatchUITests: XCTestCase {
         board.launch(seedFile: Self.savedGame(stake: 4, nextDoubler: "black", white: 13, black: 13))
         board.app.buttons["Agree draw"].tap()
         board.app.alerts.firstMatch.buttons["Confirm"].tap()
-        XCTAssertEqual(board.text("matchResult"), "Match drawn, 15 to 15")
-        XCTAssertEqual(board.text("matchScore"), "White 15 points · Black 15 points · first to 15 points")
+        board.expectText("matchResult", "Match drawn, 15 to 15")
+        board.expectText("matchScore", "White 15 points · Black 15 points · first to 15 points")
         try expectNewMatchAlone(board)
         board.attachScreenshot(named: "local-game-C12-drawn", to: self)
     }
@@ -157,8 +157,8 @@ final class MatchUITests: XCTestCase {
         }
         XCTAssertFalse(board.app.staticTexts["stake"].exists)
         board.tap("e7")
-        XCTAssertEqual(board.value(of: "e7"), "")
-        XCTAssertEqual(board.legalDestinations, [])
+        board.expectValue(of: "e7", "")
+        board.expectLegalDestinations([])
     }
 
     // MARK: C14, C12
@@ -169,18 +169,18 @@ final class MatchUITests: XCTestCase {
         board.launch(seedFile: Self.savedGame(stake: 4, nextDoubler: "black", white: 9, black: 11))
         board.offerDouble.tap()
 
-        XCTAssertEqual(board.status, "White, answer the double")
-        XCTAssertEqual(board.text("takeEffect"), "Take: play for 8 points.")
-        XCTAssertEqual(board.text("declineEffect"), "Decline: Black wins 4 points and the match.")
-        XCTAssertEqual(board.text("matchScore"), "White 9 points · Black 11 points · first to 15 points")
+        board.expectStatus("White, answer the double")
+        board.expectText("takeEffect", "Take: play for 8 points.")
+        board.expectText("declineEffect", "Decline: Black wins 4 points and the match.")
+        board.expectText("matchScore", "White 9 points · Black 11 points · first to 15 points")
         XCTAssertFalse(board.app.buttons["New match"].exists)
         try board.auditAccessibility()
         board.attachScreenshot(named: "local-game-C14", to: self)
 
         board.app.buttons["Decline"].tap()
-        XCTAssertEqual(board.status, "Black wins · Double declined")
-        XCTAssertEqual(board.text("award"), "Black earns 4 points.")
-        XCTAssertEqual(board.text("matchResult"), "Black wins the match, 15 to 9")
+        board.expectStatus("Black wins · Double declined")
+        board.expectText("award", "Black earns 4 points.")
+        board.expectText("matchResult", "Black wins the match, 15 to 9")
         try expectNewMatchAlone(board)
         board.attachScreenshot(named: "local-game-C12-decline", to: self)
     }
@@ -190,7 +190,8 @@ final class MatchUITests: XCTestCase {
         let board = BoardRobot()
         board.launch(seedFile: Self.savedGame(stake: 4, nextDoubler: "black", white: 9, black: 10.5))
         board.offerDouble.tap()
-        XCTAssertEqual(board.text("declineEffect"), "Decline: Black wins 4 points.")
+        board.expectText("declineEffect", "Decline: Black wins 4 points.")
+        try board.auditAccessibility()
     }
 
     // MARK: C13
@@ -199,7 +200,7 @@ final class MatchUITests: XCTestCase {
     func testNewMatchAsksForConfirmationWhileTheMatchIsUnderWayAndIsUnavailableDuringAResponse() throws {
         let board = BoardRobot()
         board.launch(seedFile: Self.savedGame(stake: 2, nextDoubler: "black", white: 4, black: 6.5))
-        XCTAssertEqual(board.status, "Black to move")
+        board.expectStatus("Black to move")
         // Audited before the stock alert opens: the system draws the alert itself.
         try board.auditAccessibility()
 
@@ -208,33 +209,33 @@ final class MatchUITests: XCTestCase {
         XCTAssertTrue(alert.waitForExistence(timeout: 5))
         board.attachScreenshot(named: "local-game-C13", to: self)
         alert.buttons["Cancel"].tap()
-        XCTAssertEqual(board.status, "Black to move")
-        XCTAssertEqual(board.square("e4").label, "e4, White pawn")
-        XCTAssertEqual(board.text("stake"), "Stake: 2 points")
-        XCTAssertEqual(board.text("matchScore"),
-                       "White 4 points · Black 6 and a half points · first to 15 points")
+        board.expectStatus("Black to move")
+        board.expectSquare("e4", "e4, White pawn")
+        board.expectText("stake", "Stake: 2 points")
+        board.expectText("matchScore",
+                         "White 4 points · Black 6 and a half points · first to 15 points")
 
         // A finished game below the target: the match is still under way.
         board.app.buttons["Resign"].tap()
         board.app.alerts.firstMatch.buttons["Confirm"].tap()
-        XCTAssertEqual(board.status, "White wins · Resignation")
+        board.expectStatus("White wins · Resignation")
         board.app.buttons["New match"].tap()
         XCTAssertTrue(alert.waitForExistence(timeout: 5))
         alert.buttons["Cancel"].tap()
-        XCTAssertEqual(board.status, "White wins · Resignation")
-        XCTAssertEqual(board.text("matchScore"),
-                       "White 6 points · Black 6 and a half points · first to 15 points")
+        board.expectStatus("White wins · Resignation")
+        board.expectText("matchScore",
+                         "White 6 points · Black 6 and a half points · first to 15 points")
 
         board.app.buttons["New match"].tap()
         XCTAssertTrue(alert.waitForExistence(timeout: 5))
         alert.buttons["Confirm"].tap()
-        XCTAssertEqual(board.status, "White to move")
-        XCTAssertEqual(board.square("e4").label, "e4, Empty")
-        XCTAssertEqual(board.text("stake"), "Stake: 1 point")
-        XCTAssertEqual(board.text("matchScore"), "White 0 points · Black 0 points · first to 15 points")
+        board.expectStatus("White to move")
+        board.expectSquare("e4", "e4, Empty")
+        board.expectText("stake", "Stake: 1 point")
+        board.expectText("matchScore", "White 0 points · Black 0 points · first to 15 points")
 
         board.offerDouble.tap()
-        XCTAssertEqual(board.status, "Black, answer the double")
+        board.expectStatus("Black, answer the double")
         XCTAssertFalse(board.app.buttons["New match"].exists)
     }
 
@@ -246,34 +247,34 @@ final class MatchUITests: XCTestCase {
 
         // Ongoing: 0 to 0, played on, and Next game once it has finished.
         board.launch(seedFile: #"{"version": 1, "position": "\#(Self.afterE4)", "result": null}"#)
-        XCTAssertEqual(board.status, "Black to move")
-        XCTAssertEqual(board.text("matchScore"), "White 0 points · Black 0 points · first to 15 points")
+        board.expectStatus("Black to move")
+        board.expectText("matchScore", "White 0 points · Black 0 points · first to 15 points")
         try board.auditAccessibility()
         board.app.buttons["Resign"].tap()
         board.app.alerts.firstMatch.buttons["Confirm"].tap()
-        XCTAssertEqual(board.text("matchScore"), "White 1 point · Black 0 points · first to 15 points")
+        board.expectText("matchScore", "White 1 point · Black 0 points · first to 15 points")
         XCTAssertTrue(board.app.buttons["Next game"].exists)
 
-        // Finished with a stake: its award is the score.
+        // Finished with a stake: its award is the match score.
         board.launch(seedFile: #"{"version": 2, "position": "\#(Self.afterE4)", "result": {"winner": "white", "reason": "resignation"}, "stake": 4, "nextDoubler": "white", "doublePending": false}"#)
-        XCTAssertEqual(board.status, "White wins · Resignation")
-        XCTAssertEqual(board.text("matchScore"), "White 4 points · Black 0 points · first to 15 points")
+        board.expectStatus("White wins · Resignation")
+        board.expectText("matchScore", "White 4 points · Black 0 points · first to 15 points")
         XCTAssertTrue(board.app.buttons["Next game"].exists)
         board.attachScreenshot(named: "local-game-C15-finished", to: self)
 
         // Finished with a stake over 15: the match is over.
         board.launch(seedFile: #"{"version": 2, "position": "\#(Self.afterE4)", "result": {"winner": "black", "reason": "doubleDeclined"}, "stake": 16, "nextDoubler": "black", "doublePending": false}"#)
-        XCTAssertEqual(board.status, "Black wins · Double declined")
-        XCTAssertEqual(board.text("matchResult"), "Black wins the match, 16 to 0")
+        board.expectStatus("Black wins · Double declined")
+        board.expectText("matchResult", "Black wins the match, 16 to 0")
         try expectNewMatchAlone(board)
         try board.auditAccessibility()
         board.attachScreenshot(named: "local-game-C15-over", to: self)
 
         // Finished before the cube: no award, 0 to 0, and Next game.
         board.launch(seedFile: #"{"version": 1, "position": "4k3/8/8/8/8/8/8/R3K3 w - -", "result": {"winner": "black", "reason": "resignation"}}"#)
-        XCTAssertEqual(board.status, "Black wins · Resignation")
+        board.expectStatus("Black wins · Resignation")
         XCTAssertFalse(board.app.staticTexts["award"].exists)
-        XCTAssertEqual(board.text("matchScore"), "White 0 points · Black 0 points · first to 15 points")
+        board.expectText("matchScore", "White 0 points · Black 0 points · first to 15 points")
         XCTAssertTrue(board.app.buttons["Next game"].exists)
     }
 
@@ -288,20 +289,20 @@ final class MatchUITests: XCTestCase {
 
         XCTAssertTrue(board.app.staticTexts["Change not saved."].waitForExistence(timeout: 5))
         XCTAssertTrue(board.app.buttons["retrySave"].exists)
-        XCTAssertEqual(board.status, "Black to move")
-        XCTAssertEqual(board.text("matchScore"), "White 13 points · Black 9 points · first to 15 points")
+        board.expectStatus("Black to move")
+        board.expectText("matchScore", "White 13 points · Black 9 points · first to 15 points")
         XCTAssertFalse(board.app.staticTexts["matchResult"].exists)
         try board.auditAccessibility()
         board.attachScreenshot(named: "local-game-C5-ending", to: self)
 
         board.app.buttons["retrySave"].tap()
         XCTAssertTrue(board.app.staticTexts["Change not saved."].exists)
-        XCTAssertEqual(board.text("matchScore"), "White 13 points · Black 9 points · first to 15 points")
+        board.expectText("matchScore", "White 13 points · Black 9 points · first to 15 points")
 
         // With access restored, reopening shows the last saved game and totals.
         board.launch()
         XCTAssertFalse(board.app.staticTexts["Change not saved."].exists)
-        XCTAssertEqual(board.status, "Black to move")
-        XCTAssertEqual(board.text("matchScore"), "White 13 points · Black 9 points · first to 15 points")
+        board.expectStatus("Black to move")
+        board.expectText("matchScore", "White 13 points · Black 9 points · first to 15 points")
     }
 }

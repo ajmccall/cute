@@ -82,8 +82,8 @@ class FileGameRepository @Inject constructor(
          * `playing`, the stake or `none`, the next doubler or `Either`, whether a double is
          * `pending` or `answered`, White's and Black's match totals in half points, and the
          * pieces White and Black have captured, in the order taken, as letters such as `pnp`, or
-         * `none`. The game and the score are one record, so a game's result and its award, and
-         * a move and what it captured, are saved together.
+         * `none`. The game and the match score are one record, so a game's result and its award,
+         * and a move and what it captured, are saved together.
          */
         fun encode(record: GameRecord): String {
             val result = record.result?.let { "${it.winner?.name ?: "Draw"} ${it.reason.name}" }
@@ -94,8 +94,8 @@ class FileGameRepository @Inject constructor(
                 record.stake?.toString() ?: NO_STAKE,
                 record.nextDoubler?.name ?: EITHER,
                 if (record.doublePending) PENDING else ANSWERED,
-                record.score.whiteHalves.toString(),
-                record.score.blackHalves.toString(),
+                record.matchScore.whiteHalves.toString(),
+                record.matchScore.blackHalves.toString(),
                 encodeCaptures(record.captures.white),
                 encodeCaptures(record.captures.black),
                 ""
@@ -135,12 +135,12 @@ class FileGameRepository @Inject constructor(
 
         /**
          * A save from before matches, opened as the first game of a match: an ongoing game at
-         * 0 to 0, and a finished one with its award as the score.
+         * 0 to 0, and a finished one with its award as the match score.
          */
         private fun decodeV2(lines: List<String>): GameRecord {
             require(lines.size == 7) { "Not a saved game" }
             val game = decodeCube(lines)
-            return game.copy(score = game.award)
+            return game.copy(matchScore = game.award)
         }
 
         /** A save of a match from before captures, opened with no captures for either side. */
@@ -185,17 +185,17 @@ class FileGameRepository @Inject constructor(
          */
         private fun decodeMatch(lines: List<String>): GameRecord {
             val game = decodeCube(lines)
-            val score = MatchScore(decodeHalves(lines[6]), decodeHalves(lines[7]))
+            val matchScore = MatchScore(decodeHalves(lines[6]), decodeHalves(lines[7]))
             val award = game.award
             require(
-                score.whiteHalves >= award.whiteHalves &&
-                    score.blackHalves >= award.blackHalves &&
+                matchScore.whiteHalves >= award.whiteHalves &&
+                    matchScore.blackHalves >= award.blackHalves &&
                     !MatchScore(
-                        score.whiteHalves - award.whiteHalves,
-                        score.blackHalves - award.blackHalves
+                        matchScore.whiteHalves - award.whiteHalves,
+                        matchScore.blackHalves - award.blackHalves
                     ).reachedTarget
-            ) { "Bad score: ${lines[6]} to ${lines[7]}" }
-            return game.copy(score = score)
+            ) { "Bad match score: ${lines[6]} to ${lines[7]}" }
+            return game.copy(matchScore = matchScore)
         }
 
         /** A total in half points, written plainly: digits only, without leading zeros. */

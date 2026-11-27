@@ -15,7 +15,7 @@ final class LocalGame {
     /// The side to move offered a double, and the other side hasn't yet taken or declined it.
     private var doublePending = false
     /// White's and Black's totals in this match, including this game's award once it has finished.
-    private(set) var score: MatchScore = .zero
+    private(set) var matchScore: MatchScore = .zero
     /// The opponent's pieces each colour has captured in this game, as last committed.
     private(set) var captures: Captures = .empty
     /// The saved game couldn't be read, and no game has been read or saved since.
@@ -56,10 +56,7 @@ final class LocalGame {
 
     /// The game has finished with either total at the target or past it: the match is over, and New match
     /// is the only action.
-    var isMatchOver: Bool { !couldNotReadSavedGame && result != nil && score.reachesTarget }
-
-    /// The colour with the higher total once the match is over, or nil when the totals are equal and it is drawn.
-    var matchWinner: PieceColor? { score.leader }
+    var isMatchOver: Bool { !couldNotReadSavedGame && result != nil && matchScore.reachesTarget }
 
     /// Next game is offered once a game has finished with both totals below the target.
     var canStartNextGame: Bool { !couldNotReadSavedGame && result != nil && !isMatchOver }
@@ -87,7 +84,7 @@ final class LocalGame {
     /// Declining the pending offer would take the offerer's total, with the stake added, to the target or past it.
     var declineEndsMatch: Bool {
         guard isAwaitingDoubleResponse, let stake else { return false }
-        return score[position.sideToMove] + Points(stake) >= MatchScore.target
+        return matchScore[position.sideToMove] + Points(stake) >= MatchScore.target
     }
 
     var isChoosingPromotion: Bool { promotionMove != nil }
@@ -114,7 +111,7 @@ final class LocalGame {
             stake = saved.stake ?? (result == nil ? 1 : nil)
             nextDoubler = saved.nextDoubler
             doublePending = saved.doublePending
-            score = saved.score
+            matchScore = saved.matchScore
             captures = saved.captures
             couldNotReadSavedGame = false
             unsavedChange = nil
@@ -214,7 +211,7 @@ final class LocalGame {
         guard canStartNextGame else { return }
         clearSelection()
         var next = SavedGame.opening
-        next.score = score
+        next.matchScore = matchScore
         commit(next)
     }
 
@@ -232,7 +229,7 @@ final class LocalGame {
     /// The game as last committed, the base for the next change.
     private var committed: SavedGame {
         SavedGame(position: position, result: result, stake: stake, nextDoubler: nextDoubler,
-                  doublePending: doublePending, score: score, captures: captures)
+                  doublePending: doublePending, matchScore: matchScore, captures: captures)
     }
 
     private func play(_ move: Move) {
@@ -268,7 +265,7 @@ final class LocalGame {
         stake = game.stake
         nextDoubler = game.nextDoubler
         doublePending = game.doublePending
-        score = game.score
+        matchScore = game.matchScore
         captures = game.captures
     }
 }

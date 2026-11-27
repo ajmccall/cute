@@ -16,23 +16,23 @@ final class FailedSaveReadUITests: XCTestCase {
         board.tap("e7", "e5")
         XCTAssertTrue(board.app.staticTexts["Change not saved."].waitForExistence(timeout: 5))
         XCTAssertTrue(board.app.buttons["retrySave"].exists)
-        XCTAssertEqual(board.status, "Black to move")
-        XCTAssertEqual(board.square("e7").label, "e7, Black pawn")
-        XCTAssertEqual(board.square("e5").label, "e5, Empty")
+        board.expectStatus("Black to move")
+        board.expectSquare("e7", "e7, Black pawn")
+        board.expectSquare("e5", "e5, Empty")
         try board.auditAccessibility()
         board.attachScreenshot(named: "local-game-C5-save", to: self)
 
         // Retrying while saving still fails keeps the notice and the saved position.
         board.app.buttons["retrySave"].tap()
         XCTAssertTrue(board.app.staticTexts["Change not saved."].exists)
-        XCTAssertEqual(board.square("e5").label, "e5, Empty")
+        board.expectSquare("e5", "e5, Empty")
 
         // With access restored, reopening shows the last saved position.
         board.launch()
         XCTAssertFalse(board.app.staticTexts["Change not saved."].exists)
-        XCTAssertEqual(board.status, "Black to move")
-        XCTAssertEqual(board.square("f3").label, "f3, White knight")
-        XCTAssertEqual(board.square("e7").label, "e7, Black pawn")
+        board.expectStatus("Black to move")
+        board.expectSquare("f3", "f3, White knight")
+        board.expectSquare("e7", "e7, Black pawn")
     }
 
     @MainActor
@@ -53,8 +53,8 @@ final class FailedSaveReadUITests: XCTestCase {
         XCTAssertTrue(board.app.staticTexts["Couldn’t open the saved game."].exists)
 
         board.launch()
-        XCTAssertEqual(board.status, "Black to move")
-        XCTAssertEqual(board.square("f3").label, "f3, White knight")
+        board.expectStatus("Black to move")
+        board.expectSquare("f3", "f3, White knight")
     }
 
     @MainActor
@@ -74,13 +74,13 @@ final class FailedSaveReadUITests: XCTestCase {
         board.app.buttons["New match"].tap()
         XCTAssertTrue(alert.waitForExistence(timeout: 5))
         alert.buttons["Confirm"].tap()
-        XCTAssertEqual(board.status, "White to move")
-        XCTAssertEqual(board.square("g1").label, "g1, White knight")
+        board.expectStatus("White to move")
+        board.expectSquare("g1", "g1, White knight")
         try board.auditAccessibility()
 
         board.launch()
-        XCTAssertEqual(board.status, "White to move")
-        XCTAssertEqual(board.square("f3").label, "f3, Empty")
+        board.expectStatus("White to move")
+        board.expectSquare("f3", "f3, Empty")
     }
 
     @MainActor
@@ -114,7 +114,7 @@ final class FailedSaveReadUITests: XCTestCase {
 
         // With access restored, the saved game was never replaced.
         board.launch()
-        XCTAssertEqual(board.status, "Black to move")
-        XCTAssertEqual(board.square("f3").label, "f3, White knight")
+        board.expectStatus("Black to move")
+        board.expectSquare("f3", "f3, White knight")
     }
 }
