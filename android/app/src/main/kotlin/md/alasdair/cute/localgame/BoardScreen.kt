@@ -13,12 +13,14 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -29,6 +31,7 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.LiveRegionMode
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.heading
@@ -72,7 +75,9 @@ fun BoardRoute(viewModel: LocalGameViewModel = hiltViewModel()) {
             onDecline = viewModel::onDoubleDeclined,
             onConfirm = viewModel::onConfirmed,
             onCancel = viewModel::onCancelled,
-            onRetry = viewModel::onRetry
+            onRetry = viewModel::onRetry,
+            onAutomaticDoublesChanged = viewModel::onAutomaticDoublesChanged,
+            onAutomaticAnswer = viewModel::onAutomaticAnswer
         )
     )
 }
@@ -90,7 +95,9 @@ class BoardActions(
     val onDecline: () -> Unit = {},
     val onConfirm: () -> Unit = {},
     val onCancel: () -> Unit = {},
-    val onRetry: () -> Unit = {}
+    val onRetry: () -> Unit = {},
+    val onAutomaticDoublesChanged: (Boolean) -> Unit = {},
+    val onAutomaticAnswer: (Boolean) -> Unit = {}
 )
 
 @OptIn(ExperimentalLayoutApi::class)
@@ -113,7 +120,12 @@ fun BoardScreen(state: LocalGameUiState, actions: BoardActions, modifier: Modifi
             if (game != null) {
                 MatchScoreLine(game.matchScore)
                 GameStatus(game, state.inCheck)
-                if (game.result == null && !game.doublePending) StakeSummary(game)
+                if (game.result == null &&
+                    !game.doublePending &&
+                    game.automaticPending == null
+                ) {
+                    StakeSummary(game)
+                }
                 // Each side's captures at its own edge of the board, so they turn with it.
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     CapturesLine(game, state.bottomSide.opponent)
@@ -122,14 +134,39 @@ fun BoardScreen(state: LocalGameUiState, actions: BoardActions, modifier: Modifi
                         bottomSide = state.bottomSide,
                         selection = state.selection,
                         destinations = state.destinations,
-                        enabled = game.result == null && !game.doublePending,
+                        enabled =
+                        game.result == null &&
+                            !state.failedSetting &&
+                            !game.doublePending &&
+                            game.automaticPending == null,
                         onSquareTapped = actions.onSquareTapped,
                         modifier = Modifier.fillMaxWidth()
                     )
                     CapturesLine(game, state.bottomSide)
                 }
             }
-            if (game?.doublePending == true) {
+            if (game != null &&
+                !game.matchOver &&
+                !game.doublePending &&
+                game.automaticPending == null
+            ) {
+                Row(
+                    Modifier.padding(horizontal = 16.dp).toggleable(
+                        value = state.automaticDoubles,
+                        enabled = state.failure != Failure.Write || state.failedSetting,
+                        role = Role.Switch,
+                        onValueChange = actions.onAutomaticDoublesChanged
+                    ).padding(8.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(16.dp)
+                ) {
+                    Text(stringResource(R.string.automatic_doubles))
+                    Switch(checked = state.automaticDoubles, onCheckedChange = null)
+                }
+            }
+            if (game?.automaticPending != null) {
+                AutomaticResponse(game, actions)
+            } else if (game?.doublePending == true) {
                 // While a double awaits its answer, Take and Decline are the only game actions.
                 DoubleResponse(game, actions)
             } else if (!state.loading) {
@@ -143,23 +180,23 @@ fun BoardScreen(state: LocalGameUiState, actions: BoardActions, modifier: Modifi
                 ) {
                     // Next game leads once a game has finished with the match under way.
                     if (game?.canStartNextGame == true) {
-                        Button(onClick = actions.onNextGame) {
+                        Button(onClick = actions.onNextGame, enabled = !state.failedSetting) {
                             Text(stringResource(R.string.next_game))
                         }
                     }
-                    OutlinedButton(onClick = actions.onNewMatch) {
+                    OutlinedButton(onClick = actions.onNewMatch, enabled = !state.failedSetting) {
                         Text(stringResource(R.string.new_match))
                     }
                     if (game != null && game.result == null) {
-                        OutlinedButton(onClick = actions.onResign) {
+                        OutlinedButton(onClick = actions.onResign, enabled = !state.failedSetting) {
                             Text(stringResource(R.string.resign))
                         }
-                        OutlinedButton(onClick = actions.onAgreeDraw) {
+                        OutlinedButton(onClick = actions.onAgreeDraw, enabled = !state.failedSetting) {
                             Text(stringResource(R.string.agree_draw))
                         }
                         OutlinedButton(
                             onClick = actions.onOfferDouble,
-                            enabled = state.canOfferDouble
+                            enabled = state.canOfferDouble && !state.failedSetting
                         ) {
                             Text(stringResource(R.string.offer_double))
                         }
@@ -518,6 +555,31 @@ private fun DoubleResponse(game: GameRecord, actions: BoardActions) {
     }
 }
 
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun AutomaticResponse(game: GameRecord, actions: BoardActions) {
+    val stake = game.stake ?: return
+    Surface(
+        color = MaterialTheme.colorScheme.secondaryContainer,
+        shape = MaterialTheme.shapes.medium,
+        modifier = Modifier.padding(horizontal = 16.dp).fillMaxWidth()
+    ) {
+        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Text(stringResource(R.string.stake, points(stake)))
+            val half = if (stake == 1) stringResource(R.string.half_point) else points(stake / 2)
+            Text(stringResource(R.string.automatic_effects, points(stake * 2), points(stake), half))
+            FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                OutlinedButton(onClick = { actions.onAutomaticAnswer(true) }) {
+                    Text(stringResource(R.string.automatic_continue))
+                }
+                OutlinedButton(onClick = { actions.onAutomaticAnswer(false) }) {
+                    Text(stringResource(R.string.automatic_stop))
+                }
+            }
+        }
+    }
+}
+
 @Composable
 private fun points(count: Int) = pluralStringResource(R.plurals.points, count, count)
 
@@ -578,6 +640,20 @@ private val promotionChoices = listOf(
 
 @Composable
 private fun statusText(game: GameRecord, inCheck: Boolean): String {
+    if (game.automaticPending != null) {
+        val responder = if (game.automaticPending.firstAnswer == null) {
+            game.position.sideToMove.opponent
+        } else {
+            game.position.sideToMove
+        }
+        return stringResource(
+            R.string.automatic_response,
+            sideName(responder),
+            points(
+                game.stake!! * 2
+            )
+        )
+    }
     if (game.doublePending) {
         return stringResource(R.string.answer_double, sideName(game.position.sideToMove.opponent))
     }
@@ -591,6 +667,8 @@ private fun statusText(game: GameRecord, inCheck: Boolean): String {
             EndReason.Checkmate -> R.string.reason_checkmate
             EndReason.Resignation -> R.string.reason_resignation
             EndReason.DoubleDeclined -> R.string.reason_double_declined
+            EndReason.OpponentStopped -> R.string.reason_opponent_stopped
+            EndReason.BothStopped -> R.string.reason_both_stopped
             EndReason.Stalemate -> R.string.reason_stalemate
             EndReason.InsufficientMaterial -> R.string.reason_insufficient_material
             EndReason.Agreement -> R.string.reason_agreement

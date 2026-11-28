@@ -19,6 +19,11 @@ nonisolated struct SavedGame: Equatable, Sendable {
     /// The opponent's pieces each colour has captured in this game, saved with the move that captured each.
     var captures: Captures = .empty
 
+    var openingMilestoneUsed = false
+    var endgameMilestoneUsed = false
+    var automaticPending = false
+    var firstAutomaticAnswer: Bool? = nil
+
     /// The first game of a new match: the opening position at one point, at no points each and nothing captured.
     static let opening = SavedGame(position: .opening, result: nil)
 

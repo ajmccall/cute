@@ -1,6 +1,19 @@
 {
   "sourceLanguage": "en",
   "strings": {
+    "%@, continue at %@?": {
+      "extractionState": "manual",
+      "localizations": { "en": { "stringUnit": { "state": "translated", "value": "%1$@, continue at %2$@?" } } }
+    },
+    "If both continue, play for %@. If only one continues, they win %@. If both stop, it’s a draw and each earns %@.": {
+      "extractionState": "manual",
+      "localizations": { "en": { "stringUnit": { "state": "translated", "value": "If both continue, play for %1$@. If only one continues, they win %2$@. If both stop, it’s a draw and each earns %3$@." } } }
+    },
+    "Automatic doubles": { "extractionState": "manual" },
+    "Continue": { "extractionState": "manual" },
+    "Stop": { "extractionState": "manual" },
+    "Opponent stopped at automatic double": { "extractionState": "manual" },
+    "Both stopped at automatic double": { "extractionState": "manual" },
     "%@ ahead by %lld in material": {
       "extractionState": "manual",
       "localizations": {

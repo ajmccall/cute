@@ -145,6 +145,7 @@ final class MatchUITests: XCTestCase {
         board.expectText("matchResult", "Match drawn, 15 to 15")
         board.expectText("matchScore", "White 15 points · Black 15 points · first to 15 points")
         try expectNewMatchAlone(board)
+        try board.auditAccessibility()
         board.attachScreenshot(named: "local-game-C12-drawn", to: self)
     }
 
@@ -152,6 +153,7 @@ final class MatchUITests: XCTestCase {
     @MainActor
     private func expectNewMatchAlone(_ board: BoardRobot) throws {
         XCTAssertTrue(board.app.buttons["New match"].waitForExistence(timeout: 5))
+        XCTAssertFalse(board.app.switches["Automatic doubles"].exists)
         for action in ["Next game", "Resign", "Agree draw", "Offer double", "Take", "Decline"] {
             XCTAssertFalse(board.app.buttons[action].exists, action)
         }

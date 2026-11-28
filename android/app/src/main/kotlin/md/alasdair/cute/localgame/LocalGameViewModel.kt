@@ -16,6 +16,7 @@ import md.alasdair.cute.chess.Move
 import md.alasdair.cute.chess.PieceType
 import md.alasdair.cute.chess.Square
 import md.alasdair.cute.chess.legalMovesFrom
+import md.alasdair.cute.localgame.data.AutomaticDecision
 import md.alasdair.cute.localgame.data.GameRecord
 import md.alasdair.cute.localgame.data.GameRepository
 
@@ -31,16 +32,69 @@ class LocalGameViewModel @Inject constructor(private val repository: GameReposit
 
     /** The change that failed to save, which Retry tries again. */
     private var unsaved: GameRecord? = null
+    private var unsavedSetting: Boolean? = null
     private var busy = false
 
     init {
         load()
     }
 
+    fun onAutomaticDoublesChanged(enabled: Boolean) {
+        if (busy || unsaved != null ||
+            _uiState.value.game?.doublePending == true ||
+            _uiState.value.game?.automaticPending != null
+        ) {
+            return
+        }
+        busy = true
+        viewModelScope.launch {
+            try {
+                repository.saveAutomaticDoubles(enabled)
+                unsavedSetting = null
+                unsaved = null
+                _uiState.update { it.copy(automaticDoubles = enabled, failure = null, failedSetting = false) }
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                unsaved = null
+                unsavedSetting = enabled
+                _uiState.update { it.copy(failure = Failure.Write, failedSetting = true) }
+            } finally {
+                busy = false
+            }
+        }
+    }
+
+    fun onAutomaticAnswer(continuePlaying: Boolean) {
+        val game = _uiState.value.game ?: return
+        val pending = game.automaticPending ?: return
+        if (busy) return
+        val first = pending.firstAnswer
+        if (first == null) {
+            save(game.copy(automaticPending = AutomaticDecision(continuePlaying)))
+        } else if (first && continuePlaying) {
+            save(game.copy(automaticPending = null, stake = game.stake!! * 2))
+        } else {
+            val winner = when {
+                first -> game.position.sideToMove.opponent
+                continuePlaying -> game.position.sideToMove
+                else -> null
+            }
+            val reason = if (winner == null) EndReason.BothStopped else EndReason.OpponentStopped
+            save(game.copy(automaticPending = null).ended(GameResult(winner, reason)))
+        }
+    }
+
     fun onSquareTapped(square: Square) {
         val state = _uiState.value
-        if (busy || state.promotion != null || state.confirmation != null) return
-        val game = state.game?.takeIf { it.result == null && !it.doublePending } ?: return
+        if (busy || unsavedSetting != null || state.promotion != null || state.confirmation != null) return
+        val game =
+            state.game?.takeIf {
+                it.result == null &&
+                    !it.doublePending &&
+                    it.automaticPending == null
+            }
+                ?: return
         val position = game.position
         val selection = state.selection
         if (position[square]?.side == position.sideToMove) {
@@ -84,7 +138,7 @@ class LocalGameViewModel @Inject constructor(private val repository: GameReposit
      */
     fun onOfferDoubleRequested() {
         val state = _uiState.value
-        if (busy || state.promotion != null || state.confirmation != null) return
+        if (busy || unsavedSetting != null || state.promotion != null || state.confirmation != null) return
         val game = state.game?.takeIf { it.canOfferDouble } ?: return
         save(game.copy(doublePending = true))
     }
@@ -95,7 +149,7 @@ class LocalGameViewModel @Inject constructor(private val repository: GameReposit
      */
     fun onNextGameRequested() {
         val state = _uiState.value
-        if (busy || state.confirmation != null) return
+        if (busy || unsavedSetting != null || state.confirmation != null) return
         val game = state.game?.takeIf { it.canStartNextGame } ?: return
         save(game.nextGame())
     }
@@ -107,7 +161,12 @@ class LocalGameViewModel @Inject constructor(private val repository: GameReposit
      */
     fun onNewMatchRequested() {
         val state = _uiState.value
-        if (busy || state.game?.doublePending == true) return
+        if (busy || unsavedSetting != null ||
+            state.game?.doublePending == true ||
+            state.game?.automaticPending != null
+        ) {
+            return
+        }
         if (state.game?.matchOver == true) {
             save(GameRecord.New)
         } else {
@@ -163,14 +222,24 @@ class LocalGameViewModel @Inject constructor(private val repository: GameReposit
     fun onRetry() {
         when (_uiState.value.failure) {
             Failure.Read -> load()
-            Failure.Write -> unsaved?.let(::save)
+            Failure.Write -> {
+                val setting = unsavedSetting
+                if (setting != null) onAutomaticDoublesChanged(setting) else unsaved?.let(::save)
+            }
             null -> Unit
         }
     }
 
     private fun askDuringPlay(confirmation: Confirmation) {
         val game = _uiState.value.game
-        if (busy || game == null || game.result != null || game.doublePending) return
+        if (busy || unsavedSetting != null ||
+            game == null ||
+            game.result != null ||
+            game.doublePending ||
+            game.automaticPending != null
+        ) {
+            return
+        }
         _uiState.update { it.copy(confirmation = confirmation) }
     }
 
@@ -182,7 +251,7 @@ class LocalGameViewModel @Inject constructor(private val repository: GameReposit
     }
 
     private fun commit(game: GameRecord, move: Move) {
-        save(game.played(move))
+        save(game.played(move, _uiState.value.automaticDoubles))
     }
 
     /**
@@ -190,16 +259,18 @@ class LocalGameViewModel @Inject constructor(private val repository: GameReposit
      * game as it was, with nothing selected, and Retry can try the same change again.
      */
     private fun save(record: GameRecord) {
-        if (busy) return
+        if (busy || unsavedSetting != null) return
         busy = true
         viewModelScope.launch {
             val failure = try {
                 repository.save(record)
+                unsavedSetting = null
                 unsaved = null
                 null
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
+                unsavedSetting = null
                 unsaved = record
                 Failure.Write
             }
@@ -225,7 +296,15 @@ class LocalGameViewModel @Inject constructor(private val repository: GameReposit
         viewModelScope.launch {
             try {
                 val game = repository.load() ?: GameRecord.New
-                _uiState.update { it.copy(loading = false, game = game, failure = null) }
+                val automaticDoubles = repository.loadAutomaticDoubles()
+                _uiState.update {
+                    it.copy(
+                        loading = false,
+                        game = game,
+                        automaticDoubles = automaticDoubles,
+                        failure = null
+                    )
+                }
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {

@@ -144,7 +144,7 @@ struct BoardRobot {
     }
 
     static let gameActions: Set<String> = [
-        "New match", "Next game", "Resign", "Agree draw", "Offer double", "Take", "Decline",
+        "New match", "Next game", "Resign", "Agree draw", "Offer double", "Take", "Decline", "Continue", "Stop",
     ]
     /// Whether the label is, from start to end, a spoken form of the text with this identifier that says a half.
     static func isSpokenHalf(_ label: String, in identifier: String) -> Bool {
@@ -155,6 +155,7 @@ struct BoardRobot {
     /// The spoken forms of each text that can say a half, as regular expressions (local-game Interface text).
     static let spokenHalves: [String: String] = [
         "award": #"Each player earns half a point\."#,
+        "automaticEffects": #"If both continue, play for \d+ points\. If only one continues, they win 1 point\. If both stop, it’s a draw and each earns half a point\."#,
         "matchResult": #"(?:White|Black) wins the match, \#(bareTotal) to \#(bareTotal)|Match drawn, \#(bareTotal) to \#(bareTotal)"#,
     ]
     /// A spoken total without its unit: "16", "16 and a half", "a half".

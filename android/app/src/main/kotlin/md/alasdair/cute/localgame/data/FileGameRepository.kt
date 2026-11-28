@@ -26,6 +26,35 @@ class FileGameRepository @Inject constructor(
     @IoDispatcher private val ioDispatcher: CoroutineDispatcher
 ) : GameRepository {
 
+    private val settingsFile get() = File(file.parentFile, "automatic-doubles.txt")
+
+    override suspend fun loadAutomaticDoubles(): Boolean = withContext(ioDispatcher) {
+        if (Files.notExists(settingsFile.toPath())) {
+            false
+        } else {
+            when (settingsFile.readText()) {
+                "true" -> true
+                "false" -> false
+                else -> error("Invalid automatic doubles setting")
+            }
+        }
+    }
+
+    override suspend fun saveAutomaticDoubles(enabled: Boolean) = withContext(ioDispatcher) {
+        val temporary = File(file.parentFile, "automatic-doubles.txt.saving")
+        FileOutputStream(temporary).use { stream ->
+            stream.write(enabled.toString().toByteArray())
+            stream.fd.sync()
+        }
+        Files.move(
+            temporary.toPath(),
+            settingsFile.toPath(),
+            StandardCopyOption.ATOMIC_MOVE,
+            StandardCopyOption.REPLACE_EXISTING
+        )
+        Unit
+    }
+
     override suspend fun load(): GameRecord? = withContext(ioDispatcher) {
         // Only a file known to be absent means no game: one that can't be checked is a failure.
         if (Files.notExists(file.toPath())) null else decode(file.readText())
@@ -58,6 +87,7 @@ class FileGameRepository @Inject constructor(
         /** Saves from before captures: the game, its cube and the match. Read, never written. */
         private const val HEADER_V3 = "cute-game 3"
         private const val HEADER_V4 = "cute-game 4"
+        private const val HEADER_V5 = "cute-game 5"
         private const val PLAYING = "playing"
         private const val NO_STAKE = "none"
         private const val EITHER = "Either"
@@ -88,7 +118,7 @@ class FileGameRepository @Inject constructor(
         fun encode(record: GameRecord): String {
             val result = record.result?.let { "${it.winner?.name ?: "Draw"} ${it.reason.name}" }
             return listOf(
-                HEADER_V4,
+                HEADER_V5,
                 record.position.toFen(),
                 result ?: PLAYING,
                 record.stake?.toString() ?: NO_STAKE,
@@ -98,6 +128,13 @@ class FileGameRepository @Inject constructor(
                 record.matchScore.blackHalves.toString(),
                 encodeCaptures(record.captures.white),
                 encodeCaptures(record.captures.black),
+                record.openingAvailable.toString(),
+                record.endgameAvailable.toString(),
+                when (record.automaticPending?.firstAnswer) {
+                    true -> "continue"
+                    false -> "stop"
+                    null -> if (record.automaticPending == null) "none" else "first"
+                },
                 ""
             ).joinToString("\n")
         }
@@ -117,6 +154,7 @@ class FileGameRepository @Inject constructor(
                 HEADER_V2 -> decodeV2(lines)
                 HEADER_V3 -> decodeV3(lines)
                 HEADER_V4 -> decodeV4(lines)
+                HEADER_V5 -> decodeV5(lines)
                 else -> throw IllegalArgumentException("Not a saved game")
             }
         }
@@ -165,6 +203,34 @@ class FileGameRepository @Inject constructor(
                 }
             }
             return game.copy(captures = captures)
+        }
+
+        private fun decodeV5(lines: List<String>): GameRecord {
+            require(lines.size == 14) { "Not a saved game" }
+            val game = decodeV4(lines.take(10) + "")
+            val opening = lines[10].toBooleanStrict()
+            val endgame = lines[11].toBooleanStrict()
+            val pending = when (lines[12]) {
+                "none" -> null
+                "first" -> AutomaticDecision()
+                "continue" -> AutomaticDecision(true)
+                "stop" -> AutomaticDecision(false)
+                else -> error("Bad automatic decision")
+            }
+            require(
+                pending == null ||
+                    (
+                        game.result == null &&
+                            !game.doublePending &&
+                            game.stake != null &&
+                            game.stake < GameRecord.MAX_STAKE
+                        )
+            )
+            return game.copy(
+                openingAvailable = opening,
+                endgameAvailable = endgame,
+                automaticPending = pending
+            )
         }
 
         private fun decodeCaptures(text: String): List<PieceType> {
@@ -220,7 +286,13 @@ class FileGameRepository @Inject constructor(
                 }
             }
             val nextDoubler = if (lines[4] == EITHER) null else Side.valueOf(lines[4])
-            require((stake ?: 1) > 1 == (nextDoubler != null)) {
+            require(
+                if (lines[0] == HEADER_V5) {
+                    stake != 1 || nextDoubler == null
+                } else {
+                    (stake ?: 1) > 1 == (nextDoubler != null)
+                }
+            ) {
                 "Bad right to offer: ${lines[4]}"
             }
             val pending = when (lines[5]) {

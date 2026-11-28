@@ -4,9 +4,17 @@ import SwiftUI
 @main
 struct CuteApp: App {
     @State private var game: LocalGame
+    private let defaults: UserDefaults
 
     init() {
-        let game = LocalGame(store: Self.makeStore())
+        #if DEBUG
+        let defaults = ProcessInfo.processInfo.environment["CUTE_UITEST_GAME_FILE"]
+            .flatMap { UserDefaults(suiteName: $0) } ?? .standard
+        #else
+        let defaults = UserDefaults.standard
+        #endif
+        self.defaults = defaults
+        let game = LocalGame(store: Self.makeStore(), automaticDoublesEnabled: { defaults.bool(forKey: "automaticDoubles") })
         game.open()
         _game = State(initialValue: game)
     }
@@ -14,6 +22,7 @@ struct CuteApp: App {
     var body: some Scene {
         WindowGroup {
             BoardScreen(game: game)
+                .defaultAppStorage(defaults)
         }
     }
 

@@ -4,6 +4,11 @@ import Observation
 @Observable
 final class LocalGame {
     private let store: GameStore
+    private let automaticDoublesEnabled: () -> Bool
+    private var openingMilestoneUsed = false
+    private var endgameMilestoneUsed = false
+    private var automaticPending = false
+    private var firstAutomaticAnswer: Bool?
 
     /// The last committed position. Not a game to show while `couldNotReadSavedGame`.
     private(set) var position: Position = .opening
@@ -28,9 +33,13 @@ final class LocalGame {
     /// A pawn's move to the last rank, waiting for the player to choose its new piece; never saved.
     private var promotionMove: Move?
 
-    init(store: GameStore) {
+    init(store: GameStore, automaticDoublesEnabled: @escaping () -> Bool = { false }) {
         self.store = store
+        self.automaticDoublesEnabled = automaticDoublesEnabled
     }
+
+    var isAwaitingAutomaticResponse: Bool { isInPlay && automaticPending }
+    var automaticResponder: PieceColor { firstAutomaticAnswer == nil ? position.sideToMove.opponent : position.sideToMove }
 
     /// The last change wasn't saved; any board shown is still the last saved game.
     var hasUnsavedChange: Bool { unsavedChange != nil }
@@ -46,7 +55,7 @@ final class LocalGame {
 
     /// The side whose pieces the board puts at the bottom: the side to move, or the responder while an offer
     /// waits for its answer. Which way the board faces never changes whose move it is.
-    var sideAtBottom: PieceColor { isAwaitingDoubleResponse ? responder : position.sideToMove }
+    var sideAtBottom: PieceColor { isAwaitingAutomaticResponse ? automaticResponder : (isAwaitingDoubleResponse ? responder : position.sideToMove) }
 
     /// What a finished game awards: nothing while it is played, or for a game finished before the cube.
     var award: PointAward? {
@@ -62,7 +71,7 @@ final class LocalGame {
     var canStartNextGame: Bool { !couldNotReadSavedGame && result != nil && !isMatchOver }
 
     /// A game is in play and no offer is waiting, so the side to move can move, resign, agree a draw or offer.
-    private var isAwaitingMove: Bool { isInPlay && !doublePending }
+    private var isAwaitingMove: Bool { isInPlay && !doublePending && !automaticPending }
 
     /// Where the selected piece can legally move.
     var legalDestinations: Set<Square> {
@@ -76,7 +85,7 @@ final class LocalGame {
     var canResignOrAgreeDraw: Bool { isAwaitingMove }
 
     /// New match is offered at any time except while an offer waits for its answer.
-    var canStartNewMatch: Bool { !isAwaitingDoubleResponse }
+    var canStartNewMatch: Bool { !isAwaitingDoubleResponse && !isAwaitingAutomaticResponse }
 
     /// Whether starting over abandons a match still under way, or a saved game that couldn't be read.
     var newMatchNeedsConfirmation: Bool { !isMatchOver }
@@ -113,6 +122,10 @@ final class LocalGame {
             doublePending = saved.doublePending
             matchScore = saved.matchScore
             captures = saved.captures
+            openingMilestoneUsed = saved.openingMilestoneUsed
+            endgameMilestoneUsed = saved.endgameMilestoneUsed
+            automaticPending = saved.automaticPending
+            firstAutomaticAnswer = saved.firstAutomaticAnswer
             couldNotReadSavedGame = false
             unsavedChange = nil
         } catch {
@@ -197,6 +210,28 @@ final class LocalGame {
         commit(committed.ending(with: .win(position.sideToMove, .doubleDeclined)))
     }
 
+    func answerAutomatic(continuePlaying: Bool) {
+        guard isAwaitingAutomaticResponse else { return }
+        var change = committed
+        if firstAutomaticAnswer == nil {
+            change.firstAutomaticAnswer = continuePlaying
+        } else if firstAutomaticAnswer == true && continuePlaying {
+            change.stake = (stake ?? 1) * 2
+            change.automaticPending = false
+            change.firstAutomaticAnswer = nil
+        } else if firstAutomaticAnswer != continuePlaying {
+            let winner = firstAutomaticAnswer == true ? position.sideToMove.opponent : position.sideToMove
+            change.automaticPending = false
+            change.firstAutomaticAnswer = nil
+            change = change.ending(with: .win(winner, .automaticDouble))
+        } else {
+            change.automaticPending = false
+            change.firstAutomaticAnswer = nil
+            change = change.ending(with: .draw(.automaticDouble))
+        }
+        commit(change)
+    }
+
     /// Replaces the current game and the totals with the opening position, at one point and no points each.
     /// The board confirms first while the match is under way, and after a failed read, when this replaces the
     /// saved game that couldn't be read.
@@ -229,7 +264,9 @@ final class LocalGame {
     /// The game as last committed, the base for the next change.
     private var committed: SavedGame {
         SavedGame(position: position, result: result, stake: stake, nextDoubler: nextDoubler,
-                  doublePending: doublePending, matchScore: matchScore, captures: captures)
+                  doublePending: doublePending, matchScore: matchScore, captures: captures,
+                  openingMilestoneUsed: openingMilestoneUsed, endgameMilestoneUsed: endgameMilestoneUsed,
+                  automaticPending: automaticPending, firstAutomaticAnswer: firstAutomaticAnswer)
     }
 
     private func play(_ move: Move) {
@@ -240,6 +277,22 @@ final class LocalGame {
         change.position = position.applying(move)
         if let result = change.position.automaticResult {
             change = change.ending(with: result)
+        } else if automaticDoublesEnabled(), !change.endgameMilestoneUsed,
+                  change.position.pieces.values.filter({ $0.kind != .king && $0.kind != .pawn }).count <= 4 {
+            change.endgameMilestoneUsed = true
+            change.openingMilestoneUsed = true
+            change.automaticPending = (change.stake ?? 1) < SavedGame.maximumStake
+        } else if automaticDoublesEnabled(), !change.openingMilestoneUsed {
+            let startingSquares: [(String, Piece)] = [
+                ("b1", Piece(color: .white, kind: .knight)), ("g1", Piece(color: .white, kind: .knight)),
+                ("c1", Piece(color: .white, kind: .bishop)), ("f1", Piece(color: .white, kind: .bishop)),
+                ("b8", Piece(color: .black, kind: .knight)), ("g8", Piece(color: .black, kind: .knight)),
+                ("c8", Piece(color: .black, kind: .bishop)), ("f8", Piece(color: .black, kind: .bishop))
+            ]
+            if startingSquares.filter({ change.position[Square($0.0)!] != $0.1 }).count >= 6 {
+                change.openingMilestoneUsed = true
+                change.automaticPending = (change.stake ?? 1) < SavedGame.maximumStake
+            }
         }
         commit(change)
     }
@@ -267,5 +320,9 @@ final class LocalGame {
         doublePending = game.doublePending
         matchScore = game.matchScore
         captures = game.captures
+        openingMilestoneUsed = game.openingMilestoneUsed
+        endgameMilestoneUsed = game.endgameMilestoneUsed
+        automaticPending = game.automaticPending
+        firstAutomaticAnswer = game.firstAutomaticAnswer
     }
 }

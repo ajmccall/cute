@@ -12,13 +12,16 @@ import md.alasdair.cute.localgame.data.GameRecord
  */
 data class LocalGameUiState(
     val loading: Boolean = true,
+    val automaticDoubles: Boolean = false,
     val game: GameRecord? = null,
     val selection: Square? = null,
     val destinations: Set<Square> = emptySet(),
     /** A pawn move waiting for its promotion piece; nothing is committed until one is chosen. */
     val promotion: Move? = null,
     val confirmation: Confirmation? = null,
-    val failure: Failure? = null
+    val failure: Failure? = null,
+    /** A failed switch write must be retried before another game change. */
+    val failedSetting: Boolean = false
 ) {
     val sideToMove: Side get() = game?.position?.sideToMove ?: Side.White
 
@@ -27,6 +30,10 @@ data class LocalGameUiState(
      * awaits an answer, the side that must answer it. The chess turn doesn't change.
      */
     val bottomSide: Side get() {
+        val automatic = game?.automaticPending
+        if (automatic != null) {
+            return if (automatic.firstAnswer == null) sideToMove.opponent else sideToMove
+        }
         val pending = game?.doublePending ?: false
         return if (pending) sideToMove.opponent else sideToMove
     }

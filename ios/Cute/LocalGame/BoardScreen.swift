@@ -4,6 +4,7 @@ import SwiftUI
 /// edge, and the game actions.
 struct BoardScreen: View {
     let game: LocalGame
+    @AppStorage("automaticDoubles") private var automaticDoubles = false
 
     @State private var confirmation: Confirmation?
     /// The gap between the board and each colour's captures, growing with text size as the captures do.
@@ -76,7 +77,7 @@ struct BoardScreen: View {
             .multilineTextAlignment(.center)
             .fixedSize(horizontal: false, vertical: true)
             .padding(.horizontal)
-            if game.isInPlay, !game.isAwaitingDoubleResponse, let stake = game.stake {
+            if game.isInPlay, !game.isAwaitingDoubleResponse, !game.isAwaitingAutomaticResponse, let stake = game.stake {
                 StakeView(stake: stake, doubleRight: BoardText.doubleRight(of: game))
             }
             // Each colour's captures at its own edge of the board, so they turn with it.
@@ -85,12 +86,32 @@ struct BoardScreen: View {
                 BoardView(game: game)
                 CapturesView(side: game.sideAtBottom, captures: game.captures, lead: game.materialLead)
             }
-            if game.isAwaitingDoubleResponse, let stake = game.stake {
+            if game.isAwaitingAutomaticResponse, let stake = game.stake {
+                VStack(spacing: 12) {
+                    Text(BoardText.stake(stake))
+                        .accessibilityIdentifier("stake")
+                    Text(BoardText.automaticEffects(stake: stake, spoken: false))
+                        .accessibilityLabel(BoardText.automaticEffects(stake: stake, spoken: true))
+                        .accessibilityIdentifier("automaticEffects")
+                        .fixedSize(horizontal: false, vertical: true)
+                    ActionRow {
+                        Button("Continue") { game.answerAutomatic(continuePlaying: true) }
+                        Button("Stop") { game.answerAutomatic(continuePlaying: false) }
+                    }
+                }
+                .font(.body)
+                .panelStyle()
+            } else if game.isAwaitingDoubleResponse, let stake = game.stake {
                 DoubleResponseView(
                     stake: stake, offerer: game.position.sideToMove, endsMatch: game.declineEndsMatch,
                     take: game.takeDouble, decline: game.declineDouble)
             } else {
                 ActionRow { actions }
+                    .padding(.horizontal)
+            }
+            if !game.isMatchOver {
+                Toggle("Automatic doubles", isOn: $automaticDoubles)
+                    .disabled(game.isAwaitingDoubleResponse || game.isAwaitingAutomaticResponse)
                     .padding(.horizontal)
             }
         }

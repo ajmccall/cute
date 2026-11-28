@@ -15,6 +15,7 @@ import Foundation
 nonisolated extension SavedGame: Codable {
     private enum CodingKeys: String, CodingKey {
         case version, position, result, stake, nextDoubler, doublePending, whiteTotal, blackTotal, captures
+        case openingMilestoneUsed, endgameMilestoneUsed, automaticPending, firstAutomaticAnswer
     }
 
     private enum CapturesKeys: String, CodingKey {
@@ -25,7 +26,8 @@ nonisolated extension SavedGame: Codable {
         case winner, reason, draw
     }
 
-    static let formatVersion = 4
+    static let formatVersion = 5
+    private static let beforeAutomaticVersion = 4
     private static let beforeCapturesVersion = 3
     private static let beforeMatchesVersion = 2
     private static let beforeTheCubeVersion = 1
@@ -35,7 +37,7 @@ nonisolated extension SavedGame: Codable {
     init(from decoder: any Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         let version = try container.decode(Int.self, forKey: .version)
-        guard [Self.formatVersion, Self.beforeCapturesVersion, Self.beforeMatchesVersion, Self.beforeTheCubeVersion]
+        guard [Self.formatVersion, Self.beforeAutomaticVersion, Self.beforeCapturesVersion, Self.beforeMatchesVersion, Self.beforeTheCubeVersion]
             .contains(version)
         else {
             throw DecodingError.dataCorruptedError(
@@ -78,7 +80,8 @@ nonisolated extension SavedGame: Codable {
         let nextDoubler = try container.decode(PieceColor?.self, forKey: .nextDoubler)
         let doublePending = try container.decode(Bool.self, forKey: .doublePending)
         // The stake rises only when a double is taken, which names the taker to double next.
-        guard Self.stakes.contains(stake), (stake == 1) == (nextDoubler == nil) else {
+        guard Self.stakes.contains(stake),
+              version >= Self.formatVersion ? (stake != 1 || nextDoubler == nil) : ((stake == 1) == (nextDoubler == nil)) else {
             throw DecodingError.dataCorruptedError(
                 forKey: .stake, in: container, debugDescription: "Stake \(stake) with next doubler \(String(describing: nextDoubler))")
         }
@@ -109,7 +112,7 @@ nonisolated extension SavedGame: Codable {
         }
         matchScore = totals
 
-        guard version == Self.formatVersion else {
+        guard version >= Self.beforeAutomaticVersion else {
             // A game saved before captures has nothing captured.
             return
         }
@@ -123,6 +126,19 @@ nonisolated extension SavedGame: Codable {
             }
         }
         self.captures = captures
+        if version >= Self.formatVersion {
+            openingMilestoneUsed = try container.decode(Bool.self, forKey: .openingMilestoneUsed)
+            endgameMilestoneUsed = try container.decode(Bool.self, forKey: .endgameMilestoneUsed)
+            automaticPending = try container.decode(Bool.self, forKey: .automaticPending)
+            firstAutomaticAnswer = try container.decodeIfPresent(Bool.self, forKey: .firstAutomaticAnswer)
+            guard (!endgameMilestoneUsed || openingMilestoneUsed),
+                  (automaticPending || firstAutomaticAnswer == nil),
+                  (!automaticPending || (result == nil && !doublePending && stake < Self.maximumStake
+                      && position.automaticResult == nil && (openingMilestoneUsed || endgameMilestoneUsed))) else {
+                throw DecodingError.dataCorruptedError(
+                    forKey: .automaticPending, in: container, debugDescription: "Impossible automatic decision")
+            }
+        }
     }
 
     /// A total of whole or half points, from 0.
@@ -141,6 +157,10 @@ nonisolated extension SavedGame: Codable {
     func encode(to encoder: any Encoder) throws {
         var container = encoder.container(keyedBy: CodingKeys.self)
         try container.encode(Self.formatVersion, forKey: .version)
+        try container.encode(openingMilestoneUsed, forKey: .openingMilestoneUsed)
+        try container.encode(endgameMilestoneUsed, forKey: .endgameMilestoneUsed)
+        try container.encode(automaticPending, forKey: .automaticPending)
+        try container.encodeIfPresent(firstAutomaticAnswer, forKey: .firstAutomaticAnswer)
         try container.encode(position.fen, forKey: .position)
         switch result {
         case nil:
