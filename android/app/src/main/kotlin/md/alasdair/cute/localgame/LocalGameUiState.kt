@@ -19,7 +19,9 @@ data class LocalGameUiState(
     /** A pawn move waiting for its promotion piece; nothing is committed until one is chosen. */
     val promotion: Move? = null,
     val confirmation: Confirmation? = null,
-    val failure: Failure? = null
+    val failure: Failure? = null,
+    /** A failed switch write must be retried before another game change. */
+    val failedSetting: Boolean = false
 ) {
     val sideToMove: Side get() = game?.position?.sideToMove ?: Side.White
 
