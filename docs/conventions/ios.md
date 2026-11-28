@@ -1,6 +1,6 @@
 # iOS convention reference
 
-The rules an iOS builder follows and an iOS reviewer checks against. Cite a rule by its number, for example "rule 4.3". A review finding names the rule behind it where there is one. A breach of a required rule (Required rules, below) is a **required finding**, which the review sends back; a breach of any other rule, which is advisory, is a **nit**, which the builder may take or leave. A finding with no rule behind it still stands, but this reference doesn't make it required. The nine sections match the Android reference, so "section 4" means navigation on both.
+The rules an iOS builder follows and an iOS reviewer checks against. Cite a rule by its number, for example "rule 4.3". A review finding names the rule behind it where there is one. A breach of a required rule (Required rules, below) is a **required finding**, which must be fixed before the feature is accepted; a breach of any other rule, which is advisory, is a **nit**, which the builder may take or leave. A finding with no rule behind it still stands, but this reference doesn't make it required. The nine sections match the Android reference, so "section 4" means navigation on both.
 
 `ios-sources.md` holds each rule's sources, quotations and the observations behind it, under the same rule numbers. Read it when a rule is questioned, unclear or being changed.
 
@@ -127,7 +127,7 @@ Every other rule is advisory: a builder follows it by default, and departing fro
 
 6.5. Async code is tested with `async` test functions. Events that should happen use `confirmation`.
 
-6.6. Unit tests run inside the app. So the `App` type, and the services it creates (rule 9.3), run during the tests, and whatever the app does at launch, such as opening its saved data, also happens then. The ticket's pull request says how the tests keep away from the app's real data.
+6.6. Unit tests run inside the app. So the `App` type, and the services it creates (rule 9.3), run during the tests, and whatever the app does at launch, such as opening its saved data, also happens then. The ticket says how the tests keep away from the app's real data.
 
 6.7. **When a ticket changes saved data.** Rules 6.8 to 6.10 apply to a ticket that adds or changes a write to saved data, or changes what the app does with a damaged store. They run on the real SwiftData store (rule 2.7), each in its own new temporary folder, away from the app's real data (rule 6.6). A stub store, including one that holds a write until the test releases it, and state a view model kept can't show what reached the disk, so neither is evidence for these rules.
 
@@ -146,9 +146,9 @@ xcodebuild -scheme <App> -destination 'platform=iOS Simulator,id=<UDID>' build
 xcodebuild -scheme <App> -destination 'platform=iOS Simulator,id=<UDID>' test
 ```
 
-7.2. Choose the device type and the OS version from `xcrun simctl list devicetypes` and `xcrun simctl list runtimes`, and create the session's own device from them (rule 8.8). Record in the ticket's pull request the destination, the device type, the OS version and the runtime build, which `xcrun simctl getenv <UDID> SIMULATOR_RUNTIME_BUILD_VERSION` prints, so a reviewer can create a device like it on another Mac, where the UDID names nothing. The runtime build tells apart two runtimes with one identifier (for example a beta and a release of the same OS version), which `OS=` can't.
+7.2. Choose the device type and the OS version from `xcrun simctl list devicetypes` and `xcrun simctl list runtimes`, and create the session's own device from them (rule 8.8). Record in the ticket the destination, the device type, the OS version and the runtime build, which `xcrun simctl getenv <UDID> SIMULATOR_RUNTIME_BUILD_VERSION` prints, so a reviewer can create a device like it on another Mac, where the UDID names nothing. The runtime build tells apart two runtimes with one identifier (for example a beta and a release of the same OS version), which `OS=` can't.
 
-7.3. Record `xcodebuild -version` in the ticket's pull request, so a reviewer knows which toolchain built it.
+7.3. Record `xcodebuild -version` in the ticket, so a reviewer knows which toolchain built it.
 
 7.4. If the project has test plans, run them with `-testPlan`.
 
@@ -168,11 +168,11 @@ xcodebuild -scheme <App> -destination 'platform=iOS Simulator,id=<UDID>' test
 
 8.4. When a criterion needs dark appearance or a large text size, set them with `xcrun simctl ui <UDID> appearance dark` and `xcrun simctl ui <UDID> content_size <size>`. After changing the text size, relaunch the app with `xcrun simctl launch --terminate-running-process` before the screenshot, because a running app's stock navigation bar can clip its large title until the next launch. When the screenshot needs state that a relaunch would lose (held only in memory), build that state at the default text size with the native UI test (rule 8.6), change the text size while the test waits, and check that the large title isn't clipped in the screenshot. Building the state at the largest accessibility size instead stalled the test: with an alert's keyboard up, each step waited 60 seconds for app animations to finish.
 
-8.5. Name each screenshot after the ID of the acceptance criterion it shows, as `<feature>-C<n>`, save it in `~/Library/Caches/<repository>/evidence/<ticket number>-<platform>/`, and give that folder's path in the ticket's pull request with each file listed under its criterion. `gh` can't attach an image, and a session's own temporary folder doesn't outlive it. Never commit it. One screenshot can show several criteria: name it after all of them, for example `saved-items-C1-C2.png`. For a criterion of a ticket that changes no app behaviour, which has no ID, use a short name for the criterion. Alternative to rules 8.1 and 8.2, once UI tests exist: attach `XCTAttachment` screenshots from the UI test.
+8.5. Name each screenshot after the ID of the acceptance criterion it shows, as `<feature>-C<n>`, save it in `~/Library/Caches/<repository>/evidence/<ticket number>-<platform>/`, and give that folder's path in the ticket with each file listed under its criterion. `gh` can't attach an image, and a session's own temporary folder doesn't outlive it. Never commit it. One screenshot can show several criteria: name it after all of them, for example `saved-items-C1-C2.png`. For a criterion of a ticket that changes no app behaviour, which has no ID, use a short name for the criterion. Alternative to rules 8.1 and 8.2, once UI tests exist: attach `XCTAttachment` screenshots from the UI test.
 
 8.6. `simctl` manages lifecycle and screenshots but can't scroll, tap or type. Use maintained XCUITest scenarios for stable review interactions. The test launches the production app, drives it with `tap()`, `typeText(_:)` and `swipeUp(velocity:)`, waits for elements with `waitForExistence(timeout:)`, and asserts the action's result. `isHittable` can be true for an element scrolled off screen, as a title was at the largest text size, so scroll it into view before asserting on it, and check the screenshot. Retain useful screenshots with `XCTAttachment(screenshot: XCUIScreen.main.screenshot())` and `.keepAlways`; successful tests otherwise discard attachments. Run selected scenarios on the session's own device, named by its UDID (rules 7.1 and 8.8), with `-parallel-testing-enabled NO`, `-only-testing:<UI test target>/<class>` and `-resultBundlePath <path>`. `-parallel-testing-enabled NO` keeps appearance/text-size/status-bar setup on the named device rather than a test clone. Export screenshots with `xcrun xcresulttool export attachments --path <path> --output-path <folder>` and name them after their criteria (rule 8.5). One-off exploratory tests may remain temporary; return a durable regression and its reproduction sequence to the builder when exploration finds a defect.
 
-8.7. The Simulator has no network of its own. Taking the Simulator offline would take the Mac offline too, cutting off the session that drives it. So a criterion that needs the device offline isn't shown in a screenshot: unit tests with a stub service (rule 9.4) show it, the ticket's pull request says so, and the product owner checks it at acceptance.
+8.7. The Simulator has no network of its own. Taking the Simulator offline would take the Mac offline too, cutting off the session that drives it. So a criterion that needs the device offline isn't shown in a screenshot: unit tests with a stub service (rule 9.4) show it, the ticket says so, and the product owner checks it at acceptance.
 
 8.8. **Required.** Every session that reaches a device, whatever its role, runs on a Simulator of its own, which no other session uses. Sessions on one device install the same bundle ID, so concurrent `xcodebuild test` runs overwrite each other's app and share its data container; build products are separate per worktree, but the device isn't. `booted` doesn't name a device: when several devices are booted, `simctl` chooses one of them. So:
 
@@ -193,7 +193,7 @@ This section is this reference's default. An app may override any of it by recor
 
 Custom design-system components are expected; the order governs what they are built on. Packages are added with Swift Package Manager at their latest stable release, with the Up to Next Major Version rule; never copy a version from a sample, which drifts behind the stable releases.
 
-9.2. **Dependency listing.** The ticket's pull request lists every package the build adds compared with `main`, from the project's `Package.resolved`, including packages that another package brings with it. It marks each one first tier or third-party, so the product owner can confirm any that no decision named, or query a first-tier one.
+9.2. **Dependency listing.** The ticket lists every package the build adds compared with `main`, from the project's `Package.resolved`, including packages that another package brings with it. It marks each one first tier or third-party, so the product owner can confirm any that no decision named, or query a first-tier one.
 
 9.3. Wire dependencies by hand. Create services and app-wide models in the `App` type, pass them into initialisers, and put shared `@Observable` objects in the environment with `.environment(_:)`. No dependency-injection framework. **iOS 17+** (for the `Observable` overload of `.environment(_:)`).
 

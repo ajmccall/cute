@@ -105,7 +105,7 @@ The current stable toolchain on 2026-10-02: Xcode 27, with Swift 6.4 and the iOS
 
 **6.5.** Source: [Testing asynchronous code](https://developer.apple.com/documentation/testing/testing-asynchronous-code#Confirm-that-an-event-happens).
 
-**6.6.** Unit tests run inside the app: "The app process hosts the execution of your tests; tests are executed after receiving the applicationDidFinishLaunching notification" ([Running Tests and Viewing Results](https://developer.apple.com/library/archive/documentation/DeveloperTools/Conceptual/testing_with_xcode/chapters/05-running_tests.html), archived). That the ticket's pull request says how the tests keep away from the app's real data is a **Framework choice**.
+**6.6.** Unit tests run inside the app: "The app process hosts the execution of your tests; tests are executed after receiving the applicationDidFinishLaunching notification" ([Running Tests and Viewing Results](https://developer.apple.com/library/archive/documentation/DeveloperTools/Conceptual/testing_with_xcode/chapters/05-running_tests.html), archived). That the ticket says how the tests keep away from the app's real data is a **Framework choice**.
 
 **6.7.** **Framework choice**, from reviews where stubs passed and the store disagreed.
 
