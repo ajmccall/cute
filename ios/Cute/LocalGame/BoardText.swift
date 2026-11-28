@@ -17,6 +17,7 @@ enum BoardText {
             case .checkmate: String(localized: "Checkmate")
             case .resignation: String(localized: "Resignation")
             case .doubleDeclined: String(localized: "Double declined")
+            case .automaticDouble: String(localized: "Opponent stopped at automatic double")
             }
             return String(localized: "\(side) wins · \(reasonText)")
         case let .draw(reason):
@@ -24,9 +25,15 @@ enum BoardText {
             case .stalemate: String(localized: "Stalemate")
             case .insufficientMaterial: String(localized: "Insufficient material")
             case .agreement: String(localized: "Agreement")
+            case .automaticDouble: String(localized: "Both stopped at automatic double")
             }
             return String(localized: "Draw · \(reasonText)")
         case nil:
+            if game.isAwaitingAutomaticResponse {
+                let responder = side(game.automaticResponder)
+                let proposed = points((game.stake ?? 1) * 2)
+                return String(localized: "\(responder), continue at \(proposed)?")
+            }
             if game.isAwaitingDoubleResponse {
                 let responder = side(game.responder)
                 return String(localized: "\(responder), answer the double")
@@ -109,6 +116,13 @@ enum BoardText {
         guard let nextDoubler = game.nextDoubler else { return String(localized: "Either player can offer") }
         let side = side(nextDoubler)
         return String(localized: "Only \(side) can offer")
+    }
+
+    static func automaticEffects(stake: Int, spoken: Bool) -> String {
+        let proposed = points(stake * 2)
+        let current = points(stake)
+        let half = halfOf(stake, spoken: spoken)
+        return String(localized: "If both continue, play for \(proposed). If only one continues, they win \(current). If both stop, it’s a draw and each earns \(half).")
     }
 
     static func takeEffect(stake: Int) -> String {

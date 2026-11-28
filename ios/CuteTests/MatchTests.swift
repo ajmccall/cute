@@ -199,7 +199,7 @@ import Testing
         let saved = SavedGame(position: try #require(Position(fen: CapturesTests.afterExd5)), result: nil, stake: 2,
                               nextDoubler: .white, matchScore: MatchScore(white: 4.5, black: 3),
                               captures: Captures(white: [.pawn], black: []))
-        let contents = #"{"version": 4, "position": "\#(CapturesTests.afterExd5)", "result": null, "stake": 2, "nextDoubler": "white", "doublePending": false, "whiteTotal": 4.5, "blackTotal": 3, "captures": {"white": ["pawn"], "black": []}}"#
+        let contents = #"{"version": 5, "position": "\#(CapturesTests.afterExd5)", "result": null, "stake": 2, "nextDoubler": "white", "doublePending": false, "whiteTotal": 4.5, "blackTotal": 3, "captures": {"white": ["pawn"], "black": []}, "openingMilestoneUsed": false, "endgameMilestoneUsed": false, "automaticPending": false}"#
 
         try storage.store.save(saved)
         let written = try JSONSerialization.jsonObject(with: Data(contentsOf: storage.fileURL)) as? NSDictionary

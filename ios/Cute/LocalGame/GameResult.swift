@@ -5,11 +5,11 @@ nonisolated enum GameResult: Equatable, Sendable {
 }
 
 nonisolated enum WinReason: String, Codable, Sendable {
-    case checkmate, resignation, doubleDeclined
+    case checkmate, resignation, doubleDeclined, automaticDouble
 }
 
 nonisolated enum DrawReason: String, Codable, Sendable {
-    case stalemate, insufficientMaterial, agreement
+    case stalemate, insufficientMaterial, agreement, automaticDouble
 }
 
 /// The points a finished game awards for its stake.
