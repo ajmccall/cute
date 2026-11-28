@@ -18,6 +18,12 @@ Two people play a match of untimed chess games to 15 points by handing a phone b
 
 Material is not saved. Each colour's material is the total value of its pieces on the board: pawn 1, knight 3, bishop 3, rook 5, queen 9, and kings not counted. The colour with the higher total is ahead by the difference.
 
+### Testing control (one per device)
+
+| Field | Type | Saved | Notes |
+|---|---|---|---|
+| Automatic doubles | true or false | yes | Starts false on a fresh install. A device-local control for the whole automatic-doubling rule; not a setting saved per game. Remains set across app restarts and updates. |
+
 ### Match score (one per device)
 
 | Field | Type | Saved | Notes |
@@ -50,6 +56,8 @@ A game that ends awards its stake to the winner, or half its stake to each colou
 | playing, finished, match over | New match | Confirm replacement unless match over | playing | Replace the current game as for Next game, and set both totals to 0. Cancelling keeps the match. |
 | any | Reopen | Saved game exists | playing, awaiting double response, finished or match over | Restore the last committed game and match score. Unfinished promotions are not committed changes. An ongoing save from before the cube opens at one point with either player eligible on their turn, without changing the position or turn. A save from before matches opens as the first game of a match: an ongoing game at 0 to 0, a finished game with a stake with its award as the score, and a finished game from before the cube at 0 to 0. A save from before captures opens with no captures for either colour, without changing anything else. |
 
+The Automatic doubles control is read when checking whether to offer an automatic double, including in a game already under way. Turning it on does not replay past positions or add flag-specific handling for missed milestones. Once an automatic-double decision is presented, finish that decision before changing the control; changing it never reverses a stake or match points already awarded. The automatic-doubling rule itself is a separate feature and is not yet specified here (#62).
+
 Automatic endings: checkmate wins for the mover; stalemate draws. Draw for insufficient mating material with kings alone, just one bishop or knight besides the kings, or only bishops besides the kings with all bishops on squares of one colour. These are not tests for whether a mate can be *forced*.
 
 ## Screens and surfaces
@@ -74,6 +82,7 @@ Automatic endings: checkmate wins for the mover; stalemate draws. Draw for insuf
 | Board.score | match-score | Points each colour has in the match, and the target | Show White's and Black's totals and the target in every state, including during a double response and in match over. No game number and no list of earlier games. |
 | Board.captures | captured-pieces | Opponent's pieces each colour has taken in this game | In every state, show each colour's captures at that colour's edge of the board, so they move with the board when it turns, grouped by kind in the order pawn, knight, bishop, rook, queen with a count. A kind with one piece shows its icon alone; ×N is shown from 2 up, and the announced text keeps the count, such as “1 knight”. Each collection is named by its colour and announced as text, not by piece icons alone. Reflects only committed moves. |
 | Board.material | material-advantage | Which colour has more material on the board, and by how much | In every state, show +N beside the captures of the colour ahead in material, from the committed position, directly after its last captured piece in the same row rather than at the far edge, and nothing when material is equal. Never in point units and never placed or worded as part of the stake or match score. |
+| Board.automaticDoubles | switch | Control the experimental automatic-doubling rule | A visible switch on the game panel, available in every build; show its current setting. When a doubling decision is awaiting an answer, finish the decision before changing the switch. |
 | Board.actions | game-actions | Manage the current game and match | New match is available outside dialogs except during a double response. Next game only in finished. In match over, New match is the only action. Resign and agree draw only while playing. Confirm an agreed draw on behalf of both people at the board. Offer double is actionable only for an eligible side to move. |
 | Double response.actions | double-choice | Resolve the offer | Name the responder and explain the point consequences of Take and Decline alongside the two actions, including when declining ends the match. |
 | Promotion.options | piece-choice | Complete promotion | Queen, rook, bishop or knight of the mover's colour. |
@@ -90,6 +99,7 @@ Automatic endings: checkmate wins for the mover; stalemate draws. Draw for insuf
 | stake | Stake: {stake} | Include point units. |
 | doubleRight | Either player can offer / Only {next doubler} can offer / Maximum stake reached | Right to offer on one's own turn. |
 | offer | Offer double | Makes the offer at once, without confirmation. |
+| automaticDoubles | Automatic doubles | Label for the testing switch. |
 | response | {responder}, answer the double | Responder is White or Black. |
 | take / decline | Take / Decline | Actions for the responder. |
 | takeEffect | Take: play for {doubled stake}. | Include point units. |
@@ -141,3 +151,5 @@ None
 - **C16.** In every state, including during a double response, a finished game and match over, the board shall show the pieces each player has captured in this game at that player's edge of the board, moving with them when the board turns. When a capturing move is committed, including en passant or a capture of a promoted piece, the piece that stood on the captured square shall join the mover's captures, saved with the move, and reopening shall show the same captures. A fresh game, by Next game or New match, shall start with no captures, and a game saved before captures shall open with none.
 - **C17.** In every state, the board shall show +N beside the player with more material on the board, N being the difference between the players' totals of pawn 1, knight 3, bishop 3, rook 5 and queen 9, kings excluded, and no number when material is equal. A promotion shall change the balance when it is committed, whether or not it captures. VoiceOver and TalkBack shall announce each player's captures by colour, kind and count, and the advantage by colour and amount, without point units and apart from the stake and match score.
 - **C18.** On a phone, the app shall stay in portrait when the phone is rotated, and the players shall still be able to play. The board shall still turn to face the appropriate player as play proceeds.
+- **C19.** The game panel shall show an Automatic doubles switch in every build, off on a fresh install. Changing it shall not require a new build, and its setting shall persist across app restarts and updates. A pending doubling decision shall be completed before changing the switch. With the switch off, voluntary doubling and match rules shall still work as specified above.
+- **C20.** When the automatic-doubling rule is available, the app shall read the current switch setting when checking whether to offer an automatic double, including in an existing or ongoing game. Off shall prevent new automatic-double decisions; on shall use the rule's normal trigger logic without replaying past positions. A decision already presented shall be completed, and changing the switch shall not reverse a stake or match points already awarded. The automatic-doubling rule is a separate feature and must verify this criterion when built (#62).
