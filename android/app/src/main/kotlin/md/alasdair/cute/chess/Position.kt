@@ -91,9 +91,11 @@ enum class EndReason(val decisive: Boolean) {
     Checkmate(decisive = true),
     Resignation(decisive = true),
     DoubleDeclined(decisive = true),
+    OpponentStopped(decisive = true),
     Stalemate(decisive = false),
     InsufficientMaterial(decisive = false),
-    Agreement(decisive = false)
+    Agreement(decisive = false),
+    BothStopped(decisive = false)
 }
 
 /** How a game ended: the [winner], or none for a draw, and why. */

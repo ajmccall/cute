@@ -7,9 +7,12 @@ import android.os.ParcelFileDescriptor
 import android.os.SystemClock
 import androidx.activity.ComponentActivity
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.hasText
+import androidx.compose.ui.test.isOn
 import androidx.compose.ui.test.junit4.v2.createAndroidComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
+import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
 import androidx.test.platform.app.InstrumentationRegistry
 import org.junit.After
@@ -125,6 +128,36 @@ class LargeTextTest {
         board.tapText("Take")
         board.awaitText("White to move")
         rule.onNodeWithText("Stake: 2 points").performScrollTo().assertIsDisplayed()
+    }
+
+    @Test
+    fun c22_bothAutomaticPromptsCanBeReadAndAnsweredAtLargeText() {
+        board.seed("4k3/8/8/8/8/8/4P3/4K2R w K - 0 1")
+        board.launch()
+        board.awaitText("White to move")
+        rule.onNodeWithText("Automatic doubles").performScrollTo().performClick()
+        rule.waitUntil(BoardHarness.TIMEOUT) {
+            rule.onAllNodes(hasText("Automatic doubles") and isOn())
+                .fetchSemanticsNodes().isNotEmpty()
+        }
+        board.square("e4").performScrollTo()
+        board.square("e2").performScrollTo()
+        board.tap("e2", "e4")
+        for (side in listOf("White", "Black")) {
+            board.awaitText("$side, continue at 2 points?")
+            for (text in listOf(
+                "$side, continue at 2 points?",
+                "Stake: 1 point",
+                "If both continue, play for 2 points. If only one continues, they win 1 point. " +
+                    "If both stop, it’s a draw and each earns ½ point.",
+                "Continue",
+                "Stop"
+            )) {
+                rule.onNodeWithText(text).performScrollTo().assertIsDisplayed()
+            }
+            rule.onNodeWithText("Continue").performScrollTo().performClick()
+        }
+        board.awaitText("Black to move")
     }
 
     @Test
