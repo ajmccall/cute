@@ -220,6 +220,42 @@ class AutomaticDoublesTest {
     }
 
     @Test
+    fun `failed move remains retryable when the switch is attempted`() = runTest {
+        val game = device.launch()
+        device.folder.setWritable(false)
+        try {
+            game.move("e2", "e4")
+            assertEquals(Failure.Write, game.state.failure)
+        } finally {
+            device.folder.setWritable(true)
+        }
+        game.onAutomaticDoublesChanged(true)
+        assertFalse(game.state.automaticDoubles)
+        assertEquals(Failure.Write, game.state.failure)
+        game.onRetry()
+        assertEquals(Side.Black, game.state.game!!.position.sideToMove)
+        assertFalse(device.launch().state.automaticDoubles)
+    }
+
+    @Test
+    fun `failed switch remains retryable when a move is attempted`() = runTest {
+        val game = device.launch()
+        device.folder.setWritable(false)
+        try {
+            game.onAutomaticDoublesChanged(true)
+            assertEquals(Failure.Write, game.state.failure)
+        } finally {
+            device.folder.setWritable(true)
+        }
+        game.move("e2", "e4")
+        assertEquals(Side.White, game.state.game!!.position.sideToMove)
+        assertEquals(Failure.Write, game.state.failure)
+        game.onRetry()
+        assertTrue(game.state.automaticDoubles)
+        assertEquals(Side.White, device.launch().state.game!!.position.sideToMove)
+    }
+
+    @Test
     fun `switch save failure leaves its committed value and permits retry`() = runTest {
         val game = device.launch()
         device.folder.setWritable(false)

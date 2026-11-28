@@ -136,6 +136,7 @@ fun BoardScreen(state: LocalGameUiState, actions: BoardActions, modifier: Modifi
                         destinations = state.destinations,
                         enabled =
                         game.result == null &&
+                            !state.failedSetting &&
                             !game.doublePending &&
                             game.automaticPending == null,
                         onSquareTapped = actions.onSquareTapped,
@@ -152,6 +153,7 @@ fun BoardScreen(state: LocalGameUiState, actions: BoardActions, modifier: Modifi
                 Row(
                     Modifier.padding(horizontal = 16.dp).toggleable(
                         value = state.automaticDoubles,
+                        enabled = state.failure != Failure.Write || state.failedSetting,
                         role = Role.Switch,
                         onValueChange = actions.onAutomaticDoublesChanged
                     ).padding(8.dp),
@@ -178,23 +180,23 @@ fun BoardScreen(state: LocalGameUiState, actions: BoardActions, modifier: Modifi
                 ) {
                     // Next game leads once a game has finished with the match under way.
                     if (game?.canStartNextGame == true) {
-                        Button(onClick = actions.onNextGame) {
+                        Button(onClick = actions.onNextGame, enabled = !state.failedSetting) {
                             Text(stringResource(R.string.next_game))
                         }
                     }
-                    OutlinedButton(onClick = actions.onNewMatch) {
+                    OutlinedButton(onClick = actions.onNewMatch, enabled = !state.failedSetting) {
                         Text(stringResource(R.string.new_match))
                     }
                     if (game != null && game.result == null) {
-                        OutlinedButton(onClick = actions.onResign) {
+                        OutlinedButton(onClick = actions.onResign, enabled = !state.failedSetting) {
                             Text(stringResource(R.string.resign))
                         }
-                        OutlinedButton(onClick = actions.onAgreeDraw) {
+                        OutlinedButton(onClick = actions.onAgreeDraw, enabled = !state.failedSetting) {
                             Text(stringResource(R.string.agree_draw))
                         }
                         OutlinedButton(
                             onClick = actions.onOfferDouble,
-                            enabled = state.canOfferDouble
+                            enabled = state.canOfferDouble && !state.failedSetting
                         ) {
                             Text(stringResource(R.string.offer_double))
                         }

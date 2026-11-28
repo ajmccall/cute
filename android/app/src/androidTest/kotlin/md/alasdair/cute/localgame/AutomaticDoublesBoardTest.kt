@@ -30,6 +30,42 @@ class AutomaticDoublesBoardTest {
 
     @After fun cleanUp() = board.cleanUp()
 
+    @Test fun failedMoveDisablesSwitchUntilRetry() {
+        board.launch()
+        board.awaitText("White to move")
+        board.folder.setWritable(false)
+        try {
+            board.tap("e2", "e4")
+            board.awaitText("Change not saved.")
+            rule.onNodeWithText("Automatic doubles").performScrollTo().assertIsNotEnabled()
+            board.folder.setWritable(true)
+            rule.onNodeWithText("Retry").performScrollTo().performClick()
+            board.awaitText("Black to move")
+            rule.onNodeWithText("Automatic doubles").performScrollTo().assertIsEnabled()
+        } finally {
+            board.folder.setWritable(true)
+        }
+    }
+
+    @Test fun failedSwitchDisablesGameActionsUntilRetry() {
+        board.launch()
+        board.awaitText("White to move")
+        board.folder.setWritable(false)
+        try {
+            rule.onNodeWithText("Automatic doubles").performScrollTo().performClick()
+            board.awaitText("Change not saved.")
+            rule.onNodeWithTag("square-e2").assertIsNotEnabled()
+            rule.onNodeWithText("New match").performScrollTo().assertIsNotEnabled()
+            rule.onNodeWithText("Offer double").performScrollTo().assertIsNotEnabled()
+            board.folder.setWritable(true)
+            rule.onNodeWithText("Retry").performScrollTo().performClick()
+            awaitSwitchOn()
+            rule.onNodeWithTag("square-e2").assertIsEnabled()
+        } finally {
+            board.folder.setWritable(true)
+        }
+    }
+
     @Test fun failedFirstAnswerReopensAtTheFirstPrompt() {
         board.seed("4k3/8/8/8/8/8/4P3/4K2R w K - 0 1")
         board.launch()
