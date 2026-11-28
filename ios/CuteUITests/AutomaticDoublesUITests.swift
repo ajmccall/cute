@@ -95,8 +95,11 @@ final class AutomaticDoublesUITests: XCTestCase {
         board.expectStatus("Draw · Both stopped at automatic double")
         board.expectText("award", "Each player earns 1 point.")
         board.expectText("matchResult", "Match drawn, 15 to 15")
+        XCTAssertFalse(board.app.switches["Automatic doubles"].exists)
+        try board.auditAccessibility()
         board.launch()
         board.expectText("matchResult", "Match drawn, 15 to 15")
+        XCTAssertFalse(board.app.switches["Automatic doubles"].exists)
     }
 
     @MainActor func testOpeningMilestoneAndStakeCapOnRealBoard() throws {
@@ -119,12 +122,14 @@ final class AutomaticDoublesUITests: XCTestCase {
         board.expectStatus("Black to move")
         board.expectText("stake", "Stake: 64 points")
         XCTAssertFalse(board.offerDouble.isEnabled)
+        try board.auditAccessibility()
 
         board.launch(seedFile: DoublingUITests.savedGame(fen, stake: 64, nextDoubler: "white"))
         board.tap("e2", "e4")
         board.expectStatus("Black to move")
         board.expectText("stake", "Stake: 64 points")
         XCTAssertFalse(board.app.buttons["Continue"].exists)
+        try board.auditAccessibility()
     }
 
     @MainActor func testFailedSaveRestoresEachLastCommittedAutomaticStep() throws {

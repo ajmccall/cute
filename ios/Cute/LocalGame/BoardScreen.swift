@@ -109,9 +109,11 @@ struct BoardScreen: View {
                 ActionRow { actions }
                     .padding(.horizontal)
             }
-            Toggle("Automatic doubles", isOn: $automaticDoubles)
-                .disabled(game.isAwaitingDoubleResponse || game.isAwaitingAutomaticResponse)
-                .padding(.horizontal)
+            if !game.isMatchOver {
+                Toggle("Automatic doubles", isOn: $automaticDoubles)
+                    .disabled(game.isAwaitingDoubleResponse || game.isAwaitingAutomaticResponse)
+                    .padding(.horizontal)
+            }
         }
     }
 
