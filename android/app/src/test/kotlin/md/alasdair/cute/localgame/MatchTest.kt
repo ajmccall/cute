@@ -273,13 +273,14 @@ class MatchTest {
     }
 
     @Test
-    fun `a save keeps its version-4 form, which opens as the same game`() = runTest {
+    fun `a save opens as the same game after the automatic doubles upgrade`() = runTest {
         device.save("playing", stake = "2", nextDoubler = "White", white = 9, black = 4)
         val game = device.launch()
 
         game.move("e2", "e4")
 
-        val saved = "cute-game 4\n$AFTER_E4\nplaying\n2\nWhite\nanswered\n9\n4\nnone\nnone\n"
+        val saved = "cute-game 5\n$AFTER_E4\nplaying\n2\nWhite\nanswered\n9\n4\n" +
+            "none\nnone\ntrue\ntrue\nnone\n"
         assertEquals(saved, device.gameFile.readText())
         val reopened = device.launch()
         assertEquals(game.state.game, reopened.state.game)

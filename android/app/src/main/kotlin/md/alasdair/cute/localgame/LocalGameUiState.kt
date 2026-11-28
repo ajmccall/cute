@@ -12,6 +12,7 @@ import md.alasdair.cute.localgame.data.GameRecord
  */
 data class LocalGameUiState(
     val loading: Boolean = true,
+    val automaticDoubles: Boolean = false,
     val game: GameRecord? = null,
     val selection: Square? = null,
     val destinations: Set<Square> = emptySet(),
@@ -27,6 +28,10 @@ data class LocalGameUiState(
      * awaits an answer, the side that must answer it. The chess turn doesn't change.
      */
     val bottomSide: Side get() {
+        val automatic = game?.automaticPending
+        if (automatic != null) {
+            return if (automatic.firstAnswer == null) sideToMove.opponent else sideToMove
+        }
         val pending = game?.doublePending ?: false
         return if (pending) sideToMove.opponent else sideToMove
     }

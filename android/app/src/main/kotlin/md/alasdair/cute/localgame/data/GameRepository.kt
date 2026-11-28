@@ -68,6 +68,8 @@ data class MaterialAdvantage(val side: Side, val amount: Int)
  * answer it. [captures] are the pieces each side has taken in this game. [matchScore] includes
  * this game's award once it has ended.
  */
+data class AutomaticDecision(val firstAnswer: Boolean? = null)
+
 data class GameRecord(
     val position: Position,
     val result: GameResult?,
@@ -75,7 +77,10 @@ data class GameRecord(
     val nextDoubler: Side? = null,
     val doublePending: Boolean = false,
     val captures: Captures = Captures.None,
-    val matchScore: MatchScore = MatchScore.Zero
+    val matchScore: MatchScore = MatchScore.Zero,
+    val openingAvailable: Boolean = true,
+    val endgameAvailable: Boolean = true,
+    val automaticPending: AutomaticDecision? = null
 ) {
     /** This game's award once it has ended: the stake to the winner, or half to each on a draw. */
     val award: MatchScore get() = award(result, stake)
@@ -97,13 +102,42 @@ data class GameRecord(
      * This game after the side to move plays [move], which must be legal: the new position,
      * any captured piece added to the mover's captures, and any automatic ending with its award.
      */
-    fun played(move: Move): GameRecord {
+    fun played(move: Move, automaticDoubles: Boolean = false): GameRecord {
         val taken = position.captured(move)
         val next = copy(
             position = position.play(move),
             captures = taken?.let { captures.withCapture(position.sideToMove, it.type) } ?: captures
         )
-        return next.position.automaticResult()?.let(next::ended) ?: next
+        next.position.automaticResult()?.let { return next.ended(it) }
+        if (!automaticDoubles) return next
+        val endgame = next.endgameAvailable &&
+            next.position.board.values.count {
+                it.type != PieceType.King && it.type != PieceType.Pawn
+            } <= 4
+        val starting = mapOf(
+            "b1" to md.alasdair.cute.chess.Piece(Side.White, PieceType.Knight),
+            "g1" to md.alasdair.cute.chess.Piece(Side.White, PieceType.Knight),
+            "c1" to md.alasdair.cute.chess.Piece(Side.White, PieceType.Bishop),
+            "f1" to md.alasdair.cute.chess.Piece(Side.White, PieceType.Bishop),
+            "b8" to md.alasdair.cute.chess.Piece(Side.Black, PieceType.Knight),
+            "g8" to md.alasdair.cute.chess.Piece(Side.Black, PieceType.Knight),
+            "c8" to md.alasdair.cute.chess.Piece(Side.Black, PieceType.Bishop),
+            "f8" to md.alasdair.cute.chess.Piece(Side.Black, PieceType.Bishop)
+        )
+        val opening = next.openingAvailable &&
+            starting.count { (square, piece) ->
+                next.position[md.alasdair.cute.chess.Square.of(square)] != piece
+            } >= 6
+        if (!endgame && !opening) return next
+        return next.copy(
+            openingAvailable = false,
+            endgameAvailable = if (endgame) false else next.endgameAvailable,
+            automaticPending = if (next.stake != null && next.stake < MAX_STAKE) {
+                AutomaticDecision()
+            } else {
+                null
+            }
+        )
     }
 
     /** Whether this game has ended and taken either total to the target, ending the match. */
@@ -146,6 +180,7 @@ data class GameRecord(
     val canOfferDouble: Boolean get() =
         result == null &&
             !doublePending &&
+            automaticPending == null &&
             stake != null &&
             stake < MAX_STAKE &&
             (nextDoubler == null || nextDoubler == position.sideToMove)
@@ -174,6 +209,9 @@ data class GameRecord(
 
 /** The single source of truth for the device's one current game. */
 interface GameRepository {
+    suspend fun loadAutomaticDoubles(): Boolean = false
+    suspend fun saveAutomaticDoubles(enabled: Boolean) = Unit
+
     /** The saved game, or null when none has been saved. Throws when it can't be read. */
     suspend fun load(): GameRecord?
 
