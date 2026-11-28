@@ -125,4 +125,11 @@
     <string name="rook">Rook</string>
     <string name="bishop">Bishop</string>
     <string name="knight">Knight</string>
+    <string name="reason_opponent_stopped">Opponent stopped at automatic double</string>
+    <string name="reason_both_stopped">Both stopped at automatic double</string>
+    <string name="automatic_doubles">Automatic doubles</string>
+    <string name="automatic_response">%1$s, continue at %2$s?</string>
+    <string name="automatic_effects">If both continue, play for %1$s. If only one continues, they win %2$s. If both stop, it’s a draw and each earns %3$s.</string>
+    <string name="automatic_continue">Continue</string>
+    <string name="automatic_stop">Stop</string>
 </resources>
